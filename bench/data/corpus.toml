@@ -1,0 +1,136 @@
+# Pinned English Wikipedia corpus for the long-context tests.
+#
+# Source: English Wikipedia, https://en.wikipedia.org/w/index.php?oldid=<revid>
+# License of the article text: CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/),
+# authors are listed in each article history. The text is NOT part of this repository:
+# it is downloaded at run time and cached under .bench/cache/corpus/<revid>.txt.
+# This file only holds title, revision id and the sha256 of the plain text, so every
+# machine verifies that it works on byte-identical text.
+#
+# sha256 covers the UTF-8 output of bench.corpus.wikitext_to_text for that revision.
+# To pin other articles: python -m bench.corpus pin <title> [<title> ...]
+
+[[article]]
+title = "Rhine"
+revid = 1381219422
+sha256 = "47509ce65cc7b23d7c7c649fca8df38a9e931fa6d9a65593f566b707f3d5e35e"
+
+[[article]]
+title = "Danube"
+revid = 1381819022
+sha256 = "1cda9f942b552e80c0d0a401b13954c08cecb66e1fdde3a89a8e89f881da2e2f"
+
+[[article]]
+title = "Elbe"
+revid = 1381670654
+sha256 = "b97b294c156f83e62f9faea2416a173b637f5a3721ca0aaa5170e5884f78ab5c"
+
+[[article]]
+title = "Hamburg"
+revid = 1382806737
+sha256 = "e5667a308c72c228eb2b792038b3f7c8a7563e75b97c73b5f760237d192a3c8d"
+
+[[article]]
+title = "Munich"
+revid = 1382866033
+sha256 = "8098ca97531bb5f82a336e3fd6886f462bd96c1a2ad29c6012965ece986f7101"
+
+[[article]]
+title = "Frankfurt"
+revid = 1383038824
+sha256 = "0f6aad04ef1f478d4f5b91bd9727f0cae8c0c53701bf2554fcebc03d98cf7f2f"
+
+[[article]]
+title = "Moscow"
+revid = 1383089166
+sha256 = "5dd8b58cf58ea5b65c3d447fe1df89ffb95b6352a80e8cbd84595f446f7f68da"
+
+[[article]]
+title = "Istanbul"
+revid = 1383023300
+sha256 = "5ef1e4af11ed33152fdea76744bfd8a8a769eff675dd5200d0edf0a5dc33d7af"
+
+[[article]]
+title = "Stuttgart"
+revid = 1382805188
+sha256 = "bc7cbbff25de1b195ed8894cf8f6a7f9667561c66b0b6bc2b004dc4b836224f9"
+
+[[article]]
+title = "Paris"
+revid = 1383016039
+sha256 = "522451e90cef4c19c4f47e5396473ab14d23d79980305b555fcf9253b52a7e09"
+
+[[article]]
+title = "Budapest"
+revid = 1381556232
+sha256 = "c84609fab951b145e86a8cfe0f63aeb848cf1dbfbc13a9003a06018792e65fcc"
+
+[[article]]
+title = "Madrid"
+revid = 1382142097
+sha256 = "67baee737a6596ad73183902dd4598d331e4b4b2646eb9c22f1117f9cae22868"
+
+[[article]]
+title = "Amsterdam"
+revid = 1382950169
+sha256 = "037232cd1653f5434d60fe674fe0fea920d5f416ba2b86593ed53a7b3aa72d2a"
+
+[[article]]
+title = "Brussels"
+revid = 1383062342
+sha256 = "5839ea608cf776b7461f4dbe8eafaf34384706802ac84b85c79fe0a7c5148a35"
+
+[[article]]
+title = "Rome"
+revid = 1382318051
+sha256 = "87d46b1a448671e932a7657a60c59007a92f2325df66c0f58504adcc7dc7a427"
+
+[[article]]
+title = "Warsaw"
+revid = 1381316119
+sha256 = "dd20a053899909ab68051bfc5e3974d4e2378dad9a037f4355efe5c52de7c368"
+
+[[article]]
+title = "Copenhagen"
+revid = 1383450020
+sha256 = "8fcca1bb858e73fe1ac0b3712c73d572b447ae268d784d5ee113b8847916f0bf"
+
+[[article]]
+title = "Berlin"
+revid = 1383031728
+sha256 = "27bfe717b594d7aa49b0d3ab67ea0b3b4d6530344c5fa6348ff40627cda0e23b"
+
+[[article]]
+title = "Vienna"
+revid = 1382136598
+sha256 = "91a73ce2e62686f73c342c598db3c68958bb973a9eeedb36bd520c9fefea63dc"
+
+[[article]]
+title = "Colorado River"
+revid = 1381249092
+sha256 = "98ff488dbabd9f25ec28f992c6c810884d4d4a89d40fb46f344c6551c99b7d69"
+
+[[article]]
+title = "Missouri River"
+revid = 1383484291
+sha256 = "b2e44caf6e81d5b5f45f9fc2137ca6e7f6cc43a060acd756ddad42b3f4ebfcd1"
+
+[[article]]
+title = "River Thames"
+revid = 1378323739
+sha256 = "33d973e7846ed1ea1334d437195dd0c0511c2377beb467225d84ab2285ec1b69"
+
+[[article]]
+title = "Ganges"
+revid = 1382657561
+sha256 = "18ad929e1c38e36bd42c4b6c0236ff01df84022c2658e3260763b1b031333902"
+
+[[article]]
+title = "Mississippi River"
+revid = 1383447685
+sha256 = "d33763ad7f8d3874eb6b35aa35a72688914e98190c7c0baf0e170c7b9ca99afe"
+
+[[article]]
+title = "Nile"
+revid = 1368885921
+sha256 = "f8debcbb1857f8793824a28edb2f25a8067033633bbcb3c5743a39b41b99ab30"
