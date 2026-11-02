@@ -35,17 +35,22 @@ class Owned:
     """A child process of this program: `with Owned(argv, env=..., log_path=...) as p:`.
 
     `env` entries are added to a copy of the current environment for the child only.
-    stdout and stderr go to `log_path` (parent directories are created).
+    stdout and stderr go to `log_path` (parent directories are created). With
+    `stdout_path`, stdout goes to that file instead and `log_path` keeps only stderr,
+    for programs whose stdout is data (for example JSON) and must not be mixed with logs.
     """
 
     def __init__(self, argv: Sequence[str | os.PathLike], *, log_path: Path,
-                 env: dict[str, str] | None = None, cwd: Path | None = None):
+                 env: dict[str, str] | None = None, cwd: Path | None = None,
+                 stdout_path: Path | None = None):
         self.argv = [str(a) for a in argv]
         self.env = dict(env or {})
         self.log_path = Path(log_path)
+        self.stdout_path = Path(stdout_path) if stdout_path else None
         self.cwd = cwd
         self._proc: subprocess.Popen | None = None
         self._log = None
+        self._out = None
 
     def start(self) -> "Owned":
         if self._proc is not None:
@@ -60,9 +65,13 @@ class Owned:
         try:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
             self._log = self.log_path.open("ab")
+            if self.stdout_path is not None:
+                self.stdout_path.parent.mkdir(parents=True, exist_ok=True)
+                self._out = self.stdout_path.open("wb")
             self._proc = subprocess.Popen(
-                self.argv, stdin=subprocess.DEVNULL, stdout=self._log,
-                stderr=subprocess.STDOUT, env=child_env, cwd=self.cwd, **options)
+                self.argv, stdin=subprocess.DEVNULL, stdout=self._out or self._log,
+                stderr=self._log if self._out else subprocess.STDOUT, env=child_env,
+                cwd=self.cwd, **options)
         except (OSError, ValueError) as err:  # ValueError: for example a NUL in an argument
             self._close_log()
             raise ProcError(
@@ -87,6 +96,15 @@ class Owned:
         except OSError:
             return ""
         return data.decode("utf-8", errors="replace").strip()
+
+    def wait(self, timeout: float) -> int:
+        """Wait for the process to exit; returns its exit code. Does not stop it on timeout."""
+        if self._proc is None:
+            raise ProcError("process not started")
+        try:
+            return self._proc.wait(timeout)
+        except subprocess.TimeoutExpired:
+            raise ProcError(f"still running after {timeout:g} s") from None
 
     def wait_until(self, predicate: Callable[[], bool], timeout: float,
                    interval: float = 0.2) -> None:
@@ -148,9 +166,11 @@ class Owned:
             pass
 
     def _close_log(self) -> None:
-        if self._log is not None:
-            self._log.close()
-            self._log = None
+        for name in ("_log", "_out"):
+            handle = getattr(self, name)
+            if handle is not None:
+                handle.close()
+                setattr(self, name, None)
 
     def __enter__(self) -> "Owned":
         return self.start()

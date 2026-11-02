@@ -1,0 +1,25 @@
+{
+  "index": 0,
+  "content": " The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick",
+  "id_slot": 0,
+  "stop": true,
+  "model": "C:\\models\\model.gguf",
+  "tokens_predicted": 32,
+  "tokens_evaluated": 601,
+  "has_new_line": false,
+  "truncated": false,
+  "stop_type": "limit",
+  "stopping_word": "",
+  "tokens_cached": 632,
+  "timings": {
+    "cache_n": 597,
+    "prompt_n": 4,
+    "prompt_ms": 29.288,
+    "prompt_per_token_ms": 7.322,
+    "prompt_per_second": 136.5747063643813,
+    "predicted_n": 32,
+    "predicted_ms": 176.566,
+    "predicted_per_token_ms": 5.695677419354839,
+    "predicted_per_second": 175.57174087876487
+  }
+}

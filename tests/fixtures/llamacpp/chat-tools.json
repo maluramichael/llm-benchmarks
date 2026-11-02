@@ -1,0 +1,46 @@
+{
+  "choices": [
+    {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"city\":\"Berlin\"}"
+            },
+            "id": "AkfIkrIRMrCusoWOBEgZBcwWg8oUEAq2"
+          }
+        ]
+      }
+    }
+  ],
+  "created": 1793661935,
+  "model": "C:\\models\\model.gguf",
+  "system_fingerprint": "b12061-d02b4c0d6",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 26,
+    "prompt_tokens": 282,
+    "total_tokens": 308,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "id": "chatcmpl-0jNlFRwq0q6eR8RGr9vFxYv7b5W0mn5H",
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 282,
+    "prompt_ms": 80.484,
+    "prompt_per_token_ms": 0.2854042553191489,
+    "prompt_per_second": 3503.801997912629,
+    "predicted_n": 26,
+    "predicted_ms": 141.738,
+    "predicted_per_token_ms": 5.66952,
+    "predicted_per_second": 176.381774823971
+  }
+}

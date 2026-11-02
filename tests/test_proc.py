@@ -68,6 +68,24 @@ class OwnedTest(ProcTestCase):
         self.assertIn("hello", text)
         self.assertIn("err", text)
 
+    def test_stdout_path_separates_stdout_from_the_log(self):
+        out = self.dir / "out" / "stdout.txt"
+        script = "import sys; print('data'); print('noise', file=sys.stderr)"
+        owned = proc.Owned([PY, "-c", script], log_path=self.log, stdout_path=out).start()
+        self.assertEqual(owned.wait(10), 0)
+        owned.stop()
+        self.assertEqual(out.read_text(encoding="utf-8").strip(), "data")
+        self.assertEqual(self.log.read_text(encoding="utf-8").strip(), "noise")
+
+    def test_wait_returns_exit_code_and_times_out(self):
+        owned = proc.Owned([PY, "-c", "raise SystemExit(3)"], log_path=self.log).start()
+        self.assertEqual(owned.wait(10), 3)
+        owned.stop()
+        with proc.Owned(SLEEP, log_path=self.log) as sleeper:
+            with self.assertRaises(proc.ProcError):
+                sleeper.wait(0.3)
+            self.assertTrue(sleeper.running)  # waiting does not stop it
+
     def test_env_does_not_leak_into_parent(self):
         self.assertNotIn("BENCH_LEAK", os.environ)
         with proc.Owned(SLEEP, env={"BENCH_LEAK": "1"}, log_path=self.log):

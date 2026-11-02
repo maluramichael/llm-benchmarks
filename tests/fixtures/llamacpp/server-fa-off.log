@@ -1,0 +1,18 @@
+0.00.101.900 I cmn  common_param: common_params_print_info: build 12061 (d02b4c0d6) with Clang 20.1.8 for Windows x86_64
+0.00.176.708 I cmn  common_param:   - CUDA0   : NVIDIA GeForce RTX 3090 (24575 MiB, 23332 MiB free)
+0.00.176.722 I cmn  common_param:   - CPU     : AMD Ryzen 9 5950X 16-Core Processor             (130998 MiB, 115293 MiB free)
+0.00.247.102 I llama_prepare_model_devices: using device CUDA0 (NVIDIA GeForce RTX 3090) - 23332 MiB free
+0.02.309.865 I load_tensors: offloading output layer to GPU
+0.02.309.871 I load_tensors: offloading 31 repeating layers to GPU
+0.02.309.871 I load_tensors: offloaded 33/33 layers to GPU
+0.02.309.874 I load_tensors:   CPU_Mapped model buffer size =   497.31 MiB
+0.02.309.878 I load_tensors:        CUDA0 model buffer size =  2515.44 MiB
+0.03.154.358 I llama_context: flash_attn            = disabled
+0.03.163.289 I llama_kv_cache:      CUDA0 KV buffer size =   256.00 MiB
+0.03.163.295 I llama_kv_cache: size =  256.00 MiB (  8192 cells,   8 layers,  1/1 seqs), K (f16):  128.00 MiB, V (f16):  128.00 MiB
+0.03.165.771 I llama_memory_recurrent:      CUDA0 RS buffer size =    50.25 MiB
+0.03.165.784 I llama_memory_recurrent: size =   50.25 MiB (     1 cells,  32 layers,  1 seqs  0 rs_seq), R (f32):    2.25 MiB, S (f32):   48.00 MiB, P (f32):    0.00 MiB
+0.03.174.578 I sched_reserve:      CUDA0 compute buffer size =   320.02 MiB
+0.03.174.583 I sched_reserve:  CUDA_Host compute buffer size =    40.02 MiB
+0.03.234.552 I srv  server_run_i: model loaded
+0.03.234.556 I srv  server_on_li: listening on http://127.0.0.1:18182

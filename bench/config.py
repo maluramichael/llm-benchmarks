@@ -10,7 +10,8 @@ from pathlib import Path
 ENGINES = ("ollama", "llamacpp")
 SUITES = ("speed", "memory", "smoke", "concurrency")
 SCOPES = ("full", "no-context", "warm-only")
-LLAMA_BACKENDS = ("cuda", "vulkan", "metal", "rocm", "cpu")
+# "cuda" is the CUDA 12.x build (runs on Pascal); "cuda13" must be asked for.
+LLAMA_BACKENDS = ("cuda", "cuda13", "vulkan", "metal", "rocm", "cpu")
 COMMANDS = {
     "system": "Collect and show system information, suggest a device name",
     "doctor": "Check prerequisites (uptime, open programs, monitors, driver settings)",

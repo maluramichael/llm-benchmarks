@@ -1,0 +1,36 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\n  \"capital\": \"Paris\"\n}"
+      }
+    }
+  ],
+  "created": 1793661936,
+  "model": "C:\\models\\model.gguf",
+  "system_fingerprint": "b12061-d02b4c0d6",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 12,
+    "prompt_tokens": 20,
+    "total_tokens": 32,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "id": "chatcmpl-guFLNl2IH2gm2zUDqWEbXeYDewInVbQK",
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 20,
+    "prompt_ms": 64.58,
+    "prompt_per_token_ms": 3.229,
+    "prompt_per_second": 309.6934035305048,
+    "predicted_n": 12,
+    "predicted_ms": 92.686,
+    "predicted_per_token_ms": 8.426,
+    "predicted_per_second": 118.68027533823877
+  }
+}

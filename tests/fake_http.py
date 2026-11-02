@@ -3,6 +3,7 @@
 Routes map a path to a reply:
   dict          sent as JSON
   str           sent as is (for example ndjson)
+  bytes         sent as is (for example a zip archive)
   list          streamed, items are text or (delay_seconds, text), flushed one by one
   callable      called with the decoded request body, returns one of the above
 Every request is recorded in `requests` as (method, path, decoded JSON body or None).
@@ -43,6 +44,8 @@ class FakeServer:
                     self.wfile.write(json.dumps(reply).encode())
                 elif isinstance(reply, str):
                     self.wfile.write(reply.encode())
+                elif isinstance(reply, bytes):
+                    self.wfile.write(reply)
                 else:
                     for item in reply:
                         delay, text = item if isinstance(item, tuple) else (0, item)
