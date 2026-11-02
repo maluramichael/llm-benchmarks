@@ -193,7 +193,7 @@ class PersistenceTest(StoreTestCase):
                         side_effect=lambda a, b: (calls.append("replace"), real_replace(a, b))[1]):
             ResultStore(self.path).save(KEY, "ok", {})
         self.assertGreaterEqual(calls.count("fsync"), 1)
-        self.assertEqual(calls.index("fsync") < calls.index("replace"), True)
+        self.assertLess(calls.index("fsync"), calls.index("replace"))
 
 
 class AtomicWriteTest(StoreTestCase):
@@ -227,6 +227,53 @@ class AtomicWriteTest(StoreTestCase):
         self.assertEqual(store.get("a")["status"], "ok")
         store.save("b", "ok", {"n": 2})
         self.assertEqual(sorted(self.on_disk()["tests"]), ["a", "b"])
+
+    def test_replace_retried_on_transient_lock(self):
+        store = ResultStore(self.path)
+        real_replace = os.replace
+        failures = [PermissionError("locked"), PermissionError("locked")]
+
+        def flaky(src, dst):
+            if failures:
+                raise failures.pop()
+            real_replace(src, dst)
+
+        with mock.patch("bench.store.os.replace", side_effect=flaky), \
+             mock.patch("bench.store.time.sleep") as sleep:
+            store.save(KEY, "ok", {"n": 1})
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(self.on_disk()["tests"][KEY]["values"], {"n": 1})
+
+    def test_open_retried_on_windows_sharing_violation(self):
+        store = ResultStore(self.path)
+        real_open = open
+        errors = []
+
+        def flaky(*args, **kwargs):
+            if not errors:
+                err = OSError(13, "sharing violation")
+                err.winerror = 32
+                errors.append(err)
+                raise err
+            return real_open(*args, **kwargs)
+
+        with mock.patch("bench.store.open", side_effect=flaky, create=True), \
+             mock.patch("bench.store.time.sleep") as sleep:
+            store.save(KEY, "ok", {})
+        self.assertEqual(sleep.call_count, 1)
+        self.assertIn(KEY, self.on_disk()["tests"])
+
+    def test_lock_retry_is_bounded(self):
+        store = ResultStore(self.path)
+        store.save("a", "ok", {})
+        before = self.path.read_bytes()
+        with mock.patch("bench.store.os.replace",
+                        side_effect=PermissionError("locked")) as replace, \
+             mock.patch("bench.store.time.sleep"):
+            with self.assertRaises(PermissionError):
+                store.save("b", "ok", {})
+        self.assertEqual(replace.call_count, 10)
+        self.assertEqual(self.path.read_bytes(), before)
 
     def test_unserializable_value_is_rejected_without_poisoning_store(self):
         store = ResultStore(self.path)
@@ -270,6 +317,13 @@ class CorruptFileTest(StoreTestCase):
         with self.assertRaises(StoreError) as ctx:
             ResultStore(self.path)
         self.assertIn(str(self.path), str(ctx.exception))
+
+    def test_utf8_bom_file_loads(self):
+        self.path.write_bytes(b"\xef\xbb\xbf" + b'{"schema_version": 1, "tests": {"a": {"status": "ok"}}}')
+        store = ResultStore(self.path)
+        self.assertEqual(store.get("a")["status"], "ok")
+        store.save("b", "ok", {})
+        self.assertFalse(self.path.read_bytes().startswith(b"\xef\xbb\xbf"))
 
     def test_missing_tests_key_is_filled(self):
         self.path.write_text('{"schema_version": 1, "system": {"a": 1}}', encoding="utf-8")

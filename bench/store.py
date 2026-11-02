@@ -23,6 +23,7 @@ import contextlib
 import fnmatch
 import json
 import os
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
@@ -32,6 +33,11 @@ FINAL = {"ok", "does_not_fit", "skipped"}  # never measured again without force
 RETRY = {"error", "aborted"}  # measured again on the next run
 RUNNING = "running"  # in progress, or left behind by a crash
 RESERVED_SECTIONS = {"schema_version", "tests"}
+# Windows virus scanners and indexers can hold a file for a moment.
+LOCK_ATTEMPTS = 10
+LOCK_BACKOFF_START = 0.05
+LOCK_BACKOFF_MAX = 0.5
+WINDOWS_LOCK_ERRORS = {5, 32}  # access denied, sharing violation
 
 
 class StoreError(RuntimeError):
@@ -45,6 +51,23 @@ def _now() -> str:
 def _dumps(data: Any) -> str:
     return json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False,
                       allow_nan=False) + "\n"
+
+
+def _is_transient_lock(err: OSError) -> bool:
+    return isinstance(err, PermissionError) or getattr(err, "winerror", None) in WINDOWS_LOCK_ERRORS
+
+
+def _retry_on_lock(action):
+    """Run `action`, retrying a few times on transient file lock errors."""
+    delay = LOCK_BACKOFF_START
+    for attempt in range(1, LOCK_ATTEMPTS + 1):
+        try:
+            return action()
+        except OSError as err:
+            if attempt == LOCK_ATTEMPTS or not _is_transient_lock(err):
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, LOCK_BACKOFF_MAX)
 
 
 def _normalize(value: Any, what: str) -> Any:
@@ -67,7 +90,7 @@ class ResultStore:
 
     def _load(self) -> dict:
         try:
-            raw = self.path.read_text(encoding="utf-8")
+            raw = self.path.read_text(encoding="utf-8-sig")
         except FileNotFoundError:
             return {"schema_version": SCHEMA_VERSION, "tests": {}}
         except (OSError, UnicodeDecodeError) as err:
@@ -160,16 +183,24 @@ class ResultStore:
         self._persist()
 
     def _persist(self) -> None:
-        """Atomically replace the file: write `.tmp`, flush, fsync, os.replace."""
+        """Atomically replace the file: write `.tmp`, flush, fsync, os.replace.
+
+        Transient lock errors (PermissionError, Windows sharing violations) are
+        retried with backoff; the last error is raised after LOCK_ATTEMPTS tries.
+        """
         text = _dumps(self.data)
         tmp = self.path.with_name(self.path.name + ".tmp")
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        try:
+
+        def write_tmp() -> None:
             with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
                 handle.write(text)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(tmp, self.path)
+
+        try:
+            _retry_on_lock(write_tmp)
+            _retry_on_lock(lambda: os.replace(tmp, self.path))
         except BaseException:
             with contextlib.suppress(OSError):
                 tmp.unlink()
