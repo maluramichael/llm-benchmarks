@@ -4,7 +4,7 @@ from pathlib import Path
 
 from bench.gguf import (attention_layer_count, kv_bytes_per_token, memory_curve,
                         read_metadata)
-from gguf_writer import (ARRAY, BOOL, FLOAT32, FLOAT64, INT8, INT16, INT32, INT64, STRING, UINT8,
+from gguf_writer import (ARRAY, FLOAT32, FLOAT64, INT8, INT16, INT32, INT64, UINT8,
                          UINT16, UINT32, UINT64, Array, Typed, write_gguf)
 
 REAL = Path(__file__).resolve().parent.parent / ".bench" / "fixtures-local"
