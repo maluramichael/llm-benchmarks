@@ -72,6 +72,10 @@ Full results for each run, with load times, TTFT, max context and notes:
 
 Results from more devices are welcome, even a single model on one engine. Run the prompt below and add the report as a file in `runs/`, or paste it into an issue. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## License
+
+Everything in this repository, results, texts, prompt and scripts, is licensed under [CC BY 4.0](LICENSE).
+
 ## Benchmark prompt
 
 Paste the prompt into Claude Code or a similar agent on the test machine and answer its questions. Restart first and close as many other programs as you can.

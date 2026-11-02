@@ -77,6 +77,10 @@ The rules behind it:
 
 If something does not match, `python3 scripts/build.py` stops with a message that names the file and the line.
 
+## License
+
+The repository is licensed under [CC BY 4.0](LICENSE). By opening a pull request or a benchmark run issue you agree that your contribution is published under the same license.
+
 ## Privacy
 
 Do not put names, host names, IP addresses, user paths or serial numbers into the run file. The prompt avoids this already, but check before you push.

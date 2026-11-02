@@ -30,7 +30,9 @@ body:
   - type: checkboxes
     id: privacy
     attributes:
-      label: Privacy
+      label: Privacy and license
       options:
         - label: The report contains no names, host names, IP addresses, user paths or serial numbers.
+          required: true
+        - label: I agree that the results are published under CC BY 4.0, like the rest of this repository.
           required: true

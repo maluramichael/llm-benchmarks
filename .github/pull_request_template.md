@@ -9,6 +9,7 @@
 - [ ] Test cards under `## Tests` with headings `### <engine> <version>, <model> <quantization> (<class>)`
 - [ ] No changes to the generated parts of `README.md` or to `charts/`
 - [ ] No names, host names, IP addresses, user paths or serial numbers in the file
+- [ ] I agree that my contribution is published under CC BY 4.0, like the rest of this repository
 
 ## Deviations from the standard run
 
