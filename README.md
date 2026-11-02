@@ -4,33 +4,33 @@ Local language models on real hardware, measured with one prompt for every devic
 
 ## Results
 
-| Device | Model | Class | Engine | Prompt processing tok/s | Generation tok/s | Date |
-|:------|:-------|:------:|:-------|-----------------------:|-----------------:|:------|
-| **PC RTX 3090 24 GB** | Qwen3.5 4B Q4_K_M | S | llama.cpp 0.7.0-dev (build 11909) | 7,628 | 163.6 | 2026-10-26 |
-| | Qwen3.5 4B Q4_K_M | S | Ollama 0.40.3 | 6,626 | 149.8 | 2026-10-26 |
-| | Qwen3 14B Q4_K_M | M | Ollama 0.40.3 | 2,924 | 71.8 | 2026-10-26 |
-| | Qwen3 14B Q4_K_M | M | llama.cpp 0.7.0-dev (build 11909) | 2,782 | 71.4 | 2026-10-26 |
-| | Qwen3.8 27B Q4_K_M | L | llama.cpp 0.7.0-dev (build 11909) with MTP | 1,507 | 67.0 | 2026-10-26 |
-| | Qwen3.8 27B Q4_K_M | L | Ollama 0.40.3 | 1,351 | 66.4 | 2026-10-26 |
-| | Qwen3.8 27B Q4_K_M | L | llama.cpp 0.7.0-dev (build 11909) | 1,610 | 42.2 | 2026-10-26 |
-| | Flint 40B-A2.5B Q4_K_M | F | llama.cpp 0.7.0-dev (build 11909) | 3,183 | 121.7 | 2026-10-28 |
-| | Flint 40B-A2.5B UD-Q3_K_XL | F | llama.cpp 0.7.0-dev (build 11909) | 3,286 | 119.2 | 2026-10-28 |
-| | Flint 40B-A2.5B NVFP4 | F | Ollama 0.40.12 (custom build) | 2,512 | 117.0 | 2026-10-28 |
-| | LFM3 1.7B Q4_K_M | Extra | llama.cpp 0.8.0-dev (build 12001) | 18,882 | 307.4 | 2026-10-30 |
-| | LFM3 1.7B Q4_K_M | Extra | Ollama 0.40.13 | 20,863 | 285.3 | 2026-10-30 |
-| | Qwen3-Coder-30B-A3B Q4_K_M, abliterated | Extra | llama.cpp 0.8.0-dev (build 12001) | 4,408 | 162.4 | 2026-10-30 |
-| | Qwen3.8-Flash-Next IQ3_S | Extra | Strata 0.2.8 (engine 0.1.54) | 2,427 | 85.0 | 2026-10-30 |
-| **MacBook Pro M5 Max 128 GB** | Qwen3.5 4B Q4_K_M | S | Ollama 0.40.11 | 4,171 | 118.0 | 2026-10-26 |
-| **PC RTX 4060 Ti 8 GB** | Qwen3.5 4B Q4_K_M | S | llama.cpp b11889 (CUDA 13.4) | 5,420 | 72.2 | 2026-10-26 |
-| | Qwen3.5 4B Q4_K_M | S | Ollama 0.40.11 | 4,938 | 59.4 | 2026-10-26 |
-| | Qwen3 14B Q4_K_M | M | llama.cpp b11889 (CUDA 13.4) | does not fit | does not fit | 2026-10-26 |
-| | Qwen3 14B Q4_K_M | M | Ollama 0.40.11 | does not fit | does not fit | 2026-10-26 |
-| | Qwen3.8 27B Q4_K_M | L | llama.cpp b11889 (CUDA 13.4) | does not fit | does not fit | 2026-10-26 |
-| | Qwen3.8 27B Q4_K_M | L | Ollama 0.40.11 | does not fit | does not fit | 2026-10-26 |
-| **PC Radeon RX 560 4 GB** | Qwen3.5 4B Q4_K_M | S | llama.cpp 0.8.0-dev (build 12024, Vulkan) | 136 | 20.4 | 2026-10-31 |
-| | Qwen3.5 4B Q4_K_M | S | Ollama 0.40.13 | 135 | 18.3 | 2026-10-31 |
+| Device | Model | Engine | Prompt processing tok/s | Generation tok/s |
+|:------|:-------|:-------|-----------------------:|-----------------:|
+| **PC RTX 3090 24 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 7,628 | 163.6 |
+| | Qwen3.5 4B Q4_K_M | Ollama 0.40.3 | 6,626 | 149.8 |
+| | Qwen3 14B Q4_K_M | Ollama 0.40.3 | 2,924 | 71.8 |
+| | Qwen3 14B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 2,782 | 71.4 |
+| | Qwen3.8 27B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) with MTP | 1,507 | 67.0 |
+| | Qwen3.8 27B Q4_K_M | Ollama 0.40.3 | 1,351 | 66.4 |
+| | Qwen3.8 27B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 1,610 | 42.2 |
+| | Flint 40B-A2.5B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 3,183 | 121.7 |
+| | Flint 40B-A2.5B UD-Q3_K_XL | llama.cpp 0.7.0-dev (build 11909) | 3,286 | 119.2 |
+| | Flint 40B-A2.5B NVFP4 | Ollama 0.40.12 (custom build) | 2,512 | 117.0 |
+| | LFM3 1.7B Q4_K_M | llama.cpp 0.8.0-dev (build 12001) | 18,882 | 307.4 |
+| | LFM3 1.7B Q4_K_M | Ollama 0.40.13 | 20,863 | 285.3 |
+| | Qwen3-Coder-30B-A3B Q4_K_M, abliterated | llama.cpp 0.8.0-dev (build 12001) | 4,408 | 162.4 |
+| | Qwen3.8-Flash-Next IQ3_S | Strata 0.2.8 (engine 0.1.54) | 2,427 | 85.0 |
+| **MacBook Pro M5 Max 128 GB** | Qwen3.5 4B Q4_K_M | Ollama 0.40.11 | 4,171 | 118.0 |
+| **PC RTX 4060 Ti 8 GB** | Qwen3.5 4B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | 5,420 | 72.2 |
+| | Qwen3.5 4B Q4_K_M | Ollama 0.40.11 | 4,938 | 59.4 |
+| | Qwen3 14B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | does not fit | does not fit |
+| | Qwen3 14B Q4_K_M | Ollama 0.40.11 | does not fit | does not fit |
+| | Qwen3.8 27B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | does not fit | does not fit |
+| | Qwen3.8 27B Q4_K_M | Ollama 0.40.11 | does not fit | does not fit |
+| **PC Radeon RX 560 4 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.8.0-dev (build 12024, Vulkan) | 136 | 20.4 |
+| | Qwen3.5 4B Q4_K_M | Ollama 0.40.13 | 135 | 18.3 |
 
-Classes S to L use the same model family, F is Flint as a second reference, and Extra is outside the standard classes. "does not fit" means the model does not fit completely into GPU memory.
+"does not fit" means the model does not fit completely into GPU memory.
 
 ## Benchmark prompt
 
@@ -104,7 +104,7 @@ Classes S to XL use the same model family so devices stay comparable: Qwen3.x, q
   - llama.cpp: Q4_K_M from ggml-org/Flint-GGUF (Flint-Q4_K_M.gguf, 23.4 GB). With less than 32 GB of usable memory, also UD-Q3_K_XL from unsloth/flint-GGUF (flint-UD-Q3_K_XL.gguf, 18.5 GB): on a 24 GB card, Q4_K_M fills the memory at 16k context already, while the 3-bit file reaches 64k at the same speed. Needs a llama.cpp build with Flint support (tested with build 11909, commit caa8191df), update older builds first.
   - Ollama: flint:40b, which is NVFP4, there is no Q4_K_M in the Ollama library. Needs Ollama 0.40.9 or newer. Check the quantization with ollama show and state it in the notes.
   - MLX: RecursiveSI/flint-int4 (INT4 weights from the vendor, 22.6 GB). If the installed mlx-lm version lacks Flint support, record MLX for class F as "not measured".
-  Enter it in the card and table as class F, e.g. "Flint 40B-A2.5B Q4_K_M (F)". Cut the input texts with Flint's tokenizer, it differs from Qwen's.
+  Enter it in the card as class F, e.g. "Flint 40B-A2.5B Q4_K_M (F)". Cut the input texts with Flint's tokenizer, it differs from Qwen's.
 Check exact tags in the Ollama library or the GGUF files on Hugging Face first. If a model does not exist, take the closest one from the same family and state that in the notes. Skip a class that does not fit completely into GPU memory and record "does not fit". Ask before any download over 20 GB and when disk space is tight, unless the download was already confirmed with its size in step 0.
 
 STEP 4: MEASURE
@@ -121,7 +121,7 @@ STEP 5: RESULT
 Save raw data as JSON under ~/llm-benchmark/<date>/. Missing values are written as "not measured".
 a) Report as ~/llm-benchmark/<date>/results.md: table "System" (device, chip / GPU, memory for models, operating system, date), section "Tests" with one card per combination of engine and model. Card heading: "<engine> <version>, <model> <quantization> (<class>)". Fields in exactly this order: engine + version, model (exact tag), quantization, class, max context, cold load (s), TTFT cold (s), TTFT warm (s), TTFT with cache (s), prompt processing tok/s, generation tok/s, generation tok/s at max context, notes. At the end a section "Summary" in three sentences: best setup on this device, anything unusual, aborted runs. Do not put names, host names, IP addresses or user paths into the report.
 b) Output one line per test for the results table, columns in exactly this order:
-| Device | Model | Class | Engine | Prompt processing tok/s | Generation tok/s | Date |
+| Device | Model | Engine | Prompt processing tok/s | Generation tok/s |
 
 STEP 6: CLEAN UP
 Stop any servers and processes you started. Only delete downloaded models when asked.
