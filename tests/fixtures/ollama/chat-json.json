@@ -1,0 +1,1 @@
+{"model":"qwen3.5:0.8b","created_at":"2026-11-02T23:09:16.7449908Z","message":{"role":"assistant","content":"{\n  \"name\": \"Alice\",\n  \"age\": 30\n}"},"done":true,"done_reason":"stop","total_duration":195664200,"load_duration":4129800,"prompt_eval_count":21,"prompt_eval_cached_count":0,"prompt_eval_duration":53848000,"eval_count":20,"eval_duration":127335000}
