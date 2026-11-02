@@ -1,0 +1,9 @@
+{
+ "note": "Ollama 0.40.13, raw generate, num_predict 1: the same 601-token prompt three times, then the prompt plus 5 tokens. prompt_eval_count includes cached tokens; prompt_eval_duration covers only the uncached part.",
+ "replies": [
+  {"prompt_eval_count": 601, "prompt_eval_cached_count": 0, "prompt_eval_duration": 13752908000, "eval_count": 1},
+  {"prompt_eval_count": 601, "prompt_eval_cached_count": 597, "prompt_eval_duration": 30052000, "eval_count": 1},
+  {"prompt_eval_count": 601, "prompt_eval_cached_count": 597, "prompt_eval_duration": 28167000, "eval_count": 1},
+  {"prompt_eval_count": 606, "prompt_eval_cached_count": 601, "prompt_eval_duration": 66105000}
+ ]
+}

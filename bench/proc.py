@@ -63,9 +63,10 @@ class Owned:
             self._proc = subprocess.Popen(
                 self.argv, stdin=subprocess.DEVNULL, stdout=self._log,
                 stderr=subprocess.STDOUT, env=child_env, cwd=self.cwd, **options)
-        except OSError as err:
+        except (OSError, ValueError) as err:  # ValueError: for example a NUL in an argument
             self._close_log()
-            raise ProcError(f"cannot start {self.argv[0]}: {err.strerror or err}") from None
+            raise ProcError(
+                f"cannot start {self.argv[0]}: {getattr(err, 'strerror', None) or err}") from None
         return self
 
     @property

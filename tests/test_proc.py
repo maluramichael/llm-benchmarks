@@ -150,6 +150,13 @@ class OwnedTest(ProcTestCase):
         with proc.Owned(SLEEP, log_path=self.log) as owned:
             owned.wait_until(lambda: True, timeout=1)
 
+    def test_invalid_argument_closes_the_log(self):
+        owned = proc.Owned([PY, "bad\0arg"], log_path=self.log)
+        with self.assertRaises(proc.ProcError):
+            owned.start()
+        self.assertIsNone(owned._log)
+        owned.stop()
+
     def test_missing_binary(self):
         with self.assertRaises(proc.ProcError):
             proc.Owned([str(self.dir / "nope")], log_path=self.log).start()

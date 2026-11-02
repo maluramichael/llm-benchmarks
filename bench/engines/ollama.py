@@ -11,16 +11,21 @@ Speed tests use /api/generate with raw=true (no chat template) and streaming, so
 time to first token can be measured here.
 
 Token counting: Ollama has no tokenizer endpoint, so `count_tokens` sends the text
-with raw=true and num_predict=1 and reads the prompt token count. Ollama can answer
-part of a prompt from its prompt cache and then reports the evaluated tokens in
-`prompt_eval_count` and the cached ones in `prompt_eval_cached_count`; the prompt length
-is the sum of both (it equals `prompt_eval_count` on a cold cache). Results are cached
-per (model, text hash).
+with raw=true and num_predict=1 and reads `prompt_eval_count`. That number is the full
+prompt length and includes tokens answered from the prompt cache (verified on 0.40.13:
+the same 601-token prompt gives 601 with 597 cached); `prompt_eval_cached_count` says
+how many of them were cached and `prompt_eval_duration` covers only the rest. Results
+are cached per (model, text hash).
+
+Timeouts: quick calls (version, ps, show, unload, the readiness probe) use a short
+timeout so a server that accepts connections but never answers cannot hang the harness;
+only inference requests use the long one.
 """
 
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import re
 import shutil
@@ -38,6 +43,7 @@ DEFAULT_PORT = 11434
 NS = 1e9
 START_TIMEOUT_S = 90
 REQUEST_TIMEOUT_S = 1800
+QUICK_TIMEOUT_S = 5
 MIN_COUNT_CTX = 2048
 KEEP_ALIVE = "30m"
 DEFAULT_LOG_DIR = Path(".bench") / "logs"
@@ -63,12 +69,18 @@ class OllamaEngine:
     name = "ollama"
 
     def __init__(self, cfg: Config, log_dir: Path | None = None,
-                 timeout: float = REQUEST_TIMEOUT_S):
+                 timeout: float = REQUEST_TIMEOUT_S, quick_timeout: float = QUICK_TIMEOUT_S,
+                 start_timeout: float = START_TIMEOUT_S):
         self.cfg = cfg
         self.log_dir = Path(log_dir) if log_dir else DEFAULT_LOG_DIR
         self.timeout = timeout
+        self.quick_timeout = quick_timeout
+        self.start_timeout = start_timeout
         self.base_url: str | None = None
+        # No proxy for the servers we talk to: they are local or explicitly given.
+        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         self._owned: proc.Owned | None = None
+        self._log_path: Path | None = None
         self._parallel = 1
         self._ctx: dict[str, int] = {}
         self._counts: dict[tuple[str, str], int] = {}
@@ -76,7 +88,16 @@ class OllamaEngine:
 
     # -- lifecycle ---------------------------------------------------------------------
 
+    @property
+    def parallel(self) -> int | None:
+        """OLLAMA_NUM_PARALLEL of the server we started; None for a foreign server."""
+        return self._parallel if self._owned is not None else None
+
     def start(self) -> None:
+        """Connect to the given server or start our own. A second call while we own a
+        running server raises EngineError (call stop() first)."""
+        if self._owned is not None:
+            raise EngineError("ollama server already started by this engine; stop() first")
         if self.cfg.ollama_url:
             self.base_url = self.cfg.ollama_url.rstrip("/")
             self.version()  # fails early when nothing answers; we never start one then
@@ -109,15 +130,30 @@ class OllamaEngine:
         owned = proc.Owned([binary, "serve"], env=env, log_path=log_path)
         try:
             owned.start()
+            # Owned from here on: whatever happens next (Ctrl-C included), the child is
+            # in its own process group and only stop() can end it.
+            self._owned = owned
+            self._log_path = log_path
+            self._parallel = parallel
+            self._log_mark = 0
             self.base_url = f"http://127.0.0.1:{port}"
-            owned.wait_until(self._answers, START_TIMEOUT_S)
-        except proc.ProcError as err:
+            owned.wait_until(self._answers, self.start_timeout)
+            if not owned.running:
+                # Our child is gone, so the answer came from another server on that port.
+                raise EngineError("ollama serve exited right after start; "
+                                  "another server may be using the port")
+        except BaseException as err:
+            self._release()
+            if isinstance(err, proc.ProcError):
+                raise EngineError(f"cannot start ollama serve: {err}") from None
+            raise
+
+    def _release(self) -> None:
+        """Stop our server (if any) and forget it and its address."""
+        owned, self._owned = self._owned, None
+        self.base_url = None
+        if owned is not None:
             owned.stop()
-            self.base_url = None
-            raise EngineError(f"cannot start ollama serve: {err}") from None
-        self._owned = owned
-        self._parallel = parallel
-        self._log_mark = 0
 
     def _answers(self) -> bool:
         try:
@@ -127,13 +163,15 @@ class OllamaEngine:
         return True
 
     def stop(self) -> None:
-        """Stop the server this engine started. A server given by URL is left alone."""
-        if self._owned is not None:
-            self._owned.stop()
+        """Stop the server this engine started. A server given by URL is left alone.
+
+        Idempotent; afterwards the engine is not connected until start() is called.
+        """
+        self._release()
 
     # -- HTTP --------------------------------------------------------------------------
 
-    def _open(self, path: str, payload: dict | None):
+    def _open(self, path: str, payload: dict | None, timeout: float | None = None):
         if not self.base_url:
             raise EngineError("engine not started")
         data = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -142,23 +180,26 @@ class OllamaEngine:
             headers={"Content-Type": "application/json"} if data else {},
             method="GET" if data is None else "POST")
         try:
-            return urllib.request.urlopen(request, timeout=self.timeout)
+            return self._opener.open(request, timeout=timeout or self.timeout)
         except urllib.error.HTTPError as err:
             body = err.read().decode("utf-8", errors="replace")[:300]
             raise EngineError(f"ollama {path}: HTTP {err.code}: {body}") from None
-        except (urllib.error.URLError, OSError) as err:
-            raise EngineError(f"ollama {path}: {getattr(err, 'reason', err)}") from None
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as err:
+            raise EngineError(f"ollama {path}: {getattr(err, 'reason', None) or err!r}") \
+                from None
 
     def _get(self, path: str) -> dict:
-        return self._post(path, None)
+        return self._post(path, None, self.quick_timeout)
 
-    def _post(self, path: str, payload: dict | None) -> dict:
-        with self._open(path, payload) as response:
+    def _post(self, path: str, payload: dict | None, timeout: float | None = None) -> dict:
+        with self._open(path, payload, timeout) as response:
             try:
                 reply = json.loads(response.read())
-            except (OSError, ValueError) as err:
-                raise EngineError(f"ollama {path}: unreadable reply: {err}") from None
-        if isinstance(reply, dict) and reply.get("error"):
+            except (OSError, ValueError, http.client.HTTPException) as err:
+                raise EngineError(f"ollama {path}: unreadable reply: {err!r}") from None
+        if not isinstance(reply, dict):
+            raise EngineError(f"ollama {path}: unexpected reply {str(reply)[:100]}")
+        if reply.get("error"):
             raise EngineError(f"ollama {path}: {reply['error']}")
         return reply
 
@@ -180,12 +221,12 @@ class OllamaEngine:
 
     def version(self) -> str:
         reply = self._get("/api/version")
-        if not isinstance(reply, dict) or "version" not in reply:
+        if "version" not in reply:
             raise EngineError(f"ollama /api/version: unexpected reply {str(reply)[:100]}")
         return str(reply["version"])
 
     def show(self, model: ModelRef) -> dict:
-        return self._post("/api/show", {"model": self._tag(model)})
+        return self._post("/api/show", {"model": self._tag(model)}, self.quick_timeout)
 
     def backend(self) -> str | None:
         """GPU backend as logged by a server we started; None for foreign servers.
@@ -212,7 +253,7 @@ class OllamaEngine:
         started = time.perf_counter()
         reply = self._post("/api/generate", {
             "model": self._tag(model), "prompt": "", "stream": False,
-            "options": {"num_ctx": ctx}})
+            "keep_alive": KEEP_ALIVE, "options": {"num_ctx": ctx}})
         self._ctx[model.id] = ctx
         if "load_duration" in reply:
             return reply["load_duration"] / NS
@@ -220,12 +261,12 @@ class OllamaEngine:
 
     def unload(self, model: ModelRef) -> None:
         self._post("/api/generate", {"model": self._tag(model), "keep_alive": 0,
-                                     "stream": False})
+                                     "stream": False}, self.quick_timeout)
         self._ctx.pop(model.id, None)
 
     def complete(self, model: ModelRef, prompt: str, sampling: Sampling) -> Completion:
         payload = {"model": self._tag(model), "prompt": prompt, "raw": True, "stream": True,
-                   "options": self._options(model, sampling)}
+                   "keep_alive": KEEP_ALIVE, "options": self._options(model, sampling)}
         parts: list[str] = []
         ttft = None
         final = None
@@ -236,6 +277,9 @@ class OllamaEngine:
                     if not line.strip():
                         continue
                     chunk = json.loads(line)
+                    if not isinstance(chunk, dict):
+                        raise EngineError(f"ollama /api/generate: unexpected chunk "
+                                          f"{str(chunk)[:100]}")
                     if chunk.get("error"):
                         raise EngineError(f"ollama /api/generate: {chunk['error']}")
                     if chunk.get("response"):
@@ -245,8 +289,8 @@ class OllamaEngine:
                     if chunk.get("done"):
                         final = chunk
                         break
-            except (OSError, ValueError) as err:
-                raise EngineError(f"ollama /api/generate: broken stream: {err}") from None
+            except (OSError, ValueError, http.client.HTTPException) as err:
+                raise EngineError(f"ollama /api/generate: broken stream: {err!r}") from None
         if final is None:
             raise EngineError("ollama /api/generate: stream ended without a final chunk")
         if ttft is None:
@@ -257,7 +301,7 @@ class OllamaEngine:
              tools: list[dict] | None = None, json_schema: dict | None = None,
              thinking: bool = False) -> ChatResult:
         payload = {"model": self._tag(model), "messages": messages, "stream": False,
-                   "think": bool(thinking), "options": self._options(model, sampling)}
+                   "keep_alive": KEEP_ALIVE, "think": bool(thinking), "options": self._options(model, sampling)}
         if tools:
             payload["tools"] = tools
         if json_schema is not None:
@@ -283,7 +327,9 @@ class OllamaEngine:
 
     @staticmethod
     def _timing(reply: dict, ttft: float) -> Timing:
-        prompt_tokens = reply.get("prompt_eval_count", 0)
+        prompt_tokens = reply.get("prompt_eval_count", 0)  # includes cached tokens
+        cached = reply.get("prompt_eval_cached_count")
+        evaluated = prompt_tokens - (cached or 0)  # what prompt_eval_duration covers
         prompt_ns = reply.get("prompt_eval_duration", 0)
         gen_tokens = reply.get("eval_count", 0)
         gen_ns = reply.get("eval_duration", 0)
@@ -292,11 +338,11 @@ class OllamaEngine:
             load_s=None if load_ns is None else load_ns / NS,
             ttft_s=ttft,
             prompt_tokens=prompt_tokens,
-            prompt_tps=prompt_tokens / (prompt_ns / NS) if prompt_tokens and prompt_ns > 0
+            prompt_tps=evaluated / (prompt_ns / NS) if evaluated > 0 and prompt_ns > 0
             else None,
             gen_tokens=gen_tokens,
             gen_tps=gen_tokens / (gen_ns / NS) if gen_tokens and gen_ns > 0 else None,
-            cached_tokens=reply.get("prompt_eval_cached_count"))
+            cached_tokens=cached)
 
     def count_tokens(self, model: ModelRef, text: str) -> int:
         key = (model.id, hashlib.sha256(text.encode("utf-8")).hexdigest())
@@ -307,8 +353,8 @@ class OllamaEngine:
         ctx = self._ctx.get(model.id) or max(MIN_COUNT_CTX, len(text) // 2 + 64)
         reply = self._post("/api/generate", {
             "model": self._tag(model), "prompt": text, "raw": True, "stream": False,
-            "options": {"num_predict": 1, "num_ctx": ctx, "temperature": 0, "seed": 42}})
-        count = reply.get("prompt_eval_count", 0) + reply.get("prompt_eval_cached_count", 0)
+            "keep_alive": KEEP_ALIVE, "options": {"num_predict": 1, "num_ctx": ctx, "temperature": 0, "seed": 42}})
+        count = reply.get("prompt_eval_count", 0)  # already includes cached tokens
         if count >= ctx:
             raise EngineError(f"text of {count} tokens does not fit the context of {ctx}; "
                               "the count would be wrong")
@@ -317,14 +363,21 @@ class OllamaEngine:
 
     def gpu_fraction(self, model: ModelRef) -> float | None:
         """Share of the loaded model that sits in GPU memory (1.0 = fully on the GPU)."""
-        tag = self._tag(model)
+        tag = self._normalize(self._tag(model))
         for entry in self._get("/api/ps").get("models") or []:
-            if tag in (entry.get("name"), entry.get("model")):
+            if tag in (self._normalize(entry.get("name")), self._normalize(entry.get("model"))):
                 size = entry.get("size") or 0
                 if size <= 0:
                     return None
                 return min(1.0, (entry.get("size_vram") or 0) / size)
         return None
+
+    @staticmethod
+    def _normalize(name: str | None) -> str | None:
+        """Model names without a tag mean ':latest'."""
+        if name and ":" not in name.rsplit("/", 1)[-1]:
+            return name + ":latest"
+        return name
 
     def kv_buffer_mb(self) -> float | None:
         """KV cache size of the last load, from the log of a server we started."""
@@ -338,18 +391,18 @@ class OllamaEngine:
     # -- server log --------------------------------------------------------------------
 
     def _log_size(self) -> int:
-        if self._owned is None:
+        if self._log_path is None:
             return 0
         try:
-            return self._owned.log_path.stat().st_size
+            return self._log_path.stat().st_size
         except OSError:
             return 0
 
     def _log_text(self, whole: bool = False) -> str:
-        if self._owned is None:
+        if self._log_path is None:
             return ""
         try:
-            data = self._owned.log_path.read_bytes()
+            data = self._log_path.read_bytes()
         except OSError:
             return ""
         return data[0 if whole else self._log_mark:].decode("utf-8", errors="replace")

@@ -11,12 +11,14 @@ Timing semantics (identical for all engines, so results are comparable):
                  tests. If the model produced no text at all, it is the time until the
                  final chunk. For `Engine.chat` (not streamed) it is the engine-reported
                  load plus prompt evaluation time, a server-side approximation.
-* prompt_tokens  tokens the engine actually evaluated for the prompt (cached tokens are
-                 not included, see cached_tokens).
-* prompt_tps     prompt_tokens divided by the engine-reported prompt evaluation time, or
-                 None when either is zero (for example a fully cached prompt).
+* prompt_tokens  total prompt length in tokens, cached tokens included (Ollama's
+                 prompt_eval_count includes them, verified on 0.40.13).
+* prompt_tps     (prompt_tokens - cached_tokens) divided by the engine-reported prompt
+                 evaluation time, because that time covers only the evaluated (uncached)
+                 part. None when either is zero (for example a fully cached prompt).
 * gen_tokens, gen_tps  generated tokens and tokens per second of generation time.
-* cached_tokens  prompt tokens served from the engine's prompt cache, None if unknown.
+* cached_tokens  prompt tokens served from the engine's prompt cache (part of
+                 prompt_tokens), None if unknown.
 """
 
 from __future__ import annotations

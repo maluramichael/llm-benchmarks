@@ -1,15 +1,19 @@
 import copy
+import http.client
 import json
 import os
 import socket
 import stat
 import sys
 import tempfile
+import threading
 import time
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
+from bench import proc
 from bench.config import Config
 from bench.engines.base import ChatResult, Completion, EngineError, ModelRef, Sampling, Timing
 from bench.engines.ollama import OllamaEngine
@@ -37,6 +41,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 host, port = os.environ["OLLAMA_HOST"].rsplit(":", 1)
 env = {{k: v for k, v in os.environ.items() if k.startswith("OLLAMA_")}}
 open(os.environ["FAKE_OUT"], "w").write(json.dumps({{"argv": sys.argv[1:], "env": env}}))
+if os.environ.get("FAKE_MODE") == "hang":  # accepts connections, never answers
+    import socket, time
+    srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind((host, int(port))); srv.listen(); held = []
+    while True:
+        held.append(srv.accept()[0])
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
@@ -63,12 +73,15 @@ class EngineTestCase(unittest.TestCase):
         return engine
 
 
-class ProcessOwnershipTest(EngineTestCase):
+class ProcessOwnershipTestBase(EngineTestCase):
     def fake_binary(self) -> Path:
         path = self.dir / "ollama"
         path.write_text(FAKE_OLLAMA.format(python=sys.executable), encoding="utf-8")
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
         return path
+
+
+class ProcessOwnershipTest(ProcessOwnershipTestBase):
 
     @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
     def test_own_server_on_free_port(self):
@@ -102,11 +115,12 @@ class ProcessOwnershipTest(EngineTestCase):
             self.assertEqual(seen["env"]["OLLAMA_NUM_PARALLEL"], "1")
             self.assertEqual(seen["env"]["OLLAMA_MODELS"], str(models_dir))
             self.assertIn("OLLAMA_KEEP_ALIVE", seen["env"])
-            pid = engine._owned.pid
+            owned = engine._owned
+            pid = owned.pid
         finally:
             engine.stop()
         # The process is gone, the engine can be stopped again, our environment is intact.
-        self.assertFalse(engine._owned.running)
+        self.assertFalse(owned.running)
         engine.stop()
         with self.assertRaises(OSError):
             socket.create_connection(("127.0.0.1", port), timeout=1).close()
@@ -127,10 +141,10 @@ class ProcessOwnershipTest(EngineTestCase):
         first = engine._owned
         real_post = engine._post
 
-        def post(path, payload):
+        def post(path, payload, timeout=None):
             if path == "/api/generate":
                 return {"load_duration": 1_000_000_000}
-            return real_post(path, payload)
+            return real_post(path, payload, timeout)
 
         with mock.patch.object(engine, "_post", post):
             engine.load(MODEL, 4096, parallel=4)
@@ -274,13 +288,14 @@ class CompleteTest(EngineTestCase):
         self.assertLess(result.timing.ttft_s, total - 0.25)
 
     def test_cached_tokens_and_zero_duration(self):
-        final = {"response": "", "done": True, "prompt_eval_count": 0,
+        final = {"response": "", "done": True, "prompt_eval_count": 512,
                  "prompt_eval_cached_count": 512, "prompt_eval_duration": 0,
                  "eval_count": 0, "eval_duration": 0}
         with FakeServer({"/api/version": fixture("version.json"),
                          "/api/generate": [json.dumps(final) + "\n"]}) as server:
             engine = self.engine_for(server)
             t = engine.complete(MODEL, "Hi", Sampling()).timing
+        self.assertEqual(t.prompt_tokens, 512)
         self.assertEqual(t.cached_tokens, 512)
         self.assertIsNone(t.prompt_tps)
         self.assertIsNone(t.gen_tps)
@@ -430,7 +445,7 @@ class MetricsTest(EngineTestCase):
             'llama_kv_cache:      CUDA0 KV buffer size =   384.00 MiB\n'
             'llama_kv_cache:      CUDA1 KV buffer size =   128.50 MiB\n', encoding="utf-8")
         engine = OllamaEngine(config(), log_dir=self.dir)
-        engine._owned = mock.Mock(log_path=log)
+        engine._log_path = log
         self.assertEqual(engine.backend(), "cuda")
         self.assertEqual(engine.kv_buffer_mb(), 512.5)
 
@@ -438,7 +453,7 @@ class MetricsTest(EngineTestCase):
         log = self.dir / "server.log"
         log.write_text("llama_kv_cache: CUDA0 KV buffer size = 100.00 MiB\n", encoding="utf-8")
         engine = OllamaEngine(config(), log_dir=self.dir)
-        engine._owned = mock.Mock(log_path=log)
+        engine._log_path = log
         engine._log_mark = log.stat().st_size
         with log.open("a", encoding="utf-8") as handle:
             handle.write("llama_kv_cache: CUDA0 KV buffer size = 200.00 MiB\n")
@@ -466,11 +481,20 @@ class CountTokensTest(EngineTestCase):
         self.assertEqual(body["options"]["num_predict"], 1)
         self.assertGreaterEqual(body["options"]["num_ctx"], 2048)
 
-    def test_count_tokens_adds_cached_tokens(self):
+    def test_count_tokens_is_prompt_eval_count_alone(self):
+        # prompt_eval_count already includes the cached tokens (verified on 0.40.13).
         with FakeServer({"/api/version": fixture("version.json"),
-                         "/api/generate": self.reply(6, cached=4)}) as server:
+                         "/api/generate": self.reply(601, cached=597)}) as server:
             engine = self.engine_for(server)
-            self.assertEqual(engine.count_tokens(MODEL, "same prompt again"), 10)
+            self.assertEqual(engine.count_tokens(MODEL, "same prompt again"), 601)
+
+    def test_count_tokens_against_cache_probe(self):
+        replies = iter(fixture("cache-probe.json")["replies"])
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": lambda body: next(replies) | {"done": True}}) as server:
+            engine = self.engine_for(server)
+            counts = [engine.count_tokens(MODEL, text) for text in "abcd"]
+        self.assertEqual(counts, [601, 601, 601, 606])
 
     def test_count_tokens_uses_loaded_ctx(self):
         with FakeServer({"/api/version": fixture("version.json"),
@@ -493,6 +517,295 @@ class CountTokensTest(EngineTestCase):
                          "/api/generate": fixture("generate-raw.json")}) as server:
             engine = self.engine_for(server)
             self.assertEqual(engine.count_tokens(MODEL, "The Rhine"), 10)
+
+
+class CachedTimingTest(EngineTestCase):
+    def test_prompt_tps_uses_only_uncached_tokens(self):
+        warm = fixture("cache-probe.json")["replies"][1]
+        lines = [json.dumps({"response": "x", "done": False}) + "\n",
+                 json.dumps(warm | {"response": "", "done": True}) + "\n"]
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": lines}) as server:
+            engine = self.engine_for(server)
+            t = engine.complete(MODEL, "Hi", Sampling()).timing
+        self.assertEqual(t.prompt_tokens, 601)  # the total, cached included
+        self.assertEqual(t.cached_tokens, 597)
+        self.assertAlmostEqual(t.prompt_tps, (601 - 597) / 0.030052)
+
+    def test_cold_call_tps(self):
+        cold = fixture("cache-probe.json")["replies"][0]
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": [json.dumps(cold | {"response": "x",
+                                                              "done": True}) + "\n"]}) as server:
+            engine = self.engine_for(server)
+            t = engine.complete(MODEL, "Hi", Sampling()).timing
+        self.assertAlmostEqual(t.prompt_tps, 601 / 13.752908)
+
+    def test_chat_timing_uses_uncached_tokens_too(self):
+        reply = fixture("chat-tools.json") | {"prompt_eval_count": 280,
+                                              "prompt_eval_cached_count": 80,
+                                              "prompt_eval_duration": 1_000_000_000}
+        with FakeServer({"/api/version": fixture("version.json"), "/api/chat": reply}) as server:
+            engine = self.engine_for(server)
+            t = engine.chat(MODEL, [], Sampling()).timing
+        self.assertEqual(t.prompt_tokens, 280)
+        self.assertEqual(t.prompt_tps, 200.0)
+
+
+def silent_server(held: list):
+    """Accepts connections and never answers. Returns (listening socket, port)."""
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    sock.listen()
+
+    def accept():
+        while True:
+            try:
+                held.append(sock.accept()[0])
+            except OSError:
+                return
+
+    threading.Thread(target=accept, daemon=True).start()
+    return sock, sock.getsockname()[1]
+
+
+def garbage_server(held: list):
+    """Answers every connection with something that is not HTTP."""
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    sock.listen()
+
+    def serve():
+        while True:
+            try:
+                conn = sock.accept()[0]
+            except OSError:
+                return
+            conn.sendall(b"not http at all\r\n\r\n")
+            held.append(conn)
+
+    threading.Thread(target=serve, daemon=True).start()
+    return sock, sock.getsockname()[1]
+
+
+class RobustnessTest(ProcessOwnershipTestBase):
+    def test_hanging_foreign_server_fails_fast(self):
+        held = []
+        sock, port = silent_server(held)
+        self.addCleanup(sock.close)
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"),
+                              log_dir=self.dir, quick_timeout=0.3)
+        started = time.monotonic()
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assertLess(time.monotonic() - started, 5)
+
+    def test_quick_calls_use_the_short_timeout_and_inference_the_long_one(self):
+        engine = OllamaEngine(config(ollama_url="http://127.0.0.1:1"), log_dir=self.dir,
+                              quick_timeout=3, timeout=77)
+        engine.base_url = "http://127.0.0.1:1"
+        seen = {}
+
+        def fake_open(request, timeout=None):
+            seen[request.full_url.rsplit("/", 1)[-1] + ":" + str(
+                json.loads(request.data).get("keep_alive") if request.data else "-")] = timeout
+            raise urllib.error.URLError("stop")
+
+        engine._opener = mock.Mock(open=fake_open)
+        for call in (lambda: engine.version(), lambda: engine.gpu_fraction(MODEL),
+                     lambda: engine.show(MODEL), lambda: engine.unload(MODEL),
+                     lambda: engine.load(MODEL, 4096),
+                     lambda: engine.complete(MODEL, "x", Sampling()),
+                     lambda: engine.chat(MODEL, [], Sampling()),
+                     lambda: engine.count_tokens(MODEL, "x")):
+            with self.assertRaises(EngineError):
+                call()
+        self.assertEqual(seen["version:-"], 3)
+        self.assertEqual(seen["ps:-"], 3)
+        self.assertEqual(seen["show:None"], 3)
+        self.assertEqual(seen["generate:0"], 3)  # unload
+        self.assertEqual(seen["generate:30m"], 77)  # load, complete, count_tokens
+        self.assertEqual(seen["chat:30m"], 77)
+
+    def test_http_exceptions_become_engine_errors(self):
+        held = []
+        sock, port = garbage_server(held)
+        self.addCleanup(sock.close)
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir)
+        engine.base_url = f"http://127.0.0.1:{port}"
+        with self.assertRaises(EngineError):
+            engine.version()
+        with self.assertRaises(EngineError):
+            engine.complete(MODEL, "x", Sampling())
+
+    def test_incomplete_read_during_stream_and_reply(self):
+        engine = OllamaEngine(config(ollama_url="http://x"), log_dir=self.dir)
+        engine.base_url = "http://x"
+
+        class Broken:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def __iter__(self):
+                raise http.client.IncompleteRead(b"")
+
+            def read(self):
+                raise http.client.IncompleteRead(b"")
+
+        engine._opener = mock.Mock(open=lambda *a, **k: Broken())
+        with self.assertRaises(EngineError):
+            engine.complete(MODEL, "x", Sampling())
+        with self.assertRaises(EngineError):
+            engine.version()
+
+    def test_non_dict_chunk_and_reply(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": ["[1, 2]\n"], "/api/ps": "[1]"}) as server:
+            engine = self.engine_for(server)
+            with self.assertRaises(EngineError):
+                engine.complete(MODEL, "x", Sampling())
+            with self.assertRaises(EngineError):
+                engine.gpu_fraction(MODEL)
+
+    def test_http_proxy_variables_do_not_apply(self):
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            proxy = {"HTTP_PROXY": "http://127.0.0.1:9", "http_proxy": "http://127.0.0.1:9",
+                     "ALL_PROXY": "http://127.0.0.1:9"}
+            with mock.patch.dict(os.environ, proxy):
+                engine = OllamaEngine(config(ollama_url=server.url), log_dir=self.dir)
+                engine.start()
+                self.assertEqual(engine.version(), "0.40.13")
+
+    def test_keep_alive_is_sent_with_inference_requests(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": lambda body: stream_lines() if body.get("prompt")
+                         else fixture("generate-raw.json"),
+                         "/api/chat": fixture("chat-json.json")}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 4096)
+            engine.complete(MODEL, "Hi", Sampling())
+            engine.chat(MODEL, [], Sampling())
+            engine.unload(MODEL)
+            bodies = [b for _, p, b in server.requests if p in ("/api/generate", "/api/chat")]
+        self.assertEqual([b["keep_alive"] for b in bodies], ["30m", "30m", "30m", 0])
+
+    def test_gpu_fraction_latest_tag(self):
+        ps = {"models": [{"name": "qwen3.5:latest", "size": 10, "size_vram": 5}]}
+        bare = ModelRef("S1", "S", "Q8_0", "qwen3.5", None, None, None)
+        with FakeServer({"/api/version": fixture("version.json"), "/api/ps": ps}) as server:
+            engine = self.engine_for(server)
+            self.assertEqual(engine.gpu_fraction(bare), 0.5)
+            self.assertEqual(engine.gpu_fraction(
+                ModelRef("S1", "S", "Q8_0", "qwen3.5:latest", None, None, None)), 0.5)
+            self.assertIsNone(engine.gpu_fraction(MODEL))
+
+    def test_parallel_property(self):
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            self.assertIsNone(self.engine_for(server).parallel)
+
+
+@unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+class OwnedServerFailureTest(ProcessOwnershipTestBase):
+    def setUp(self):
+        super().setUp()
+        self.created = []
+        real_owned = proc.Owned
+        created = self.created
+
+        class Recording(real_owned):
+            def __init__(self, *a, **k):
+                super().__init__(*a, **k)
+                created.append(self)
+
+        patcher = mock.patch("bench.engines.ollama.proc.Owned", Recording)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(lambda: [o.stop() for o in self.created])
+        os.environ["FAKE_OUT"] = str(self.dir / "env.json")
+        self.addCleanup(os.environ.pop, "FAKE_OUT", None)
+
+    def engine(self, **kw) -> OllamaEngine:
+        return OllamaEngine(config(ollama_bin=self.fake_binary()), log_dir=self.dir / "logs",
+                            **kw)
+
+    def assert_no_child(self):
+        self.assertEqual(len(self.created), 1)
+        self.assertFalse(self.created[0].running)
+
+    def test_keyboard_interrupt_during_startup_stops_the_child(self):
+        engine = self.engine()
+        with mock.patch.object(proc.Owned, "wait_until", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                engine.start()
+        self.assert_no_child()
+        self.assertIsNone(engine._owned)
+        self.assertIsNone(engine.base_url)
+
+    def test_http_exception_during_startup_stops_the_child(self):
+        engine = self.engine(start_timeout=1.5)
+        engine._opener = mock.Mock(open=mock.Mock(side_effect=http.client.RemoteDisconnected()))
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assert_no_child()
+        self.assertIsNone(engine._owned)
+
+    def test_unexpected_exception_during_startup_stops_the_child(self):
+        engine = self.engine()
+        with mock.patch.object(proc.Owned, "wait_until", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                engine.start()
+        self.assert_no_child()
+
+    def test_server_that_never_answers_fails_within_the_deadline(self):
+        os.environ["FAKE_MODE"] = "hang"
+        self.addCleanup(os.environ.pop, "FAKE_MODE", None)
+        engine = self.engine(start_timeout=1.5, quick_timeout=0.3)
+        started = time.monotonic()
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assertLess(time.monotonic() - started, 10)
+        self.assert_no_child()
+
+    def test_second_start_is_refused_and_keeps_the_first_server(self):
+        engine = self.engine()
+        engine.start()
+        self.addCleanup(engine.stop)
+        first = engine._owned
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assertIs(engine._owned, first)
+        self.assertTrue(first.running)
+        self.assertEqual(len(self.created), 1)
+
+    def test_stop_resets_state(self):
+        engine = self.engine()
+        engine.start()
+        self.assertEqual(engine.parallel, 1)
+        engine.stop()
+        self.assertIsNone(engine._owned)
+        self.assertIsNone(engine.base_url)
+        self.assertIsNone(engine.parallel)
+        engine.stop()
+
+    def test_somebody_else_answering_on_the_port_is_not_trusted(self):
+        # Our child is gone by the time the probe succeeded: the answer came from elsewhere.
+        engine = self.engine()
+
+        def die_then_pretend_ready(self_, predicate, timeout, interval=0.2):
+            self_.stop()
+
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            port = int(server.url.rsplit(":", 1)[1])
+            with mock.patch("bench.engines.ollama.pick_port", return_value=port), \
+                    mock.patch.object(proc.Owned, "wait_until", die_then_pretend_ready):
+                with self.assertRaises(EngineError):
+                    engine.start()
+            self.assertEqual(server.requests, [])
+        self.assertIsNone(engine.base_url)
+        self.assertIsNone(engine._owned)
 
 
 if __name__ == "__main__":
