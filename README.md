@@ -26,6 +26,8 @@ Local language models on real hardware, measured with one prompt for every devic
 | | LFM3 1.7B Q4_K_M | Ollama 0.40.13 | 20,863 | 285.3 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#ollama-lfm3-1-7b-q4-k-m) |
 | | Qwen3-Coder-30B-A3B Q4_K_M, abliterated | llama.cpp 0.8.0-dev (build 12001) | 4,408 | 162.4 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#llama-cpp-qwen3-coder-30b-a3b-q4-k-m) |
 | | Qwen3.8-Flash-Next IQ3_S | Strata 0.2.8 (engine 0.1.54) | 2,427 | 85.0 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#strata-qwen3-8-flash-next-iq3-s) |
+| | Ornith-1.5-122B Q4_K_M | llama.cpp 0.8.0-dev (build 12001) | 216 | 22.5 | [details](runs/2026-11-02-pc-rtx-3090-24gb.md#llama-cpp-ornith-1-5-122b-q4-k-m) |
+| | Ornith-1.5-122B Q4_K_M | Ollama 0.40.13 | 251 | 13.3 | [details](runs/2026-11-02-pc-rtx-3090-24gb.md#ollama-ornith-1-5-122b-q4-k-m) |
 | **MacBook Pro M5 Max 128 GB** | Qwen3.5 4B Q4_K_M | Ollama 0.40.11 | 4,171 | 118.0 | [details](runs/2026-10-26-macbook-pro-m5-max-128gb.md#ollama-qwen3-5-4b-q4-k-m) |
 | **PC RTX 4060 Ti 8 GB** | Qwen3.5 4B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | 5,420 | 72.2 | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
 | | Qwen3.5 4B Q4_K_M | Ollama 0.40.11 | 4,938 | 59.4 | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#ollama-qwen3-5-4b-q4-k-m) |
@@ -49,6 +51,7 @@ Full results for each run, with load times, TTFT, max context and notes:
 - [2026-10-30: PC RTX 3090 24 GB](runs/2026-10-30-pc-rtx-3090-24gb.md), extra models, logic and coding test, concurrent requests
 - [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb.md)
 - [2026-11-02: PC RTX 4090 24 GB](runs/2026-11-02-pc-rtx-4090-24gb.md)
+- [2026-11-02: PC RTX 3090 24 GB](runs/2026-11-02-pc-rtx-3090-24gb.md), Ornith-1.5-122B with experts in RAM, logic and coding test, concurrent requests
 
 ## Benchmark prompt
 
