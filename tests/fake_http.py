@@ -4,6 +4,7 @@ Routes map a path to a reply:
   dict          sent as JSON
   str           sent as is (for example ndjson)
   bytes         sent as is (for example a zip archive)
+  (302, url)    redirect to url
   list          streamed, items are text or (delay_seconds, text), flushed one by one
   callable      called with the decoded request body, returns one of the above
 Every request is recorded in `requests` as (method, path, decoded JSON body or None).
@@ -37,6 +38,12 @@ class FakeServer:
                     self.send_response(404)
                     self.end_headers()
                     self.wfile.write(b'{"error":"not found"}')
+                    return
+                if isinstance(reply, tuple) and reply[0] == 302:
+                    self.send_response(302)
+                    self.send_header("Location", reply[1])
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
                     return
                 self.send_response(200)
                 self.end_headers()

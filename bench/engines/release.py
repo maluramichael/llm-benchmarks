@@ -8,11 +8,22 @@ Backends: `cuda` means the CUDA 12.x build because CUDA 13 dropped Pascal (GTX 1
 `cuda13` picks the 13.x build explicitly. On Windows the CUDA runtime is a separate
 asset (`cudart-llama-bin-win-cuda-<ver>-<arch>.zip`) and is unpacked into the same folder.
 
+Linux CUDA builds get no separate runtime bundle (the `cudart-llama-<tag>-bin-ubuntu-*`
+archives are not fetched): they rely on the CUDA libraries of the system.
+
 Everything lands in `.bench/engines/llama.cpp/<tag>/<asset name>/`, never in a system path.
 Download and unpacking happen in a scratch directory next to the target and the finished
 folder is renamed into place, so an interrupted run leaves no half-installed engine.
-Size (from the API) and the SHA-256 digest (when the API offers one) are verified;
-archive members that would leave the target folder are refused.
+Size (from the API) and the SHA-256 digest (when the API offers one) are verified; without
+a digest only the size is checked, a warning is printed and `install.json` in the installed
+folder records `digest_verified: false` per asset. Redirects are checked like the first URL
+(no downgrade from https), archive members that would leave the target folder are refused,
+and `.partial-*` scratch folders older than an hour (hard-killed runs) are removed.
+
+Archive links: symlink and hard link members are checked by name before extraction and by
+real path (after resolving earlier links) after extraction, on every Python version; on
+3.11.4 and later tarfile's "data" filter is applied on top. A failing `safe_extract` may leave
+a partly filled target, so callers extract into a scratch folder (`ensure_llamacpp` does).
 """
 
 from __future__ import annotations
@@ -29,6 +40,7 @@ import stat
 import sys
 import tarfile
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -46,6 +58,7 @@ USER_AGENT = "llm-benchmarks"
 API_TIMEOUT_S = 30
 DOWNLOAD_TIMEOUT_S = 60
 CHUNK = 1 << 20
+PARTIAL_MAX_AGE_S = 3600
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 DRIVE_RE = re.compile(r"^[A-Za-z]:")
@@ -154,6 +167,19 @@ def _check_url(url: str) -> None:
     raise ReleaseError(f"refusing to download from {url!r}: only https is allowed")
 
 
+class CheckedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Applies the URL rules to every redirect target, so https cannot be downgraded."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _check_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def default_opener():
+    """URL opener for GitHub: system proxy settings, redirects checked."""
+    return urllib.request.build_opener(CheckedRedirectHandler)
+
+
 def _http_error(url: str, err: BaseException) -> ReleaseError:
     if isinstance(err, urllib.error.HTTPError):
         return ReleaseError(f"{url}: HTTP {err.code}")
@@ -180,8 +206,12 @@ def fetch_release_json(tag: str, opener, api_base: str = GITHUB_API) -> dict:
 
 
 def download_asset(asset: dict, dest: Path, opener,
-                   say: Callable[[str], None] | None = None) -> None:
-    """Download one asset to `dest`, checking size and digest; `dest` only appears when ok."""
+                   say: Callable[[str], None] | None = None) -> dict:
+    """Download one asset to `dest`, checking size and digest; `dest` only appears when ok.
+
+    Returns {"name", "size", "digest_verified"}. Without a published digest only the size
+    is verified: `say` gets a warning and `digest_verified` is False.
+    """
     url = asset.get("browser_download_url", "")
     _check_url(url)
     size = asset.get("size")
@@ -196,6 +226,8 @@ def download_asset(asset: dict, dest: Path, opener,
         expected_digest = value.lower()
     if say:
         say(f"downloading {asset.get('name')} ({size / 1e6:.0f} MB)")
+        if expected_digest is None:
+            say(f"warning: no sha256 published for {asset.get('name')}; verified size only")
     part = dest.with_name(dest.name + ".part")
     hasher = hashlib.sha256()
     total = 0
@@ -221,6 +253,8 @@ def download_asset(asset: dict, dest: Path, opener,
         if expected_digest and hasher.hexdigest() != expected_digest:
             raise ReleaseError(f"{asset.get('name')}: digest does not match the release data")
         os.replace(part, dest)
+        return {"name": asset.get("name"), "size": size,
+                "digest_verified": expected_digest is not None}
     except (urllib.error.URLError, OSError, http.client.HTTPException) as err:
         raise _http_error(url, err) from None
     finally:
@@ -288,7 +322,7 @@ def _extract_tar(archive: Path, dest: Path) -> None:
                 _check_link_target(name, member.linkname, hard=member.islnk())
             elif not (member.isreg() or member.isdir()):
                 raise ReleaseError(f"archive member {name!r} is a special file")
-        options = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+        options = {"filter": "data"} if getattr(tarfile, "data_filter", None) else {}
         for member in members:
             target = dest / _check_member_name(member.name)
             # An earlier symlink may already point outside: check where we really write.
@@ -302,6 +336,10 @@ def _extract_tar(archive: Path, dest: Path) -> None:
                 bundle.extract(member, dest, **options)
             except tarfile.FilterError as err:
                 raise ReleaseError(f"archive member {member.name!r} refused: {err}") from None
+            if (member.issym() or member.islnk()) and not _inside(dest, target):
+                # Names looked harmless, but resolved through earlier links it leads out.
+                raise ReleaseError(f"archive link {member.name!r} points outside "
+                                   "the target folder")
 
 
 def safe_extract(archive: Path, dest: Path) -> None:
@@ -340,6 +378,17 @@ def find_binaries(folder: Path) -> tuple[Path, Path] | None:
 
 
 # -- ensure --------------------------------------------------------------------------------
+
+def _remove_stale_partials(tag_dir: Path) -> None:
+    """Delete scratch folders of hard-killed runs (older than an hour), this tag only."""
+    cutoff = time.time() - PARTIAL_MAX_AGE_S
+    for folder in tag_dir.glob(".partial-*"):
+        try:
+            if folder.is_dir() and not folder.is_symlink() and folder.stat().st_mtime < cutoff:
+                shutil.rmtree(folder, ignore_errors=True)
+        except OSError:
+            pass
+
 
 def _given_binaries(cfg: Config) -> tuple[Path, Path]:
     server = Path(cfg.llama_server)
@@ -395,7 +444,7 @@ def ensure_llamacpp(cfg: Config, *, opener=None, engines_dir: Path | None = None
         if not fetch_allowed:
             raise ReleaseError(f"llama.cpp {tag} is not installed and downloading is "
                                "disabled (--no-download/--no-install)")
-        data = fetch_release_json(tag, opener or urllib.request.build_opener(), api_base)
+        data = fetch_release_json(tag, opener or default_opener(), api_base)
 
     asset_name = select_asset(data, os_name, arch, backend)
     stem = re.sub(r"(\.zip|\.tar\.gz)$", "", asset_name)
@@ -415,9 +464,10 @@ def ensure_llamacpp(cfg: Config, *, opener=None, engines_dir: Path | None = None
     if runtime:
         wanted.append(runtime)
     by_name = {a.get("name"): a for a in data["assets"]}
-    opener = opener or urllib.request.build_opener()
+    opener = opener or default_opener()
     try:
         tag_dir.mkdir(parents=True, exist_ok=True)
+        _remove_stale_partials(tag_dir)
         cache.write_text(json.dumps(data), encoding="utf-8")
         scratch = Path(tempfile.mkdtemp(prefix=".partial-", dir=tag_dir))
     except OSError as err:
@@ -425,13 +475,17 @@ def ensure_llamacpp(cfg: Config, *, opener=None, engines_dir: Path | None = None
     try:
         out = scratch / "out"
         out.mkdir()
+        installed = []
         for name in wanted:
             archive = scratch / name
-            download_asset(by_name[name], archive, opener, say)
+            installed.append(download_asset(by_name[name], archive, opener, say))
             safe_extract(archive, out)
             archive.unlink()
         if find_binaries(out) is None:
             raise ReleaseError(f"{asset_name} contains no llama-server and llama-bench")
+        (out / "install.json").write_text(
+            json.dumps({"tag": tag, "asset": asset_name, "assets": installed}, indent=2),
+            encoding="utf-8")
         try:
             os.replace(out, final)  # atomic: the folder appears complete or not at all
         except OSError:

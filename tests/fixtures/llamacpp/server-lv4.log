@@ -8,11 +8,13 @@
 0.02.344.740 I load_tensors:   CPU_Mapped model buffer size =   497.31 MiB
 0.02.344.741 I load_tensors:        CUDA0 model buffer size =  2515.44 MiB
 0.03.168.596 I llama_context: flash_attn            = enabled
+0.03.168.597 I llama_context: kv_unified            = false
 0.03.177.600 I llama_kv_cache:      CUDA0 KV buffer size =   256.00 MiB
 0.03.177.606 I llama_kv_cache: size =  256.00 MiB (  8192 cells,   8 layers,  1/1 seqs), K (f16):  128.00 MiB, V (f16):  128.00 MiB
 0.03.180.048 I llama_memory_recurrent:      CUDA0 RS buffer size =    50.25 MiB
 0.03.180.059 I llama_memory_recurrent: size =   50.25 MiB (     1 cells,  32 layers,  1 seqs  0 rs_seq), R (f32):    2.25 MiB, S (f32):   48.00 MiB, P (f32):    0.00 MiB
 0.03.188.213 I sched_reserve:      CUDA0 compute buffer size =    82.02 MiB
 0.03.188.218 I sched_reserve:  CUDA_Host compute buffer size =    28.02 MiB
+0.03.244.599 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 8192, kv_unified = 'false'
 0.03.251.222 I srv  server_run_i: model loaded
 0.03.251.225 I srv  server_on_li: listening on http://127.0.0.1:18182

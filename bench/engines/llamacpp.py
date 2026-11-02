@@ -33,6 +33,17 @@ Token counting uses `/tokenize` (no inference). It needs the model: if it is not
 `count_tokens` loads it with a small context first.
 
 Timeouts: quick calls (health, version) use a short timeout, only inference uses the long one.
+
+Known limits, on purpose:
+
+* `cache_prompt` stays on, so repeating an identical prompt is warm (`cached_tokens` > 0 and a
+  tiny `prompt_tokens - cached_tokens`). A speed suite that wants cold prompt numbers needs
+  its own strategy (distinct prompts or a fresh `load`).
+* `--gpu` is not forwarded to llama-server or llama-bench; llama.cpp picks its own devices.
+* Every server start writes its own log file (port and time in the name), so the metrics
+  parsed from the log (KV, RS, backend, offload, kv_unified) always belong to the last start.
+* Model paths are replaced by `<model>` in error messages and `meta`, and the reply's `model`
+  field (the local GGUF path) is dropped from `raw`.
 """
 
 from __future__ import annotations
@@ -64,12 +75,13 @@ VERSION_TIMEOUT_S = 30
 MIN_COUNT_CTX = 2048
 LOG_READ_BYTES = 8 << 20
 DEFAULT_LOG_DIR = Path(".bench") / "logs"
-DROPPED_RAW_KEYS = ("prompt", "generation_settings", "tokens")
+DROPPED_RAW_KEYS = ("prompt", "generation_settings", "tokens", "model")
 
 KV_RE = re.compile(r"\bKV buffer size\s*=\s*([\d.]+)\s*MiB")
 RS_RE = re.compile(r"\bRS buffer size\s*=\s*([\d.]+)\s*MiB")
 OFFLOAD_RE = re.compile(r"offloaded\s+(\d+)/(\d+)\s+layers to GPU")
 DEVICE_RE = re.compile(r"using device\s+([A-Za-z_]+)")
+KV_UNIFIED_RE = re.compile(r"kv_unified\s*=\s*'?(true|false)'?")
 VERSION_LINE_RE = re.compile(r"^version:\s*(.+)$", re.MULTILINE)
 BUILD_RE = re.compile(r"build\s+(\d+).*?commit\s+(\w+)")
 OLD_BUILD_RE = re.compile(r"^(\d+)\s*\((\w+)\)")
@@ -119,15 +131,33 @@ def parse_backend(log_text: str) -> str | None:
 
 def parse_version(text: str) -> str | None:
     """`b12061 (d02b4c0d6)` from the output of `llama-server --version`."""
-    match = VERSION_LINE_RE.search(text)
-    if not match:
+    matches = VERSION_LINE_RE.findall(text)  # the last one: a log may hold several runs
+    if not matches:
         return None
-    line = match.group(1).strip()
+    line = matches[-1].strip()
     for pattern in (BUILD_RE, OLD_BUILD_RE):
         found = pattern.search(line)
         if found:
             return f"b{found.group(1)} ({found.group(2)})"
     return line
+
+
+def parse_kv_unified(log_text: str) -> bool | None:
+    """Whether all slots share one KV buffer (`kv_unified = 'false'`), from the last mention."""
+    found = KV_UNIFIED_RE.findall(log_text)
+    return found[-1] == "true" if found else None
+
+
+def hide_model_path(text: str, gguf: Path | str | None) -> str:
+    """Replace the model file and its folder by `<model>` (privacy: no local paths)."""
+    if gguf is None:
+        return text
+    path = Path(gguf)
+    forms = {str(path), path.as_posix(), str(path.parent), path.parent.as_posix()}
+    for form in sorted(forms, key=len, reverse=True):
+        if len(form) > 1:
+            text = text.replace(form, "<model>")
+    return text
 
 
 def flash_attn_failure(log_text: str) -> str | None:
@@ -146,7 +176,7 @@ def flash_attn_failure(log_text: str) -> str | None:
 def parse_llama_bench(output: str) -> list[dict]:
     """The JSON array `llama-bench -o json` prints: one object per pp/tg test."""
     try:
-        rows = json.loads(output.lstrip("﻿"))
+        rows = json.loads(output.lstrip("\ufeff"))
     except ValueError:
         raise EngineError("llama-bench output is not JSON") from None
     if not isinstance(rows, list) or not rows or not all(isinstance(r, dict) for r in rows):
@@ -169,7 +199,7 @@ def run_llama_bench(bench_bin: Path, model: ModelRef, args: list[str], *,
     if not bench_bin.is_file():
         raise EngineError(f"llama-bench executable not found: {bench_bin}")
     directory = Path(log_dir) if log_dir else DEFAULT_LOG_DIR
-    stamp = f"{os.getpid()}-{time.time_ns()}"
+    stamp = f"{os.getpid()}-{time.time_ns()}"  # unique: logs are never reused
     out_path = directory / f"llama-bench-{stamp}.json"
     log_path = directory / f"llama-bench-{stamp}.log"
     owned = proc.Owned([bench_bin, "-m", model.gguf_path, "-o", "json", *args],
@@ -182,9 +212,11 @@ def run_llama_bench(bench_bin: Path, model: ModelRef, args: list[str], *,
             if owned.running:
                 raise EngineError(f"llama-bench did not finish after {timeout:g} s") \
                     from None
-            raise EngineError(f"cannot run llama-bench: {err}") from None
+            raise EngineError("cannot run llama-bench: "
+                              f"{hide_model_path(str(err), model.gguf_path)}") from None
         if code != 0:
-            raise EngineError(f"llama-bench exited with code {code}:\n{owned.log_tail()}")
+            raise EngineError(f"llama-bench exited with code {code}:\n"
+                              f"{hide_model_path(owned.log_tail(), model.gguf_path)}")
     finally:
         owned.stop()
     try:
@@ -304,7 +336,8 @@ class LlamaCppEngine:
         user_fa = _sets_flash_attn(user_args)
         self._release()
         self._meta = {"flash_attn": "user" if user_fa else "on",
-                      "flash_attn_fallback": False, "ctx": ctx, "parallel": parallel}
+                      "flash_attn_fallback": False, "ctx": ctx, "parallel": parallel,
+                      "ctx_arg": ctx * parallel}
         fa = None if user_fa else "on"
         try:
             seconds = self._start_server(server_bin, gguf, ctx, parallel, fa, user_args)
@@ -321,13 +354,12 @@ class LlamaCppEngine:
             except _StartFailed as again:
                 raise EngineError(str(again)) from None  # once only: no loop
         self._model_id = model.id
+        self._meta["kv_unified"] = parse_kv_unified(self._log_text())
         return seconds
 
     @staticmethod
     def _sanitize(line: str, gguf: Path) -> str:
-        for form in {str(gguf), gguf.as_posix(), str(gguf.parent), gguf.parent.as_posix()}:
-            line = line.replace(form, "<model>")
-        return line
+        return hide_model_path(line, gguf)
 
     def _start_server(self, server_bin: Path, gguf: Path, ctx: int, parallel: int,
                       fa: str | None, user_args: list[str]) -> float:
@@ -338,7 +370,8 @@ class LlamaCppEngine:
         argv += ["-c", str(ctx * parallel), "-np", str(parallel), "--port", str(port),
                  "--host", "127.0.0.1", "--jinja", "-fit", "off", "-cram", "0", "-lv", "4",
                  *user_args]
-        log_path = self.log_dir / f"llamacpp-{port}.log"
+        # A new file for every start: Owned appends, and old lines must never be counted.
+        log_path = self.log_dir / f"llamacpp-{port}-{time.time_ns()}.log"
         owned = proc.Owned(argv, log_path=log_path)
         # Owned from here on: whatever happens next (Ctrl-C included), only stop() ends it.
         # stop() does nothing if the process was never spawned.
@@ -358,8 +391,8 @@ class LlamaCppEngine:
             log = self._log_text()
             self._release()
             if isinstance(err, proc.ProcError):
-                raise _StartFailed(f"cannot start llama-server: {err}", exited, log) \
-                    from None
+                message = hide_model_path(f"cannot start llama-server: {err}", gguf)
+                raise _StartFailed(message, exited, log) from None
             raise
         return time.perf_counter() - started
 
@@ -437,8 +470,9 @@ class LlamaCppEngine:
         """Build of the llama-server binary, `b12061 (d02b4c0d6)`."""
         server_bin, _ = self._require_started()
         if self._version is None:
-            owned = proc.Owned([server_bin, "--version"],
-                               log_path=self.log_dir / "llamacpp-version.log")
+            owned = proc.Owned(
+                [server_bin, "--version"],
+                log_path=self.log_dir / f"llamacpp-version-{os.getpid()}-{time.time_ns()}.log")
             try:
                 try:
                     owned.start()
@@ -535,18 +569,23 @@ class LlamaCppEngine:
             timing = self._timing(timings, timings.get("prompt_ms", 0.0) / MS)
         else:
             timing = self._usage_timing(reply.get("usage") or {})
-        return ChatResult(message.get("content") or "", calls, timing, reply)
+        raw = {k: v for k, v in reply.items() if k != "model"}  # "model" is the local path
+        return ChatResult(message.get("content") or "", calls, timing, raw)
 
     @staticmethod
     def _tool_call(call: dict) -> dict:
         function = call.get("function") or {}
-        arguments = function.get("arguments") or {}
+        arguments = function.get("arguments")
+        if arguments is None or arguments == "":
+            arguments = {}
         if isinstance(arguments, str):  # OpenAI shape: a JSON string (Ollama gives an object)
             try:
                 arguments = json.loads(arguments)
             except ValueError:
                 raise EngineError(f"tool call arguments are not JSON: {arguments[:100]}") \
                     from None
+        if not isinstance(arguments, dict):
+            raise EngineError(f"tool call arguments are not an object: {str(arguments)[:100]}")
         return {"name": function.get("name", ""), "arguments": arguments}
 
     @staticmethod

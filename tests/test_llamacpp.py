@@ -5,6 +5,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -77,6 +78,17 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(parse_version("version: something odd"), "something odd")
         self.assertIsNone(parse_version("no version here"))
 
+    def test_version_takes_the_last_match(self):
+        old_and_new = ("version: 0.7.0 (build 11000, commit aaaa111)\n"
+                       "version: 0.8.0-dev (build 12061, commit d02b4c0d6)\n")
+        self.assertEqual(parse_version(old_and_new), "b12061 (d02b4c0d6)")
+
+    def test_kv_unified(self):
+        self.assertIs(llamacpp.parse_kv_unified(text("server-lv4.log")), False)
+        self.assertIs(llamacpp.parse_kv_unified("... n_slots = 4, kv_unified = 'true'"), True)
+        self.assertIs(llamacpp.parse_kv_unified("llama_context: kv_unified = false"), False)
+        self.assertIsNone(llamacpp.parse_kv_unified("nothing"))
+
     def test_flash_attention_failure_detection(self):
         failing = ("llama_init_from_model: flash_attn requested but not supported by the "
                    "backend\n")
@@ -102,7 +114,7 @@ print("ggml_cuda_init: found 1 CUDA devices", file=sys.stderr)
 if mode == "hang":
     time.sleep(60)
 if mode == "fail":
-    print("error: failed to load model", file=sys.stderr)
+    print("error: failed to load model " + sys.argv[sys.argv.index("-m") + 1], file=sys.stderr)
     sys.exit(2)
 if mode == "garbage":
     print("this is not json")
@@ -173,6 +185,19 @@ class LlamaBenchTest(TempCase):
             with self.subTest(mode=mode), self.assertRaises(EngineError) as ctx:
                 self.run_bench(mode)
             self.assertIn(needle, str(ctx.exception))
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_bench_error_message_hides_the_model_path(self):
+        gguf = self.dir / "private" / "model.gguf"
+        model = ModelRef("S1", "S", "Q4", None, gguf, None, None)
+        out = self.dir / "args.json"
+        self.setenv(FAKE_OUT=str(out), FAKE_MODE="fail")
+        with self.assertRaises(EngineError) as ctx:
+            run_llama_bench(self.script("llama-bench", FAKE_BENCH), model, [],
+                            log_dir=self.dir / "logs")
+        self.assertNotIn(str(gguf), str(ctx.exception))
+        self.assertNotIn(str(gguf.parent), str(ctx.exception))
+        self.assertIn("<model>", str(ctx.exception))
 
     @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
     def test_timeout_stops_the_process(self):
@@ -266,15 +291,24 @@ if mode == "always_fa_error":
     sys.stderr.write("llama_init_from_model: flash_attn requested but not supported\\n")
     sys.exit(1)
 if mode == "oom":
+    sys.stderr.write("srv load_model: loading model '" + argv[argv.index("-m") + 1] + "'\\n")
     sys.stderr.write("ggml_backend_cuda_buffer_type_alloc_buffer: allocating failed\\n")
     sys.exit(1)
 if mode == "hang":
     time.sleep(120)
 port = int(argv[argv.index("--port") + 1])
 host = argv[argv.index("--host") + 1]
+hits = [0]
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
     def do_GET(self):
+        hits[0] += 1
+        if mode == "slow_health" and hits[0] <= 3:  # still loading: 503, like the real one
+            self.send_response(503); self.end_headers()
+            self.wfile.write(b'{{"error":{{"code":503,"message":"Loading model"}}}}')
+            return
+        if "FAKE_HEALTH" in os.environ:
+            open(os.environ["FAKE_HEALTH"], "w").write(str(hits[0]))
         self.send_response(200); self.end_headers()
         self.wfile.write(b'{{"status":"ok"}}')
     def do_POST(self):
@@ -391,6 +425,77 @@ class ServerProcessTest(ServerCase):
         self.assertEqual(engine.meta["parallel"], 1)
         other = ModelRef("S2", "S", "Q4", None, self.gguf, None, None)
         self.assertIsNone(engine.gpu_fraction(other))
+
+    def test_meta_records_kv_unified_and_the_effective_context(self):
+        engine = self.engine()
+        engine.load(self.model, 4096, parallel=2)
+        self.assertIs(engine.meta["kv_unified"], False)
+        self.assertEqual(engine.meta["ctx"], 4096)
+        self.assertEqual(engine.meta["ctx_arg"], 8192)  # the -c given to llama-server
+
+    def test_version_is_not_stale_across_engines(self):
+        version_file = self.dir / "version.txt"
+        self.setenv(FAKE_VERSION=str(version_file))
+        version_file.write_text("version: 0.7.0 (build 11000, commit aaaa111)\n",
+                                encoding="utf-8")
+        self.assertEqual(self.engine().version(), "b11000 (aaaa111)")
+        version_file.write_text("version: 0.8.0 (build 12061, commit d02b4c0d6)\n",
+                                encoding="utf-8")
+        self.assertEqual(self.engine().version(), "b12061 (d02b4c0d6)")  # same log_dir
+
+    def test_every_start_has_its_own_log_so_metrics_are_not_summed(self):
+        engine = self.engine()
+        port = proc.free_port()
+        with mock.patch("bench.engines.llamacpp.pick_port", return_value=port):
+            engine.load(self.model, 8192)
+            first = engine._log_path
+            engine.load(self.model, 8192)  # the same port again
+        self.assertNotEqual(engine._log_path, first)
+        self.assertEqual(engine.kv_buffer_mb(), 256.0)  # not 512
+        self.assertEqual(engine.rs_buffer_mb(), 50.25)
+        self.assertEqual(parse_offloaded_layers(engine._log_text()), (33, 33))
+
+    def test_a_log_left_at_the_old_name_is_not_read(self):
+        engine = self.engine()
+        port = proc.free_port()
+        stale = self.dir / "logs" / f"llamacpp-{port}.log"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("llama_kv_cache: CUDA0 KV buffer size = 1000.00 MiB\n",
+                         encoding="utf-8")
+        with mock.patch("bench.engines.llamacpp.pick_port", return_value=port):
+            engine.load(self.model, 8192)
+        self.assertEqual(engine.kv_buffer_mb(), 256.0)
+
+    def test_fallback_restart_gets_its_own_log(self):
+        self.setenv(FAKE_MODE="fa_unsupported")
+        engine = self.engine()
+        engine.load(self.model, 8192)
+        self.assertEqual(len({o.log_path for o in self.created}), 2)
+        self.assertEqual(engine.kv_buffer_mb(), 256.0)  # only the second start counts
+
+    def test_error_messages_do_not_contain_the_model_path(self):
+        private = self.dir / "private"
+        private.mkdir()
+        gguf = private / "secret-model.gguf"
+        gguf.write_bytes(b"GGUF")
+        model = ModelRef("S1", "S", "Q4", None, gguf, None, None)
+        self.setenv(FAKE_MODE="oom")
+        engine = self.engine()
+        with self.assertRaises(EngineError) as ctx:
+            engine.load(model, 8192)
+        message = str(ctx.exception)
+        self.assertNotIn(str(gguf), message)
+        self.assertNotIn(str(private), message)
+        self.assertIn("<model>", message)
+
+    def test_health_503_while_loading_is_waited_out(self):
+        health = self.dir / "health-hits"
+        self.setenv(FAKE_MODE="slow_health", FAKE_HEALTH=str(health))
+        engine = self.engine()
+        self.assertGreater(engine.load(self.model, 2048), 0)
+        self.assertEqual(len(self.launches()), 1)  # no restart for a 503
+        self.assertEqual(health.read_text(), "4")  # three 503, then ok
+        self.assertTrue(engine._owned.running)
 
     def test_flash_attention_fallback_restarts_once_with_fa_off(self):
         self.setenv(FAKE_MODE="fa_unsupported")
@@ -559,6 +664,7 @@ class CompleteTest(HttpCase):
         # The echoed prompt and the settings are not kept in the raw result.
         self.assertNotIn("prompt", result.raw)
         self.assertNotIn("generation_settings", result.raw)
+        self.assertNotIn("model", result.raw)  # holds the local GGUF path
         self.assertEqual(result.raw["timings"]["prompt_n"], 6)
 
     def test_request_body(self):
@@ -592,11 +698,14 @@ class CompleteTest(HttpCase):
                              "predicted_ms": 1.0, "cache_n": 0}}
         chunks = [(0, 'data: {"content":"","stop":false}\n\n'),
                   (0.3, 'data: {"content":"Hi","stop":false}\n\n'),
-                  (0.4, "data: " + json.dumps(final) + "\n\n")]
+                  (1.0, "data: " + json.dumps(final) + "\n\n")]
         with FakeServer({"/completion": chunks}) as server:
-            t = self.engine_for(server).complete(MODEL, "Hi", Sampling()).timing
+            engine = self.engine_for(server)
+            started = time.perf_counter()
+            t = engine.complete(MODEL, "Hi", Sampling()).timing
+            total = time.perf_counter() - started
         self.assertGreaterEqual(t.ttft_s, 0.29)
-        self.assertLess(t.ttft_s, 0.65)
+        self.assertLess(t.ttft_s, total - 0.5)  # clearly before the last chunk
 
     def test_error_and_truncated_streams_raise(self):
         cases = {"error": ['data: {"content":"a","stop":false}\n\n',
@@ -643,6 +752,29 @@ class ChatTest(HttpCase):
         # No load in llama.cpp: first-token latency is the server's prompt time.
         self.assertAlmostEqual(t.ttft_s, 0.080484)
         self.assertIsNone(t.load_s)
+
+    def test_raw_reply_has_no_model_path(self):
+        with FakeServer({"/v1/chat/completions": fixture("chat-json.json")}) as server:
+            result = self.engine_for(server).chat(MODEL, [], Sampling())
+        self.assertNotIn("model", result.raw)
+        self.assertNotIn("models", json.dumps(result.raw))
+        self.assertIn("choices", result.raw)
+
+    def test_tool_arguments_must_decode_to_an_object(self):
+        def reply(arguments):
+            call = {"type": "function", "function": {"name": "f", "arguments": arguments}}
+            return {"choices": [{"message": {"content": "", "tool_calls": [call]}}],
+                    "timings": {}}
+        for arguments in ("[1, 2]", '"text"', "5", "null", [1, 2], 7):
+            with self.subTest(arguments=arguments), \
+                    FakeServer({"/v1/chat/completions": reply(arguments)}) as server:
+                with self.assertRaises(EngineError):
+                    self.engine_for(server).chat(MODEL, [], Sampling())
+        for arguments, expected in (("", {}), ("{}", {}), (None, {}), ('{"a": 1}', {"a": 1})):
+            with self.subTest(arguments=arguments), \
+                    FakeServer({"/v1/chat/completions": reply(arguments)}) as server:
+                result = self.engine_for(server).chat(MODEL, [], Sampling())
+                self.assertEqual(result.tool_calls[0]["arguments"], expected)
 
     def test_arguments_given_as_an_object_and_bad_json(self):
         call = {"type": "function", "function": {"name": "f", "arguments": {"a": 1}}}

@@ -5,6 +5,7 @@ import os
 import stat
 import tarfile
 import tempfile
+import time
 import unittest
 import urllib.request
 import zipfile
@@ -214,6 +215,22 @@ class ExtractTest(TempDirCase):
                 self.extract(make_tar([entry]), ".tar.gz")
         self.assertFalse((self.dir / "evil.txt").exists())
 
+    def test_symlink_chain_that_only_escapes_physically_is_refused(self):
+        # a/b/s -> ../.. is the root, so a/b/s/l -> ../../../x points outside although
+        # it looks harmless name by name. Python before 3.11.4 has no data_filter to catch it.
+        entries = [("a/b/s", None, "../.."), ("a/b/s/l", None, "../../../x")]
+        with mock.patch.object(tarfile, "data_filter", None):
+            with self.assertRaises(ReleaseError):
+                self.extract(make_tar(entries), ".tar.gz")
+        with self.assertRaises(ReleaseError):  # and with the filter
+            self.extract(make_tar(entries), ".tar.gz")
+
+    def test_harmless_symlinks_still_work_without_data_filter(self):
+        with mock.patch.object(tarfile, "data_filter", None):
+            out = self.extract(make_tar([("top/lib.so.0", b"lib"),
+                                         ("top/lib.so", None, "lib.so.0")]), ".tar.gz")
+        self.assertEqual((out / "top" / "lib.so").read_bytes(), b"lib")
+
     def test_tar_special_files_are_refused(self):
         buffer = io.BytesIO()
         with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
@@ -296,10 +313,54 @@ class DownloadTest(TempDirCase):
         self.assertIn("digest", str(ctx.exception))
         self.assertFalse((self.dir / "a.zip").exists())
 
-    def test_missing_digest_still_checks_size(self):
+    def test_missing_digest_still_checks_size_and_warns(self):
         _, entry = self.serve(b"payload")
         del entry["digest"]
-        self.assertEqual(self.fetch(entry).read_bytes(), b"payload")
+        said = []
+        dest = self.dir / "a.zip"
+        info = release.download_asset(entry, dest, local_opener(), said.append)
+        self.assertEqual(dest.read_bytes(), b"payload")
+        self.assertIs(info["digest_verified"], False)
+        warning = [m for m in said if "no sha256 published for a.zip" in m]
+        self.assertEqual(len(warning), 1)
+        self.assertIn("verified size only", warning[0])
+        entry["size"] = 3
+        with self.assertRaises(ReleaseError):  # the size is still enforced
+            release.download_asset(entry, self.dir / "b.zip", local_opener(), said.append)
+
+    def test_verified_digest_is_reported_without_a_warning(self):
+        _, entry = self.serve(b"payload")
+        said = []
+        info = release.download_asset(entry, self.dir / "a.zip", local_opener(), said.append)
+        self.assertEqual(info, {"name": "a.zip", "size": 7, "digest_verified": True})
+        self.assertFalse([m for m in said if "no sha256" in m])
+
+    def test_redirect_to_a_forbidden_url_is_refused(self):
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                             release.CheckedRedirectHandler)
+        for target in ("http://example.com/a.zip", "ftp://example.com/a.zip",
+                       "file:///etc/passwd"):
+            with self.subTest(target=target), FakeServer() as server:
+                server.routes["/dl/a.zip"] = (302, target)
+                entry = {"name": "a.zip", "size": 7, "browser_download_url":
+                         server.url + "/dl/a.zip"}
+                with self.assertRaises(ReleaseError):
+                    release.download_asset(entry, self.dir / "a.zip", opener)
+                self.assertFalse((self.dir / "a.zip").exists())
+
+    def test_redirect_to_an_allowed_url_is_followed(self):
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+                                             release.CheckedRedirectHandler)
+        with FakeServer({"/real": b"payload"}) as server:
+            server.routes["/dl/a.zip"] = (302, server.url + "/real")
+            entry = {"name": "a.zip", "size": 7,
+                     "browser_download_url": server.url + "/dl/a.zip"}
+            release.download_asset(entry, self.dir / "a.zip", opener)
+        self.assertEqual((self.dir / "a.zip").read_bytes(), b"payload")
+
+    def test_default_opener_checks_redirects(self):
+        handlers = release.default_opener().handlers
+        self.assertTrue(any(isinstance(h, release.CheckedRedirectHandler) for h in handlers))
 
     def test_unsupported_digest_algorithm_is_refused(self):
         _, entry = self.serve(b"payload", digest="md5:abc")
@@ -373,9 +434,9 @@ class EnsureTest(TempDirCase):
         return server
 
     def ensure(self, server, os_name="linux", arch="x64", **kw):
+        kw.setdefault("say", lambda _: None)
         return ensure_llamacpp(self.cfg, opener=local_opener(), engines_dir=self.engines,
-                               os_name=os_name, arch=arch, api_base=server.url,
-                               say=lambda _: None, **kw)
+                               os_name=os_name, arch=arch, api_base=server.url, **kw)
 
     def downloads(self, server):
         return [p for _, p, _ in server.requests if p.startswith("/dl/")]
@@ -400,6 +461,46 @@ class EnsureTest(TempDirCase):
         before = len(server.requests)
         self.assertEqual(self.ensure(server), (server_bin, bench_bin))
         self.assertEqual(len(server.requests), before)
+
+    def test_install_metadata_records_whether_digests_were_verified(self):
+        self.cfg.llama_backend = "cpu"
+        asset = f"llama-{TAG}-bin-ubuntu-x64.tar.gz"
+        said = []
+        server = self.serve({asset: LINUX_TAR}, digest=False)
+        self.ensure(server, say=said.append)
+        folder = self.engines / TAG / f"llama-{TAG}-bin-ubuntu-x64"
+        meta = json.loads((folder / "install.json").read_text(encoding="utf-8"))
+        self.assertEqual(meta["tag"], TAG)
+        self.assertEqual(meta["assets"], [{"name": asset, "size": len(LINUX_TAR),
+                                           "digest_verified": False}])
+        self.assertTrue([m for m in said if "no sha256 published" in m])
+
+    def test_install_metadata_with_digests(self):
+        self.cfg.llama_backend = "cuda"
+        main = f"llama-{TAG}-bin-win-cuda-12.4-x64.zip"
+        server = self.serve({main: WIN_CUDA_ZIP,
+                             "cudart-llama-bin-win-cuda-12.4-x64.zip": CUDART_ZIP})
+        self.ensure(server, os_name="windows")
+        folder = self.engines / TAG / f"llama-{TAG}-bin-win-cuda-12.4-x64"
+        meta = json.loads((folder / "install.json").read_text(encoding="utf-8"))
+        self.assertEqual([a["digest_verified"] for a in meta["assets"]], [True, True])
+
+    def test_old_partial_folders_are_removed_but_young_ones_stay(self):
+        self.cfg.llama_backend = "cpu"
+        tag_dir = self.engines / TAG
+        old, young = tag_dir / ".partial-old", tag_dir / ".partial-young"
+        other = self.engines / "b1" / ".partial-other-tag"
+        for folder in (old, young, other):
+            (folder / "out").mkdir(parents=True)
+            (folder / "out" / "x").write_bytes(b"x")
+        stale = time.time() - 2 * 3600
+        os.utime(old, (stale, stale))
+        os.utime(other, (stale, stale))
+        server = self.serve({f"llama-{TAG}-bin-ubuntu-x64.tar.gz": LINUX_TAR})
+        self.ensure(server)
+        self.assertFalse(old.exists())
+        self.assertTrue(young.exists())  # maybe another run is working in it
+        self.assertTrue(other.exists())  # other tags are not touched
 
     def test_windows_cuda_gets_the_runtime_in_the_same_folder(self):
         self.cfg.llama_backend = "cuda"
