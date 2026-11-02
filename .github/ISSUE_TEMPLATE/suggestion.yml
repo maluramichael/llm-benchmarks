@@ -1,0 +1,28 @@
+name: Suggestion
+description: A model, engine or test that should be part of the benchmark, or a change to the prompt.
+title: "Suggestion: "
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of suggestion?
+      options:
+        - Model
+        - Engine
+        - Test or measurement
+        - Change to the benchmark prompt
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What should change, and why. For models and engines, a link helps.
+    validations:
+      required: true
+  - type: textarea
+    id: comparability
+    attributes:
+      label: Effect on existing results
+      description: Only for prompt changes. Do old runs stay comparable, or would they have to be repeated?
