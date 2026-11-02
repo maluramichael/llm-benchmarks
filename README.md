@@ -6,6 +6,12 @@ Local language models on real hardware, measured with one prompt for every devic
 
 | Device | Model | Engine | Prompt processing tok/s | Generation tok/s | Details |
 |:------|:-------|:-------|-----------------------:|-----------------:|:------|
+| **PC RTX 4090 24 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.8.0-dev (build 12034) | 15,783 | 203.1 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
+|  | Qwen3.5 4B Q4_K_M | Ollama 0.40.13 | 18,310 | 185.8 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#ollama-qwen3-5-4b-q4-k-m) |
+|  | Qwen3 14B Q4_K_M | Ollama 0.40.13 | 6,293 | 81.3 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#ollama-qwen3-14b-q4-k-m) |
+|  | Qwen3 14B Q4_K_M | llama.cpp 0.8.0-dev (build 12034) | 6,140 | 81.0 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#llama-cpp-qwen3-14b-q4-k-m) |
+|  | Qwen3.8 27B Q4_K_M | Ollama 0.40.13 | 3,219 | 96.5 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#ollama-qwen3-8-27b-q4-k-m) |
+|  | Qwen3.8 27B Q4_K_M | llama.cpp 0.8.0-dev (build 12034) | 3,449 | 48.4 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#llama-cpp-qwen3-8-27b-q4-k-m) |
 | **PC RTX 3090 24 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 7,628 | 163.6 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
 | | Qwen3.5 4B Q4_K_M | Ollama 0.40.3 | 6,626 | 149.8 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#ollama-qwen3-5-4b-q4-k-m) |
 | | Qwen3 14B Q4_K_M | Ollama 0.40.3 | 2,924 | 71.8 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#ollama-qwen3-14b-q4-k-m) |
@@ -42,6 +48,7 @@ Full results for each run, with load times, TTFT, max context and notes:
 - [2026-10-28: PC RTX 3090 24 GB](runs/2026-10-28-pc-rtx-3090-24gb.md), Flint
 - [2026-10-30: PC RTX 3090 24 GB](runs/2026-10-30-pc-rtx-3090-24gb.md), extra models, logic and coding test, concurrent requests
 - [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb.md)
+- [2026-11-02: PC RTX 4090 24 GB](runs/2026-11-02-pc-rtx-4090-24gb.md)
 
 ## Benchmark prompt
 
