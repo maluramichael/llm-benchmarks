@@ -1,0 +1,23 @@
+{
+  "SPDisplaysDataType" : [
+    {
+      "_name" : "Apple M5 Max",
+      "spdisplays_ndrvs" : [
+        {
+          "_name" : "Color LCD",
+          "spdisplays_online" : "spdisplays_yes"
+        },
+        {
+          "_name" : "External Display",
+          "spdisplays_online" : "spdisplays_yes"
+        },
+        {
+          "_name" : "Disconnected Display",
+          "spdisplays_online" : "spdisplays_no"
+        }
+      ],
+      "sppci_cores" : "40",
+      "sppci_model" : "Apple M5 Max"
+    }
+  ]
+}

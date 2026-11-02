@@ -1,0 +1,12 @@
+{
+  "SPHardwareDataType" : [
+    {
+      "_name" : "hardware_overview",
+      "chip_type" : "Apple M5 Max",
+      "machine_model" : "Mac17,6",
+      "machine_name" : "MacBook Pro",
+      "number_processors" : "proc 18:6:0:12",
+      "physical_memory" : "128 GB"
+    }
+  ]
+}

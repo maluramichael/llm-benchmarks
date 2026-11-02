@@ -1,0 +1,45 @@
+{
+    "os": {
+        "Caption": "Microsoft Windows 11 IoT Enterprise LTSC",
+        "Version": "10.0.26100",
+        "BuildNumber": "26100",
+        "LastBootUpTime": "\/Date(1793656679500)\/",
+        "FreePhysicalMemory": 7947088,
+        "TotalVisibleMemorySize": 16701468
+    },
+    "cpu": {
+        "Name": "AMD Ryzen 7 3700X 8-Core Processor             ",
+        "NumberOfCores": 8,
+        "NumberOfLogicalProcessors": 16,
+        "MaxClockSpeed": 3600
+    },
+    "mem": [
+        {
+            "Capacity": 8589934592,
+            "Speed": 3600,
+            "ConfiguredClockSpeed": 3600
+        },
+        {
+            "Capacity": 8589934592,
+            "Speed": 3600,
+            "ConfiguredClockSpeed": 3600
+        }
+    ],
+    "gpu": {
+        "Name": "NVIDIA GeForce RTX 3080 Ti",
+        "AdapterRAM": 4293918720,
+        "DriverVersion": "32.0.15.9159"
+    },
+    "monitors": [
+        {
+            "Active": true
+        }
+    ],
+    "battery": [],
+    "cs": {
+        "Manufacturer": "Micro-Star International Co., Ltd.",
+        "Model": "MS-7C92",
+        "PCSystemType": 1,
+        "TotalPhysicalMemory": 17102303232
+    }
+}

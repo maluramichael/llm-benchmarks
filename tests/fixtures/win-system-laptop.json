@@ -1,0 +1,69 @@
+{
+    "os": {
+        "Caption": "Microsoft Windows 11 Pro",
+        "Version": "10.0.26100",
+        "BuildNumber": "26100",
+        "LastBootUpTime": "2026-11-02T08:15:30+01:00",
+        "FreePhysicalMemory": 9437184,
+        "TotalVisibleMemorySize": 33345536
+    },
+    "cpu": [
+        {
+            "Name": "Intel(R) Core(TM) i7-13700H",
+            "NumberOfCores": 14,
+            "NumberOfLogicalProcessors": 20,
+            "MaxClockSpeed": 2400
+        }
+    ],
+    "mem": [
+        {
+            "Capacity": 17179869184,
+            "Speed": 5600,
+            "ConfiguredClockSpeed": 5200
+        },
+        {
+            "Capacity": 17179869184,
+            "Speed": 5600,
+            "ConfiguredClockSpeed": 5200
+        }
+    ],
+    "gpu": [
+        {
+            "Name": "Intel(R) Iris(R) Xe Graphics",
+            "AdapterRAM": 1073741824,
+            "DriverVersion": "31.0.101.5333"
+        },
+        {
+            "Name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+            "AdapterRAM": 4293918720,
+            "DriverVersion": "32.0.15.9159"
+        },
+        {
+            "Name": "Microsoft Remote Display Adapter",
+            "AdapterRAM": 0,
+            "DriverVersion": "10.0.26100.1"
+        }
+    ],
+    "monitors": [
+        {
+            "Active": true
+        },
+        {
+            "Active": true
+        },
+        {
+            "Active": false
+        }
+    ],
+    "battery": [
+        {
+            "BatteryStatus": 1
+        }
+    ],
+    "cs": {
+        "Manufacturer": "Example Computers",
+        "Model": "Example Book 15",
+        "PCSystemType": 2,
+        "TotalPhysicalMemory": 34359738368
+    }
+}
