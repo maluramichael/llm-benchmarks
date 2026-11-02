@@ -50,8 +50,6 @@ class Owned:
     def start(self) -> "Owned":
         if self._proc is not None:
             raise ProcError("process already started")
-        self.log_path.parent.mkdir(parents=True, exist_ok=True)
-        self._log = self.log_path.open("ab")
         child_env = {**os.environ, **self.env}
         options: dict = {}
         if IS_WINDOWS:
@@ -60,6 +58,8 @@ class Owned:
         else:
             options["start_new_session"] = True  # own process group, killable as a unit
         try:
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
+            self._log = self.log_path.open("ab")
             self._proc = subprocess.Popen(
                 self.argv, stdin=subprocess.DEVNULL, stdout=self._log,
                 stderr=subprocess.STDOUT, env=child_env, cwd=self.cwd, **options)

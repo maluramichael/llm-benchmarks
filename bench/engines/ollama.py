@@ -100,7 +100,11 @@ class OllamaEngine:
             raise EngineError("ollama server already started by this engine; stop() first")
         if self.cfg.ollama_url:
             self.base_url = self.cfg.ollama_url.rstrip("/")
-            self.version()  # fails early when nothing answers; we never start one then
+            try:
+                self.version()  # fails early when nothing answers; we never start one then
+            except BaseException:
+                self.base_url = None
+                raise
             return
         if self.cfg.no_ollama_start:
             raise EngineError("no Ollama server to use: --no-ollama-start is set "
@@ -128,11 +132,12 @@ class OllamaEngine:
             env["OLLAMA_MODELS"] = str(self.cfg.ollama_models_dir)
         log_path = self.log_dir / f"ollama-{port}.log"
         owned = proc.Owned([binary, "serve"], env=env, log_path=log_path)
+        # Owned from here on: whatever happens next (Ctrl-C included), the child is in its
+        # own process group and only stop() can end it. stop() does nothing if the
+        # process was never spawned, so assigning before start() is safe.
+        self._owned = owned
         try:
             owned.start()
-            # Owned from here on: whatever happens next (Ctrl-C included), the child is
-            # in its own process group and only stop() can end it.
-            self._owned = owned
             self._log_path = log_path
             self._parallel = parallel
             self._log_mark = 0
@@ -182,7 +187,12 @@ class OllamaEngine:
         try:
             return self._opener.open(request, timeout=timeout or self.timeout)
         except urllib.error.HTTPError as err:
-            body = err.read().decode("utf-8", errors="replace")[:300]
+            try:
+                body = err.read().decode("utf-8", errors="replace")[:300]
+            except (OSError, http.client.HTTPException):  # truncated error body
+                body = ""
+            finally:
+                err.close()
             raise EngineError(f"ollama {path}: HTTP {err.code}: {body}") from None
         except (urllib.error.URLError, OSError, http.client.HTTPException) as err:
             raise EngineError(f"ollama {path}: {getattr(err, 'reason', None) or err!r}") \
@@ -246,7 +256,7 @@ class OllamaEngine:
         `parallel` changes. A server given by URL keeps its own setting.
         """
         if self._owned is not None and parallel != self._parallel:
-            self._owned.stop()
+            self._release()
             self._ctx.clear()
             self._start_own(parallel)
         self._log_mark = self._log_size()
@@ -301,7 +311,8 @@ class OllamaEngine:
              tools: list[dict] | None = None, json_schema: dict | None = None,
              thinking: bool = False) -> ChatResult:
         payload = {"model": self._tag(model), "messages": messages, "stream": False,
-                   "keep_alive": KEEP_ALIVE, "think": bool(thinking), "options": self._options(model, sampling)}
+                   "keep_alive": KEEP_ALIVE, "think": bool(thinking),
+                   "options": self._options(model, sampling)}
         if tools:
             payload["tools"] = tools
         if json_schema is not None:
@@ -353,7 +364,8 @@ class OllamaEngine:
         ctx = self._ctx.get(model.id) or max(MIN_COUNT_CTX, len(text) // 2 + 64)
         reply = self._post("/api/generate", {
             "model": self._tag(model), "prompt": text, "raw": True, "stream": False,
-            "keep_alive": KEEP_ALIVE, "options": {"num_predict": 1, "num_ctx": ctx, "temperature": 0, "seed": 42}})
+            "keep_alive": KEEP_ALIVE,
+            "options": {"num_predict": 1, "num_ctx": ctx, "temperature": 0, "seed": 42}})
         count = reply.get("prompt_eval_count", 0)  # already includes cached tokens
         if count >= ctx:
             raise EngineError(f"text of {count} tokens does not fit the context of {ctx}; "

@@ -552,28 +552,16 @@ class CachedTimingTest(EngineTestCase):
         self.assertEqual(t.prompt_tps, 200.0)
 
 
-def silent_server(held: list):
-    """Accepts connections and never answers. Returns (listening socket, port)."""
+def raw_server(test: unittest.TestCase, reply: bytes | None, close: bool = False) -> int:
+    """A socket server that sends `reply` (nothing if None), then closes the connection
+    if `close`, else keeps it open.
+
+    Sockets are closed when the test ends. Returns the port.
+    """
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     sock.listen()
-
-    def accept():
-        while True:
-            try:
-                held.append(sock.accept()[0])
-            except OSError:
-                return
-
-    threading.Thread(target=accept, daemon=True).start()
-    return sock, sock.getsockname()[1]
-
-
-def garbage_server(held: list):
-    """Answers every connection with something that is not HTTP."""
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    sock.listen()
+    held: list[socket.socket] = []
 
     def serve():
         while True:
@@ -581,24 +569,65 @@ def garbage_server(held: list):
                 conn = sock.accept()[0]
             except OSError:
                 return
-            conn.sendall(b"not http at all\r\n\r\n")
             held.append(conn)
+            if reply is not None:
+                conn.sendall(reply)
+            if close:
+                conn.close()
 
-    threading.Thread(target=serve, daemon=True).start()
-    return sock, sock.getsockname()[1]
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+
+    def close():
+        sock.close()
+        for conn in held:
+            conn.close()
+
+    test.addCleanup(close)
+    return sock.getsockname()[1]
+
+
+def silent_server(test: unittest.TestCase) -> int:
+    """Accepts connections and never answers."""
+    return raw_server(test, None)
+
+
+def garbage_server(test: unittest.TestCase) -> int:
+    """Answers every connection with something that is not HTTP."""
+    return raw_server(test, b"not http at all\r\n\r\n")
+
+
+def truncated_500_server(test: unittest.TestCase) -> int:
+    """A 500 whose Content-Length promises more than is sent."""
+    return raw_server(test, b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 100\r\n"
+                            b"Connection: close\r\n\r\nshort", close=True)
 
 
 class RobustnessTest(ProcessOwnershipTestBase):
     def test_hanging_foreign_server_fails_fast(self):
-        held = []
-        sock, port = silent_server(held)
-        self.addCleanup(sock.close)
+        port = silent_server(self)
         engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"),
                               log_dir=self.dir, quick_timeout=0.3)
         started = time.monotonic()
         with self.assertRaises(EngineError):
             engine.start()
         self.assertLess(time.monotonic() - started, 5)
+
+    def test_truncated_error_body_becomes_engine_error(self):
+        port = truncated_500_server(self)
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir)
+        engine.base_url = f"http://127.0.0.1:{port}"
+        for call in (engine.version, lambda: engine.complete(MODEL, "x", Sampling())):
+            with self.assertRaises(EngineError) as ctx:
+                call()
+            self.assertNotIsInstance(ctx.exception, http.client.HTTPException)
+
+    def test_failed_foreign_start_clears_base_url(self):
+        port = garbage_server(self)
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir)
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assertIsNone(engine.base_url)
 
     def test_quick_calls_use_the_short_timeout_and_inference_the_long_one(self):
         engine = OllamaEngine(config(ollama_url="http://127.0.0.1:1"), log_dir=self.dir,
@@ -628,9 +657,7 @@ class RobustnessTest(ProcessOwnershipTestBase):
         self.assertEqual(seen["chat:30m"], 77)
 
     def test_http_exceptions_become_engine_errors(self):
-        held = []
-        sock, port = garbage_server(held)
-        self.addCleanup(sock.close)
+        port = garbage_server(self)
         engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir)
         engine.base_url = f"http://127.0.0.1:{port}"
         with self.assertRaises(EngineError):
@@ -752,6 +779,52 @@ class OwnedServerFailureTest(ProcessOwnershipTestBase):
         self.assert_no_child()
         self.assertIsNone(engine._owned)
 
+    def test_pure_http_exception_during_startup_stops_the_child(self):
+        # BadStatusLine is an HTTPException but not an OSError (RemoteDisconnected is both).
+        self.assertFalse(issubclass(http.client.BadStatusLine, OSError))
+        engine = self.engine(start_timeout=1.5)
+        engine._opener = mock.Mock(open=mock.Mock(side_effect=http.client.BadStatusLine("x")))
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assert_no_child()
+        self.assertIsNone(engine._owned)
+
+    def test_log_directory_that_cannot_be_created_is_an_engine_error(self):
+        blocker = self.dir / "blocker"
+        blocker.write_text("a file, not a directory", encoding="utf-8")
+        engine = OllamaEngine(config(ollama_bin=self.fake_binary()), log_dir=blocker / "logs")
+        with self.assertRaises(EngineError):
+            engine.start()
+        self.assertIsNone(engine._owned)
+        self.assertIsNone(engine.base_url)
+
+    def test_failed_restart_leaves_no_stale_state(self):
+        engine = self.engine()
+        engine.start()
+        self.addCleanup(engine.stop)
+        first = engine._owned
+        with mock.patch.object(engine, "_binary", side_effect=EngineError("gone")):
+            with self.assertRaises(EngineError):
+                engine.load(MODEL, 4096, parallel=4)
+        self.assertFalse(first.running)
+        self.assertIsNone(engine._owned)
+        self.assertIsNone(engine.base_url)
+        self.assertIsNone(engine.parallel)
+
+    def test_start_assigns_ownership_before_spawning(self):
+        engine = self.engine()
+        seen = []
+        real_start = proc.Owned.start
+
+        def start(self_):
+            seen.append(engine._owned is self_)
+            return real_start(self_)
+
+        with mock.patch.object(proc.Owned, "start", start):
+            engine.start()
+        self.addCleanup(engine.stop)
+        self.assertEqual(seen, [True])
+
     def test_unexpected_exception_during_startup_stops_the_child(self):
         engine = self.engine()
         with mock.patch.object(proc.Owned, "wait_until", side_effect=RuntimeError("boom")):
@@ -791,19 +864,25 @@ class OwnedServerFailureTest(ProcessOwnershipTestBase):
         engine.stop()
 
     def test_somebody_else_answering_on_the_port_is_not_trusted(self):
-        # Our child is gone by the time the probe succeeded: the answer came from elsewhere.
+        # The probe is answered, but our child is gone by then: the answer came from
+        # another server on that port, which must not be used any further.
         engine = self.engine()
 
-        def die_then_pretend_ready(self_, predicate, timeout, interval=0.2):
+        def probe_then_child_dies(self_, predicate, timeout, interval=0.2):
+            self.assertTrue(predicate())  # really reaches the fake server
             self_.stop()
 
-        with FakeServer({"/api/version": fixture("version.json")}) as server:
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": fixture("generate-raw.json")}) as server:
             port = int(server.url.rsplit(":", 1)[1])
             with mock.patch("bench.engines.ollama.pick_port", return_value=port), \
-                    mock.patch.object(proc.Owned, "wait_until", die_then_pretend_ready):
+                    mock.patch.object(proc.Owned, "wait_until", probe_then_child_dies):
                 with self.assertRaises(EngineError):
                     engine.start()
-            self.assertEqual(server.requests, [])
+            self.assertEqual(server.requests, [("GET", "/api/version", None)])
+            with self.assertRaises(EngineError):  # engine is disconnected
+                engine.version()
+            self.assertEqual(len(server.requests), 1)
         self.assertIsNone(engine.base_url)
         self.assertIsNone(engine._owned)
 

@@ -157,6 +157,15 @@ class OwnedTest(ProcTestCase):
         self.assertIsNone(owned._log)
         owned.stop()
 
+    def test_unusable_log_location_is_a_proc_error(self):
+        blocker = self.dir / "blocker"
+        blocker.write_text("file", encoding="utf-8")
+        owned = proc.Owned(SLEEP, log_path=blocker / "logs" / "x.log")
+        with self.assertRaises(proc.ProcError):
+            owned.start()
+        self.assertIsNone(owned.pid)
+        owned.stop()
+
     def test_missing_binary(self):
         with self.assertRaises(proc.ProcError):
             proc.Owned([str(self.dir / "nope")], log_path=self.log).start()
