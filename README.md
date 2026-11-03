@@ -78,7 +78,6 @@ Each run has its own folder with a report and the raw results:
 <!-- generated:runs -->
 - [2026-10-26: MacBook Pro M5 Max 128 GB](runs/2026-10-26-macbook-pro-m5-max-128gb/), old prompt
 - [2026-10-26: PC RTX 3090 24 GB](runs/2026-10-26-pc-rtx-3090-24gb/), old prompt
-- [2026-10-26: PC RTX 4060 Ti 8 GB](runs/2026-10-26-pc-rtx-4060-ti-8gb/), old prompt
 - [2026-10-28: PC RTX 3090 24 GB](runs/2026-10-28-pc-rtx-3090-24gb/), old prompt
 - [2026-10-30: PC RTX 3090 24 GB](runs/2026-10-30-pc-rtx-3090-24gb/), old prompt
 - [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb/), old prompt
