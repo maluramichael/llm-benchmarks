@@ -1,0 +1,174 @@
+{
+  "run": {
+    "bench_version": "1.0.0",
+    "device": "Fixture Small GPU 8 GB",
+    "started_at": "2026-11-02T09:00:00Z"
+  },
+  "schema_version": 1,
+  "tests": {
+    "llamacpp/M/memory/fit": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "model needs more than the free VRAM"
+      }
+    },
+    "llamacpp/M/speed/cold": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "model needs more than the free VRAM"
+      }
+    },
+    "llamacpp/M/speed/warm": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "model needs more than the free VRAM"
+      }
+    },
+    "llamacpp/S/memory/ctx-131072": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "not enough free VRAM"
+      }
+    },
+    "llamacpp/S/memory/ctx-2048": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 2048,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 2969
+      }
+    },
+    "llamacpp/S/memory/ctx-32768": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 32768,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 4505
+      }
+    },
+    "llamacpp/S/memory/ctx-8192": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 8192,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 3276
+      }
+    },
+    "llamacpp/S/speed/cold": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 58.199999999999996,
+        "load_s": 3.0,
+        "prompt_tps": 1350.0,
+        "ttft_incl_load_s": 7.8,
+        "ttft_s": 4.8
+      }
+    },
+    "llamacpp/S/speed/warm": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 60,
+        "prompt_tps": 1500,
+        "ttft_s": 4.0
+      }
+    },
+    "ollama/M/memory/fit": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "model needs more than the free VRAM"
+      }
+    },
+    "ollama/M/speed/cold": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "model needs more than the free VRAM"
+      }
+    },
+    "ollama/M/speed/warm": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "model needs more than the free VRAM"
+      }
+    },
+    "ollama/S/speed/cache": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "error",
+      "values": {
+        "error": "request failed"
+      }
+    },
+    "ollama/S/speed/cold": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 53.35,
+        "load_s": 3.0,
+        "prompt_tps": 1260.0,
+        "ttft_incl_load_s": 8.280000000000001,
+        "ttft_s": 5.28
+      }
+    },
+    "ollama/S/speed/warm": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 55,
+        "prompt_tps": 1400,
+        "ttft_s": 4.4
+      }
+    }
+  }
+}

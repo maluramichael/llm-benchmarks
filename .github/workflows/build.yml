@@ -4,13 +4,17 @@ on:
   push:
     branches: [master]
     paths:
+      - "bench/**"
+      - "tests/**"
+      - "scripts/**"
       - "runs/**"
-      - "scripts/build.py"
       - "README.md"
   pull_request:
     paths:
+      - "bench/**"
+      - "tests/**"
+      - "scripts/**"
       - "runs/**"
-      - "scripts/build.py"
       - "README.md"
   workflow_dispatch:
 
@@ -27,9 +31,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests
+        run: python3 -W error::ResourceWarning -m unittest discover -s tests
+
       # On pull requests this only proves that the new run files parse.
       # Contributors do not need to regenerate anything, master does it after the merge.
-      - name: Generate README table and charts
+      - name: Generate README charts and run list
         run: |
           python3 scripts/build.py
           git diff --stat
@@ -44,5 +55,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md charts/
-          git commit -m "Update README table and charts"
+          git commit -m "Update README charts"
           git push

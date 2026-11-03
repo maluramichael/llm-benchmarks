@@ -4,68 +4,23 @@ Local language models on real hardware, measured with one prompt for every devic
 
 ## Results
 
-<!-- generated:chart -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="charts/reference-dark.svg">
-  <img alt="Prompt processing and generation speed per device for the reference models Qwen3.5 4B, Qwen3 14B and Qwen3.8 27B, split by engine" src="charts/reference-light.svg">
-</picture>
-<!-- /generated:chart -->
-
-<!-- generated:results -->
-| Device | Model | Engine | Prompt processing tok/s | Generation tok/s | Details |
-|:------|:-------|:-------|-----------------------:|-----------------:|:------|
-| **PC RTX 4090 24 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.8.0-dev (build 12034) | 15,783 | 203.1 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
-|  | Qwen3.5 4B Q4_K_M | Ollama 0.40.13 | 18,310 | 185.8 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#ollama-qwen3-5-4b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | Ollama 0.40.13 | 6,293 | 81.3 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#ollama-qwen3-14b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | llama.cpp 0.8.0-dev (build 12034) | 6,140 | 81.0 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#llama-cpp-qwen3-14b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | Ollama 0.40.13 | 3,219 | 96.5 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#ollama-qwen3-8-27b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | llama.cpp 0.8.0-dev (build 12034) | 3,449 | 48.4 | [details](runs/2026-11-02-pc-rtx-4090-24gb.md#llama-cpp-qwen3-8-27b-q4-k-m) |
-| **PC RTX 3090 24 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 7,628 | 163.6 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
-|  | Qwen3.5 4B Q4_K_M | Ollama 0.40.3 | 6,626 | 149.8 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#ollama-qwen3-5-4b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | Ollama 0.40.3 | 2,924 | 71.8 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#ollama-qwen3-14b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 2,782 | 71.4 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#llama-cpp-qwen3-14b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) with MTP | 1,507 | 67.0 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#llama-cpp-mtp-qwen3-8-27b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | Ollama 0.40.3 | 1,351 | 66.4 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#ollama-qwen3-8-27b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 1,610 | 42.2 | [details](runs/2026-10-26-pc-rtx-3090-24gb.md#llama-cpp-qwen3-8-27b-q4-k-m) |
-|  | Flint 40B-A2.5B NVFP4 | Ollama 0.40.12 (custom build) | 2,512 | 117.0 | [details](runs/2026-10-28-pc-rtx-3090-24gb.md#ollama-flint-40b-nvfp4) |
-|  | Flint 40B-A2.5B Q4_K_M | llama.cpp 0.7.0-dev (build 11909) | 3,183 | 121.7 | [details](runs/2026-10-28-pc-rtx-3090-24gb.md#llama-cpp-flint-q4-k-m) |
-|  | Flint 40B-A2.5B UD-Q3_K_XL | llama.cpp 0.7.0-dev (build 11909) | 3,286 | 119.2 | [details](runs/2026-10-28-pc-rtx-3090-24gb.md#llama-cpp-flint-ud-q3-k-xl) |
-|  | LFM3 1.7B Q4_K_M | llama.cpp 0.8.0-dev (build 12001) | 18,882 | 307.4 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#llama-cpp-lfm3-1-7b-q4-k-m) |
-|  | LFM3 1.7B Q4_K_M | Ollama 0.40.13 | 20,863 | 285.3 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#ollama-lfm3-1-7b-q4-k-m) |
-|  | Ornith-1.5-122B Q4_K_M | llama.cpp 0.8.0-dev (build 12001) | 216 | 22.5 | [details](runs/2026-11-02-pc-rtx-3090-24gb.md#llama-cpp-ornith-1-5-122b-q4-k-m) |
-|  | Ornith-1.5-122B Q4_K_M | Ollama 0.40.13 | 251 | 13.3 | [details](runs/2026-11-02-pc-rtx-3090-24gb.md#ollama-ornith-1-5-122b-q4-k-m) |
-|  | Qwen3-Coder-30B-A3B Q4_K_M, abliterated | llama.cpp 0.8.0-dev (build 12001) | 4,408 | 162.4 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#llama-cpp-qwen3-coder-30b-a3b-q4-k-m) |
-|  | Qwen3.8-Flash-Next IQ3_S | Strata 0.2.8 (engine 0.1.54) | 2,427 | 85.0 | [details](runs/2026-10-30-pc-rtx-3090-24gb.md#strata-qwen3-8-flash-next-iq3-s) |
-| **MacBook Pro M5 Max 128 GB** | Qwen3.5 4B Q4_K_M | Ollama 0.40.11 | 4,171 | 118.0 | [details](runs/2026-10-26-macbook-pro-m5-max-128gb.md#ollama-qwen3-5-4b-q4-k-m) |
-| **PC RTX 4060 Ti 8 GB** | Qwen3.5 4B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | 5,420 | 72.2 | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
-|  | Qwen3.5 4B Q4_K_M | Ollama 0.40.11 | 4,938 | 59.4 | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#ollama-qwen3-5-4b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | Ollama 0.40.11 | does not fit | does not fit | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#ollama-qwen3-14b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | does not fit | does not fit | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#llama-cpp-qwen3-14b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | Ollama 0.40.11 | does not fit | does not fit | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#ollama-qwen3-8-27b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | llama.cpp b11889 (CUDA 13.4) | does not fit | does not fit | [details](runs/2026-10-26-pc-rtx-4060-ti-8gb.md#llama-cpp-qwen3-8-27b-q4-k-m) |
-| **PC Radeon RX 560 4 GB** | Qwen3.5 4B Q4_K_M | llama.cpp 0.8.0-dev (build 12024, Vulkan) | 136 | 20.4 | [details](runs/2026-10-31-pc-radeon-rx-560-4gb.md#llama-cpp-qwen3-5-4b-q4-k-m) |
-|  | Qwen3.5 4B Q4_K_M | Ollama 0.40.13 | 135 | 18.3 | [details](runs/2026-10-31-pc-radeon-rx-560-4gb.md#ollama-qwen3-5-4b-text-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | Ollama 0.40.13 | does not fit | does not fit | [details](runs/2026-10-31-pc-radeon-rx-560-4gb.md#ollama-qwen3-14b-q4-k-m) |
-|  | Qwen3 14B Q4_K_M | llama.cpp 0.8.0-dev (build 12024, Vulkan) | does not fit | does not fit | [details](runs/2026-10-31-pc-radeon-rx-560-4gb.md#llama-cpp-qwen3-14b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | Ollama 0.40.13 | does not fit | does not fit | [details](runs/2026-10-31-pc-radeon-rx-560-4gb.md#ollama-qwen3-8-27b-q4-k-m) |
-|  | Qwen3.8 27B Q4_K_M | llama.cpp 0.8.0-dev (build 12024, Vulkan) | does not fit | does not fit | [details](runs/2026-10-31-pc-radeon-rx-560-4gb.md#llama-cpp-qwen3-8-27b-q4-k-m) |
-<!-- /generated:results -->
-
-"does not fit" means the model does not fit completely into GPU memory.
+<!-- generated:charts -->
+No measured runs yet.
+<!-- /generated:charts -->
 
 ## Test runs
 
 Full results for each run, with load times, TTFT, max context and notes:
 
 <!-- generated:runs -->
-- [2026-10-26: MacBook Pro M5 Max 128 GB](runs/2026-10-26-macbook-pro-m5-max-128gb.md)
-- [2026-10-26: PC RTX 3090 24 GB](runs/2026-10-26-pc-rtx-3090-24gb.md)
-- [2026-10-26: PC RTX 4060 Ti 8 GB](runs/2026-10-26-pc-rtx-4060-ti-8gb.md)
-- [2026-10-28: PC RTX 3090 24 GB](runs/2026-10-28-pc-rtx-3090-24gb.md), Flint
-- [2026-10-30: PC RTX 3090 24 GB](runs/2026-10-30-pc-rtx-3090-24gb.md), Qwen3.8-Flash-Next, LFM3, Qwen3-Coder-30B-A3B, logic and coding test, concurrent requests
-- [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb.md)
-- [2026-11-02: PC RTX 3090 24 GB](runs/2026-11-02-pc-rtx-3090-24gb.md), Ornith-1.5-122B, logic and coding test, concurrent requests
-- [2026-11-02: PC RTX 4090 24 GB](runs/2026-11-02-pc-rtx-4090-24gb.md)
+- [2026-10-26: MacBook Pro M5 Max 128 GB](runs/2026-10-26-macbook-pro-m5-max-128gb.md), old prompt
+- [2026-10-26: PC RTX 3090 24 GB](runs/2026-10-26-pc-rtx-3090-24gb.md), old prompt
+- [2026-10-26: PC RTX 4060 Ti 8 GB](runs/2026-10-26-pc-rtx-4060-ti-8gb.md), old prompt
+- [2026-10-28: PC RTX 3090 24 GB](runs/2026-10-28-pc-rtx-3090-24gb.md), old prompt
+- [2026-10-30: PC RTX 3090 24 GB](runs/2026-10-30-pc-rtx-3090-24gb.md), old prompt
+- [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb.md), old prompt
+- [2026-11-02: PC RTX 3090 24 GB](runs/2026-11-02-pc-rtx-3090-24gb.md), old prompt
+- [2026-11-02: PC RTX 4090 24 GB](runs/2026-11-02-pc-rtx-4090-24gb.md), old prompt
 <!-- /generated:runs -->
 
 ## Contributing

@@ -1,0 +1,901 @@
+{
+  "run": {
+    "bench_version": "1.0.0",
+    "device": "Fixture Big GPU 24 GB",
+    "started_at": "2026-11-03T09:00:00Z"
+  },
+  "schema_version": 1,
+  "tests": {
+    "llamacpp/M/memory/ctx-131072": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "not enough free VRAM"
+      }
+    },
+    "llamacpp/M/memory/ctx-2048": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 2048,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 9420
+      }
+    },
+    "llamacpp/M/memory/ctx-32768": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 32768,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 12492
+      }
+    },
+    "llamacpp/M/memory/ctx-8192": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 8192,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 10035
+      }
+    },
+    "llamacpp/M/smoke/code-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/code-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/code-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/M/smoke/creative-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "passed": null,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/M/smoke/json-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/json-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/math-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/math-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/math-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/tool_calls-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/smoke/tool_calls-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/M/speed/cold": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 77.6,
+        "load_s": 3.0,
+        "prompt_tps": 2610.0,
+        "ttft_incl_load_s": 6.359999999999999,
+        "ttft_s": 3.36
+      }
+    },
+    "llamacpp/M/speed/warm": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 80.0,
+        "prompt_tps": 2900.0,
+        "ttft_s": 2.8
+      }
+    },
+    "llamacpp/S/concurrency/p1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "decode_tps_total": 178.5,
+        "effective_parallel": 1,
+        "per_request_tps": 170.0,
+        "serialized": false,
+        "total_tps": 170,
+        "ttft_p50_s": 0.5
+      }
+    },
+    "llamacpp/S/concurrency/p2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "decode_tps_total": 315.0,
+        "effective_parallel": 2,
+        "per_request_tps": 150.0,
+        "serialized": false,
+        "total_tps": 300,
+        "ttft_p50_s": 1.0
+      }
+    },
+    "llamacpp/S/concurrency/p4": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "decode_tps_total": 546.0,
+        "effective_parallel": 4,
+        "per_request_tps": 130.0,
+        "serialized": false,
+        "total_tps": 520,
+        "ttft_p50_s": 2.0
+      }
+    },
+    "llamacpp/S/memory/ctx-131072": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 131072,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 9420
+      }
+    },
+    "llamacpp/S/memory/ctx-2048": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 2048,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 2969
+      }
+    },
+    "llamacpp/S/memory/ctx-32768": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 32768,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 4505
+      }
+    },
+    "llamacpp/S/memory/ctx-8192": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 8192,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 3276
+      }
+    },
+    "llamacpp/S/smoke/code-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/S/smoke/code-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/S/smoke/creative-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "passed": null,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/S/smoke/json-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/S/smoke/tool_calls-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool_calls-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/S/speed/cold": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 164.9,
+        "load_s": 3.0,
+        "prompt_tps": 6750.0,
+        "ttft_incl_load_s": 4.2,
+        "ttft_s": 1.2
+      }
+    },
+    "llamacpp/S/speed/warm": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 170.0,
+        "prompt_tps": 7500.0,
+        "ttft_s": 1.0
+      }
+    },
+    "ollama/M/concurrency/p2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not enough memory for two slots"
+      }
+    },
+    "ollama/M/memory/ctx-131072": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "not enough free VRAM"
+      }
+    },
+    "ollama/M/memory/ctx-2048": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 2048,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 10342
+      }
+    },
+    "ollama/M/memory/ctx-32768": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 32768,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 13414
+      }
+    },
+    "ollama/M/memory/ctx-8192": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 8192,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 10956
+      }
+    },
+    "ollama/M/smoke/code-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/code-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/code-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/M/smoke/creative-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "passed": null,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/M/smoke/json-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/json-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/math-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/math-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/math-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/tool_calls-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/smoke/tool_calls-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/M/speed/cold": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 69.84,
+        "load_s": 3.0,
+        "prompt_tps": 2349.0,
+        "ttft_incl_load_s": 6.7333333333333325,
+        "ttft_s": 3.7333333333333325
+      }
+    },
+    "ollama/M/speed/warm": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 72.0,
+        "prompt_tps": 2610.0,
+        "ttft_s": 3.1111111111111107
+      }
+    },
+    "ollama/S/concurrency/p1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "decode_tps_total": 157.5,
+        "effective_parallel": 1,
+        "per_request_tps": 150.0,
+        "serialized": false,
+        "total_tps": 150,
+        "ttft_p50_s": 0.5
+      }
+    },
+    "ollama/S/concurrency/p2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "decode_tps_total": 159.6,
+        "effective_parallel": 1,
+        "per_request_tps": 76.0,
+        "serialized": true,
+        "total_tps": 152,
+        "ttft_p50_s": 1.0
+      }
+    },
+    "ollama/S/concurrency/p4": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "decode_tps_total": 157.5,
+        "effective_parallel": 1,
+        "per_request_tps": 37.5,
+        "serialized": true,
+        "total_tps": 150,
+        "ttft_p50_s": 2.0
+      }
+    },
+    "ollama/S/memory/ctx-131072": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 131072,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 10342
+      }
+    },
+    "ollama/S/memory/ctx-2048": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 2048,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 3891
+      }
+    },
+    "ollama/S/memory/ctx-32768": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 32768,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 5427
+      }
+    },
+    "ollama/S/memory/ctx-8192": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "ctx": 8192,
+        "gen_tps": 100.0,
+        "load_s": 4.0,
+        "prompt_tps": 3000.0,
+        "ttft_s": 2.0,
+        "vram_used_mb": 4198
+      }
+    },
+    "ollama/S/smoke/code-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/S/smoke/code-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/S/smoke/creative-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "passed": null,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/S/smoke/json-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-3": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/S/smoke/tool_calls-1": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool_calls-2": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": false,
+        "reason": "wrong answer"
+      }
+    },
+    "ollama/S/speed/cold": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 148.41,
+        "load_s": 3.0,
+        "prompt_tps": 6075.0,
+        "ttft_incl_load_s": 4.333333333333333,
+        "ttft_s": 1.3333333333333333
+      }
+    },
+    "ollama/S/speed/warm": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 153.0,
+        "prompt_tps": 6750.0,
+        "ttft_s": 1.1111111111111112
+      }
+    }
+  }
+}

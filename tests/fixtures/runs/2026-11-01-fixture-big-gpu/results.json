@@ -1,0 +1,156 @@
+{
+  "run": {
+    "bench_version": "1.0.0",
+    "device": "Fixture Big GPU 24 GB",
+    "started_at": "2026-11-01T09:00:00Z"
+  },
+  "schema_version": 1,
+  "tests": {
+    "llamacpp/S/smoke/code-1": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-2": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-3": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/creative-1": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "passed": null,
+        "reason": "wrong answer"
+      }
+    },
+    "llamacpp/S/smoke/json-1": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-2": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-1": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-2": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-3": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool_calls-1": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool_calls-2": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "passed": true,
+        "reason": ""
+      }
+    },
+    "llamacpp/S/speed/cold": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "gen_tps": 97.0,
+        "load_s": 3.0,
+        "prompt_tps": 4500.0,
+        "ttft_incl_load_s": 5.4,
+        "ttft_s": 2.4
+      }
+    },
+    "llamacpp/S/speed/warm": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "gen_tps": 100,
+        "prompt_tps": 5000,
+        "ttft_s": 2.0
+      }
+    }
+  }
+}
