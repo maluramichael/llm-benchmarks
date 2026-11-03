@@ -46,7 +46,7 @@ expect = {sentiment = "negative"}
 [[task]]
 id = "json-4"
 category = "json"
-messages = [{role = "user", content = "Extract the event details as a JSON object only. Text: The workshop takes place on 2027-03-14 from 09:00 to 11:30 in Room B2."}]
+messages = [{role = "user", content = "Extract the event details as a JSON object only. Give the room as its code only, without the word Room. Text: The workshop takes place on 2027-03-14 from 09:00 to 11:30 in Room B2."}]
 json_schema = {type = "object", properties = {date = {type = "string"}, start = {type = "string"}, end = {type = "string"}, room = {type = "string"}}, required = ["date", "start", "end", "room"]}
 
 [task.sampling]
