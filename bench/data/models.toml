@@ -1,0 +1,44 @@
+# Model catalog. One table per size class.
+#
+# S, M, L, F are listed here. XL is chosen dynamically from `plan` and cannot be
+# downloaded in version 1: it only works with `--gguf XL=<path>` (llama.cpp).
+#
+# Keys per class:
+#   ollama_tag         tag in the Ollama library (and in the mirror's Ollama store)
+#   quant              quantisation of the Ollama model layer
+#   size_bytes         size of the Ollama model layer in bytes
+#   reuse_ollama_blob  llama.cpp may load the GGUF blob of the Ollama model directly
+#   [<class>.gguf]     a separate GGUF file for llama.cpp (pinned revision and sha256)
+#       mirror_path    location below <mirror>/gguf
+
+[S]
+ollama_tag = "qwen3.5:4b"
+quant = "Q4_K_M"
+size_bytes = 2648593216
+reuse_ollama_blob = true
+
+[M]
+ollama_tag = "qwen3:14b"
+quant = "Q4_K_M"
+size_bytes = 9276184896
+reuse_ollama_blob = true
+
+[L]
+ollama_tag = "qwen3.8:27b"
+quant = "Q4_K_M"
+size_bytes = 16810714464
+reuse_ollama_blob = true
+
+[F]
+ollama_tag = "flint:40b"
+quant = "Q4_K_M"
+size_bytes = 22863084160
+reuse_ollama_blob = false
+
+[F.gguf]
+repo = "ggml-org/Flint-GGUF"
+file = "Flint-Q4_K_M.gguf"
+revision = "468307a1b38259e9e4c9d4fe53d4e3b76386572c"
+sha256 = "c3c4d93f9db92627a2fc47ea8fe8c64a094cabd3549db544bcdd2c00e9a9a347"
+size_bytes = 23387911136
+mirror_path = "flint/Flint-Q4_K_M.gguf"
