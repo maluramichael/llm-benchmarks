@@ -1,7 +1,9 @@
 import hashlib
 import json
 import os
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -268,6 +270,74 @@ class MirrorImportTest(Base):
         make_model(self.mirror / "ollama", "qwen3:14b", b"x")
         with self.assertRaises(ModelNotFound):
             models.import_from_mirror(self.mirror, "qwen3:32b", self.store)
+
+
+class RoundTwoTest(Base):
+    @unittest.skipIf(sys.platform == "win32" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+                     "needs POSIX permissions and a non-root user")
+    def test_unreadable_manifest_hides_the_path(self):
+        make_model(self.store, "qwen3:14b", b"x")
+        manifest = self.store / "manifests/registry.ollama.ai/library/qwen3/14b"
+        manifest.chmod(0)
+        self.addCleanup(manifest.chmod, 0o644)
+        with self.assertRaises(ModelError) as ctx:
+            models.ollama_blob_for("qwen3:14b", self.store)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+        self.assertIn("qwen3:14b", str(ctx.exception))
+
+    def test_copy_errors_are_wrapped_without_paths(self):
+        make_model(self.mirror / "ollama", "qwen3:14b", b"mirror")
+        with mock.patch("bench.models.shutil.disk_usage",
+                        side_effect=OSError(5, "Input/output error", str(self.tmp / "p"))):
+            with self.assertRaises(ModelError) as ctx:
+                models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+        real_open = Path.open
+
+        def broken(self, mode="r", *args, **kwargs):
+            if "b" in mode:  # blob copy only; manifests are read as text
+                raise OSError(5, "Input/output error", str(self))
+            return real_open(self, mode, *args, **kwargs)
+        with mock.patch.object(Path, "open", broken):
+            with self.assertRaises(ModelError) as ctx:
+                models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+
+    def test_stale_scratch_files_are_swept(self):
+        make_model(self.mirror / "ollama", "qwen3:14b", b"mirror")
+        blobs = self.store / "blobs"
+        blobs.mkdir(parents=True)
+        old = blobs / ".bench-1-1-sha256-aa.part"
+        young = blobs / ".bench-2-2-sha256-bb.part"
+        other = blobs / "unrelated.part"
+        for f in (old, young, other):
+            f.write_bytes(b"x")
+        past = time.time() - 2 * 3600
+        os.utime(old, (past, past))
+        os.utime(other, (past, past))
+        models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertFalse(old.exists())
+        self.assertTrue(young.exists())
+        self.assertTrue(other.exists())
+
+    def test_scratch_names_differ_even_with_a_frozen_clock(self):
+        with mock.patch("bench.models.time.time_ns", return_value=5):
+            names = {models._scratch(self.tmp / "b").name for _ in range(3)}
+        self.assertEqual(len(names), 3)
+
+    def test_mirror_manifest_with_missing_blob_aborts_resolve(self):
+        mirror_store = self.mirror / "ollama"
+        digest = make_model(mirror_store, "qwen3.5:4b", b"mirror")
+        (mirror_store / "blobs" / digest.replace(":", "-")).unlink()
+        make_model(self.store, "qwen3.5:4b", b"local")  # would be a tempting fallback
+        for engine in ("llamacpp", "ollama"):
+            with self.assertRaises(ModelError) as ctx:
+                models.resolve("S", engine, self.cfg(mirror=str(self.mirror)))
+            self.assertIn("qwen3.5:4b", str(ctx.exception), engine)
+            self.assertNotIn(str(self.tmp), str(ctx.exception), engine)
+
+    def test_file_types_40_and_41(self):
+        self.assertEqual((models.FILE_TYPES[40], models.FILE_TYPES[41]), ("Q1_0", "Q2_0"))
 
 
 class ResolveLlamacppTest(Base):

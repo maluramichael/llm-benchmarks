@@ -21,6 +21,7 @@ manifest last so a model never appears half copied, and downloads of more than 2
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -43,6 +44,8 @@ DEFAULT_MODEL_DIR = Path(".bench") / "models"
 DEFAULT_REGISTRY = "registry.ollama.ai"
 MODEL_LAYER = "application/vnd.ollama.image.model"
 PART_PREFIX = ".bench-"
+PART_MAX_AGE_S = 3600
+_counter = itertools.count()
 COPY_CHUNK = 1 << 20
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]*$")  # no registry :port
@@ -56,7 +59,7 @@ FILE_TYPES = {
     16: "Q5_K_S", 17: "Q5_K_M", 18: "Q6_K", 19: "IQ2_XXS", 20: "IQ2_XS", 21: "Q2_K_S",
     22: "IQ3_XS", 23: "IQ3_XXS", 24: "IQ1_S", 25: "IQ4_NL", 26: "IQ3_S", 27: "IQ3_M",
     28: "IQ2_S", 29: "IQ2_M", 30: "IQ4_XS", 31: "IQ1_M", 32: "BF16", 36: "TQ1_0",
-    37: "TQ2_0", 38: "MXFP4_MOE", 39: "NVFP4"}
+    37: "TQ2_0", 38: "MXFP4_MOE", 39: "NVFP4", 40: "Q1_0", 41: "Q2_0"}
 
 
 class ModelError(RuntimeError):
@@ -65,6 +68,10 @@ class ModelError(RuntimeError):
 
 class ModelNotFound(ModelError):
     """The model is not at the place that was looked at."""
+
+
+class BlobMissing(ModelNotFound):
+    """A manifest is there but a blob it lists is not."""
 
 
 class NeedsConsent(ModelError):
@@ -122,7 +129,9 @@ def _read_manifest(path: Path, tag: str) -> dict:
     except FileNotFoundError:
         raise ModelNotFound(f"no manifest for {tag}") from None
     except (OSError, ValueError) as err:
-        raise ModelError(f"unreadable manifest for {tag}: {err}") from None
+        reason = (err.strerror or type(err).__name__) if isinstance(err, OSError) \
+            else "not valid JSON"
+        raise ModelError(f"unreadable manifest for {tag}: {reason}") from None
     entries = []
     if isinstance(manifest, dict):
         entries = [manifest.get("config"), *(manifest.get("layers") or [])]
@@ -150,7 +159,7 @@ def _model_blob(tag: str, models_dir: Path) -> tuple[Path, dict]:
     try:
         actual = blob.stat().st_size
     except OSError:
-        raise ModelNotFound(f"blob {blob.name} of {tag} is missing") from None
+        raise BlobMissing(f"blob {blob.name} of {tag} is missing") from None
     if actual != layer["size"]:
         raise ModelError(f"blob {blob.name} of {tag} has {actual} bytes, "
                          f"the manifest says {layer['size']}")
@@ -173,14 +182,31 @@ def _mirror_ollama_dir(mirror: Path) -> Path:
 
 def _scratch(dest: Path) -> Path:
     """A scratch name next to `dest`, unique per process and call."""
-    return dest.with_name(f"{PART_PREFIX}{os.getpid()}-{time.time_ns()}-{dest.name}.part")
+    return dest.with_name(f"{PART_PREFIX}{os.getpid()}-{time.time_ns()}-{next(_counter)}-"
+                          f"{dest.name}.part")
+
+
+def _sweep_stale(folder: Path) -> None:
+    """Remove our own scratch files in `folder` untouched for an hour (hard-killed runs)."""
+    cutoff = time.time() - PART_MAX_AGE_S
+    try:
+        candidates = list(Path(folder).glob(PART_PREFIX + "*.part"))
+    except OSError:
+        return
+    for path in candidates:
+        try:
+            if path.is_file() and not path.is_symlink() and path.stat().st_mtime < cutoff:
+                path.unlink()
+        except OSError:
+            pass
 
 
 def _publish(part: Path, dest: Path) -> None:
     """Move `part` to `dest` without ever replacing an existing `dest`.
 
     A hard link fails when `dest` exists, which closes the gap between checking and
-    renaming. Where links are not supported the plain check-then-replace path is used.
+    renaming. Where links are not supported (some network shares) the fallback is only
+    check-then-replace: the no-overwrite guarantee is then not atomic.
     """
     try:
         retry_on_lock(lambda: os.link(part, dest))
@@ -251,26 +277,32 @@ def import_from_mirror(mirror: Path, tag: str, ollama_models_dir: Path,
                 say(f"warning: existing blob {dest.name} has an unexpected size; kept as is")
         else:
             missing.append((src, dest, digest, size))
-    needed = sum(item[3] for item in missing)
-    if needed:
-        target.mkdir(parents=True, exist_ok=True)
-        free = shutil.disk_usage(target).free
-        if free < needed:
-            raise ModelError(f"not enough disk space for the Ollama store: need "
-                             f"{needed / 1e9:.1f} GB, {free / 1e9:.1f} GB free")
-    for src, dest, digest, size in missing:
-        if say:
-            say(f"copying {dest.name} ({size / 1e6:.0f} MB)")
-        _copy_verified(src, dest, digest, size)
-    manifest_dest = _manifest_path(tag, target)
-    if not manifest_dest.exists():
-        manifest_dest.parent.mkdir(parents=True, exist_ok=True)
-        part = _scratch(manifest_dest)
-        try:
-            part.write_bytes(manifest_src.read_bytes())
-            _publish(part, manifest_dest)
-        finally:
-            part.unlink(missing_ok=True)
+    try:
+        _sweep_stale(target / "blobs")
+        _sweep_stale(_manifest_path(tag, target).parent)
+        needed = sum(item[3] for item in missing)
+        if needed:
+            target.mkdir(parents=True, exist_ok=True)
+            free = shutil.disk_usage(target).free
+            if free < needed:
+                raise ModelError(f"not enough disk space for the Ollama store: need "
+                                 f"{needed / 1e9:.1f} GB, {free / 1e9:.1f} GB free")
+        for src, dest, digest, size in missing:
+            if say:
+                say(f"copying {dest.name} ({size / 1e6:.0f} MB)")
+            _copy_verified(src, dest, digest, size)
+        manifest_dest = _manifest_path(tag, target)
+        if not manifest_dest.exists():
+            manifest_dest.parent.mkdir(parents=True, exist_ok=True)
+            part = _scratch(manifest_dest)
+            try:
+                part.write_bytes(manifest_src.read_bytes())
+                _publish(part, manifest_dest)
+            finally:
+                part.unlink(missing_ok=True)
+    except OSError as err:
+        raise ModelError(f"cannot import {tag}: "
+                         f"{err.strerror or type(err).__name__}") from None
 
 
 # -- resolution ----------------------------------------------------------------------------
@@ -331,6 +363,7 @@ def _download(model_id: str, entry: dict, cfg: Config, opener, hf_base: str,
     if cfg.dry_run:
         return _gguf_ref(model_id, entry, None, pin["quant"], digest, pin["size_bytes"])
     dest = Path(cfg.model_dir or DEFAULT_MODEL_DIR) / pin["file"]
+    _sweep_stale(dest.parent)
     asset = {"name": pin["file"], "size": pin["size_bytes"], "digest": digest,
              "browser_download_url":
                  f"{hf_base.rstrip('/')}/{pin['repo']}/resolve/{pin['revision']}/{pin['file']}"}
@@ -365,6 +398,8 @@ def _resolve_llamacpp(model_id: str, entry: dict, cfg: Config, opener, hf_base: 
                 blob, layer = _model_blob(tag, _mirror_ollama_dir(mirror))
                 return _gguf_ref(model_id, entry, blob, entry["quant"], layer["digest"],
                                  layer["size"])
+            except BlobMissing as err:
+                raise ModelError(f"mirror manifest is incomplete: {err}") from None
             except ModelNotFound:
                 pass
     # 3. local store
@@ -414,6 +449,11 @@ def _resolve_ollama(model_id: str, entry: dict, cfg: Config, say) -> ModelRef:
     return ModelRef(model_id, model_id, entry["quant"], tag, None, None, entry["size_bytes"])
 
 
+# Digest rule (controller ruling R10): `ModelRef.digest` of an Ollama blob is the digest of
+# its manifest layer. The Ollama store is content addressed, the blob file name is that digest
+# and Ollama loads the model by it, so it is the identity the engine uses. A GGUF file that was
+# only size-checked (mirror or model dir) gets digest None; downloads are hashed and carry the
+# pinned sha256. Do not "fix" the blob case by hashing or dropping the digest.
 def resolve(model_id: str, engine: str, cfg: Config, *, opener=None, hf_base: str = HF_BASE,
             entries: dict | None = None,
             say: Callable[[str], None] | None = None) -> ModelRef:
