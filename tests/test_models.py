@@ -331,12 +331,17 @@ class RoundTwoTest(Base):
         mirror_store = self.mirror / "ollama"
         digest = make_model(mirror_store, "qwen3.5:4b", b"mirror")
         (mirror_store / "blobs" / digest.replace(":", "-")).unlink()
+        # llama.cpp: nothing local, so the mirror must be copied, and it is broken
+        with self.assertRaises(ModelError) as ctx:
+            models.resolve("S", "llamacpp", self.cfg(mirror=str(self.mirror)))
+        self.assertIn("qwen3.5:4b", str(ctx.exception))
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+        # Ollama always checks the mirror, also when the local store has the model
         make_model(self.store, "qwen3.5:4b", b"local")  # would be a tempting fallback
-        for engine in ("llamacpp", "ollama"):
-            with self.assertRaises(ModelError) as ctx:
-                models.resolve("S", engine, self.cfg(mirror=str(self.mirror)))
-            self.assertIn("qwen3.5:4b", str(ctx.exception), engine)
-            self.assertNotIn(str(self.tmp), str(ctx.exception), engine)
+        with self.assertRaises(ModelError) as ctx:
+            models.resolve("S", "ollama", self.cfg(mirror=str(self.mirror)))
+        self.assertIn("qwen3.5:4b", str(ctx.exception))
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
 
     def test_file_types_40_and_41(self):
         self.assertEqual((models.FILE_TYPES[40], models.FILE_TYPES[41]), ("Q1_0", "Q2_0"))
@@ -361,19 +366,23 @@ class ResolveLlamacppTest(Base):
         explicit = self.tmp / "my.gguf"
         explicit.write_bytes(b"explicit")
         mirror_digest = make_model(self.mirror / "ollama", "qwen3.5:4b", b"from-mirror")
-        local_digest = make_model(self.store, "qwen3.5:4b", b"from-local-store")
         # explicit wins
         ref = models.resolve("S", "llamacpp",
                              self.cfg(mirror=str(self.mirror), gguf={"S": explicit}))
         self.assertEqual(ref.gguf_path, explicit)
         self.assertIsNone(ref.digest)
-        # then the mirror, used in place
+        self.assertEqual(ref.weights_source, "explicit")
+        # not in the local store: the mirror is only copied from, the engine loads the copy
         ref = models.resolve("S", "llamacpp", self.cfg(mirror=str(self.mirror)))
         self.assertEqual(ref.gguf_path.read_bytes(), b"from-mirror")
         self.assertEqual(ref.digest, mirror_digest)
-        self.assertTrue(str(ref.gguf_path).startswith(str(self.mirror)))
-        # then the local store
-        ref = models.resolve("S", "llamacpp", self.cfg())
+        self.assertEqual(ref.gguf_path, models.ollama_blob_for("qwen3.5:4b", self.store))
+        self.assertFalse(str(ref.gguf_path).startswith(str(self.mirror)))
+        self.assertEqual(ref.weights_source, "local store")
+        # a local store blob wins over the mirror, which is not even looked at
+        local_digest = make_model(self.store, "qwen3.5:4b", b"from-local-store")
+        make_model(self.mirror / "ollama", "qwen3.5:4b", b"newer-mirror-bytes")
+        ref = models.resolve("S", "llamacpp", self.cfg(mirror=str(self.mirror)))
         self.assertEqual(ref.gguf_path.read_bytes(), b"from-local-store")
         self.assertEqual(ref.digest, local_digest)
         self.assertEqual((ref.id, ref.cls, ref.ollama_tag), ("S", "S", "qwen3.5:4b"))
@@ -382,29 +391,91 @@ class ResolveLlamacppTest(Base):
         with self.assertRaises(ModelNotFound):
             models.resolve("S", "llamacpp", empty)
 
+    def test_mirror_copy_keeps_existing_blobs(self):
+        digest = make_model(self.mirror / "ollama", "qwen3.5:4b", b"mirror-bytes")
+        (self.store / "blobs").mkdir(parents=True)
+        (self.store / "blobs" / digest.replace(":", "-")).write_bytes(b"other-bytes-longer")
+        warnings = []
+        with self.assertRaises(ModelError):  # wrong size in the store is never overwritten
+            models.resolve("S", "llamacpp", self.cfg(mirror=str(self.mirror)),
+                           say=warnings.append)
+        self.assertEqual((self.store / "blobs" / digest.replace(":", "-")).read_bytes(),
+                         b"other-bytes-longer")
+
+    def test_dry_run_copies_nothing_and_reports_the_mirror_source(self):
+        digest = make_model(self.mirror / "ollama", "qwen3.5:4b", b"from-mirror")
+        ref = models.resolve("S", "llamacpp", self.cfg(mirror=str(self.mirror), dry_run=True))
+        self.assertIsNone(ref.gguf_path)  # plan: "mirror copy <size>"
+        self.assertEqual(ref.digest, digest)
+        self.assertEqual(ref.size_bytes, len(b"from-mirror"))
+        self.assertFalse(self.store.exists())
+
+    def test_local_store_ref_says_local_store(self):
+        make_model(self.store, "qwen3.5:4b", b"x")
+        self.assertEqual(models.resolve("S", "llamacpp", self.cfg()).weights_source,
+                         "local store")
+        self.assertEqual(models.resolve("S", "ollama", self.cfg()).weights_source,
+                         "local store")
+
     def test_flint_order_and_download_last(self):
         entries = models.catalog()
         data = b"flint-bytes"
         entries["F"]["gguf"].update(size_bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
-        # mirror file wins over a file in the model dir
-        (self.mirror / "gguf" / "flint").mkdir(parents=True)
-        (self.mirror / "gguf/flint/Flint-Q4_K_M.gguf").write_bytes(data)
-        self.model_dir.mkdir()
-        (self.model_dir / "Flint-Q4_K_M.gguf").write_bytes(data)
+        mirror_file = self.mirror / "gguf/flint/Flint-Q4_K_M.gguf"
+        mirror_file.parent.mkdir(parents=True)
+        mirror_file.write_bytes(data)
+        # dry run: nothing is copied, the plan sees a mirror copy
+        ref = models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror), dry_run=True),
+                             entries=entries)
+        self.assertIsNone(ref.gguf_path)
+        self.assertIsNotNone(ref.digest)
+        self.assertFalse(self.model_dir.exists())
+        # the mirror file is copied into the model dir and loaded from there
         ref = models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror)), entries=entries)
-        self.assertEqual(ref.gguf_path, self.mirror / "gguf/flint/Flint-Q4_K_M.gguf")
+        self.assertEqual(ref.gguf_path, self.model_dir / "Flint-Q4_K_M.gguf")
+        self.assertEqual(ref.gguf_path.read_bytes(), data)
+        self.assertEqual(ref.weights_source, "model dir")
         self.assertIsNone(ref.digest)  # never hashed, so no digest is claimed
         self.assertEqual(ref.quant, "Q4_K_M")
-        ref = models.resolve("F", "llamacpp", self.cfg(), entries=entries)
-        self.assertEqual(ref.gguf_path, self.model_dir / "Flint-Q4_K_M.gguf")
-        self.assertIsNone(ref.digest)
-        self.assertEqual(ref.quant, "Q4_K_M")
+        self.assertEqual([p for p in self.model_dir.iterdir()], [self.model_dir / "Flint-Q4_K_M.gguf"])
+        # a file already in the model dir is used, the mirror is not touched
+        mirror_file.write_bytes(b"x" * len(data))
+        ref = models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror)), entries=entries)
+        self.assertEqual(ref.gguf_path.read_bytes(), data)
         (self.model_dir / "Flint-Q4_K_M.gguf").unlink()
+        mirror_file.unlink()
         with FakeServer({}) as server:  # server has nothing: the download is attempted
             with self.assertRaises(ModelError):
                 models.resolve("F", "llamacpp", self.cfg(), entries=entries,
                                hf_base=server.url)
             self.assertEqual(len(server.requests), 1)
+
+    def test_mirror_gguf_of_wrong_size_is_refused(self):
+        entries = models.catalog()
+        entries["F"]["gguf"].update(size_bytes=99)
+        mirror_file = self.mirror / "gguf/flint/Flint-Q4_K_M.gguf"
+        mirror_file.parent.mkdir(parents=True)
+        mirror_file.write_bytes(b"short")
+        with self.assertRaises(ModelError):
+            models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror)), entries=entries)
+        self.assertFalse(self.model_dir.exists() and any(self.model_dir.iterdir()))
+
+    def test_network_paths_are_refused_unless_explicit(self):
+        make_model(self.store, "qwen3.5:4b", b"x")
+        explicit = self.tmp / "my.gguf"
+        explicit.write_bytes(b"explicit")
+        with mock.patch.object(models, "is_network_path", return_value=True):
+            with self.assertRaises(ModelError) as caught:
+                models.resolve("S", "llamacpp", self.cfg())
+            self.assertIn("network", str(caught.exception))
+            ref = models.resolve("S", "llamacpp", self.cfg(gguf={"S": explicit}))
+        self.assertEqual(ref.gguf_path, explicit)
+
+    def test_is_network_path(self):
+        self.assertTrue(models.is_network_path(r"\\192.168.2.2\ai\llm\bench\blob"))
+        self.assertTrue(models.is_network_path("//host/share/x"))
+        self.assertFalse(models.is_network_path("/tmp/model.gguf"))
+        self.assertFalse(models.is_network_path(r"D:\bench\models\x"))
 
     def test_wrong_size_file_is_never_replaced(self):
         entries = models.catalog()

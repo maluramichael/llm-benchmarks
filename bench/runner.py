@@ -328,7 +328,8 @@ def _run_model(state: _State, engine, ref) -> bool:
     label = f"{engine.name}/{ref.id}"
     state.models_info[label] = _clean({
         "engine": engine.name, "id": ref.id, "cls": ref.cls, "quant": ref.quant,
-        "size_bytes": ref.size_bytes, "digest": ref.digest})
+        "size_bytes": ref.size_bytes, "digest": ref.digest,
+        "weights_source": ref.weights_source})
     state.store.set_section("models", state.models_info)
     ctx = RunContext(cfg, engine, ref, state.store, state.guard, state.corpus_text,
                      state.raw_dir)

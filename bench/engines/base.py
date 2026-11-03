@@ -63,6 +63,9 @@ class ModelRef:
     gguf_path: Path | None
     digest: str | None
     size_bytes: int | None
+    # Where the weights are loaded from, a category only (never a path): "local store",
+    # "model dir" or "explicit". None while they are still to be copied or downloaded.
+    weights_source: str | None = None
 
 
 @dataclass

@@ -320,17 +320,69 @@ def header_quant(path: Path) -> str:
 
 
 def _gguf_ref(model_id: str, entry: dict | None, path: Path | None, quant: str,
-              digest: str | None, size: int | None) -> ModelRef:
+              digest: str | None, size: int | None, source: str | None = None) -> ModelRef:
     return ModelRef(id=model_id, cls=model_id, quant=quant,
                     ollama_tag=(entry or {}).get("ollama_tag"),
-                    gguf_path=path, digest=digest, size_bytes=size)
+                    gguf_path=path, digest=digest, size_bytes=size, weights_source=source)
+
+
+def is_network_path(path) -> bool:
+    """True for a UNC path (\\\\host\\share, //host/share) and, on Windows, a path on a
+    network drive. Weights read from there would time the network, not the disk."""
+    text = str(path)
+    if text.startswith(("\\\\", "//")):
+        return True
+    if os.name == "nt" and len(text) > 1 and text[1] == ":":
+        try:
+            import ctypes
+            return ctypes.windll.kernel32.GetDriveTypeW(text[:2] + "\\") == 4  # DRIVE_REMOTE
+        except (AttributeError, OSError):
+            return False
+    return False
+
+
+def _local_ref(path: Path, *what) -> Path:
+    """`path` itself, or ModelError when it is not on a local disk (not for --gguf)."""
+    if is_network_path(path):
+        raise ModelError(
+            "the model file is on a network path; measured engines load weights from a local "
+            "disk only. Copy it to a local --ollama-models-dir / --model-dir, or pass it "
+            "explicitly with --gguf if a network load is what you want to measure")
+    return path
 
 
 def _explicit_ref(model_id: str, entry: dict | None, path: Path) -> ModelRef:
     if not path.is_file():
         raise ModelError(f"--gguf file for {model_id} not found: {path.name}")
     # The quant comes from the file itself, never from the catalog; not hashed, so no digest.
-    return _gguf_ref(model_id, entry, path, header_quant(path), None, path.stat().st_size)
+    return _gguf_ref(model_id, entry, path, header_quant(path), None, path.stat().st_size,
+                     "explicit")
+
+
+def _copy_gguf(src: Path, dest: Path, size: int, say) -> None:
+    """Copy a GGUF file of `size` bytes from the mirror to `dest` (never overwrites).
+
+    Copied to a scratch name next to `dest`, size-checked, then renamed, so an
+    interrupted copy never leaves a file under the final name.
+    """
+    if dest.exists():
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _sweep_stale(dest.parent)
+    scratch = _scratch(dest)
+    if say:
+        say(f"copying {dest.name} from the mirror ({size / 1e9:.1f} GB)")
+    try:
+        shutil.copyfile(src, scratch)
+        if scratch.stat().st_size != size:
+            raise ModelError(f"copy of {dest.name} has {scratch.stat().st_size} bytes, "
+                             f"expected {size}")
+        os.replace(scratch, dest)
+    except OSError as err:
+        raise ModelError(f"cannot copy {dest.name} from the mirror: "
+                         f"{getattr(err, 'strerror', None) or err}") from None
+    finally:
+        scratch.unlink(missing_ok=True)
 
 
 def _unverified(say, path: Path) -> None:
@@ -377,47 +429,77 @@ def _download(model_id: str, entry: dict, cfg: Config, opener, hf_base: str,
 
 def _resolve_llamacpp(model_id: str, entry: dict, cfg: Config, opener, hf_base: str,
                       say) -> ModelRef:
+    """Order (ruling R17): explicit --gguf, local Ollama store blob (when reuse applies),
+    local model dir file, mirror (copied first), download. A measured engine never loads
+    weights from the mirror: cold load times would measure the network. The copy follows
+    the Ollama rules (never overwrites, checks sizes). Weights that are not on a local
+    disk are refused, except an explicit --gguf."""
     pin = entry.get("gguf")
     reuse = bool(entry.get("reuse_ollama_blob") or cfg.reuse_ollama_blobs)
     tag = entry["ollama_tag"]
     store = Path(cfg.ollama_models_dir or default_ollama_models_dir())
+    model_dir = Path(cfg.model_dir or DEFAULT_MODEL_DIR)
+
+    def store_ref():
+        blob, layer = _model_blob(tag, store)
+        _local_ref(blob)
+        return _gguf_ref(model_id, entry, blob, entry["quant"], layer["digest"], layer["size"],
+                         "local store")
+
+    def dir_ref():
+        found = _pinned_file(model_dir / pin["file"], pin)
+        if found is None:
+            return None
+        _local_ref(found)
+        _unverified(say, found)
+        return _gguf_ref(model_id, entry, found, pin["quant"], None, pin["size_bytes"],
+                         "model dir")
+
     # 1. explicit file
     if model_id in cfg.gguf:
         return _explicit_ref(model_id, entry, Path(cfg.gguf[model_id]))
-    # 2. mirror
+    # 2. local Ollama store
+    if reuse:
+        try:
+            return store_ref()
+        except ModelNotFound:
+            pass
+    # 3. local model dir
+    if pin:
+        ref = dir_ref()
+        if ref:
+            return ref
+    # 4. mirror: only a source to copy from
     if cfg.mirror:
         if URL_RE.match(cfg.mirror):
             raise ModelError("URL mirrors are not supported yet; use a directory")
         mirror = Path(cfg.mirror)
         if pin and pin.get("mirror_path"):
-            found = _pinned_file(mirror / "gguf" / pin["mirror_path"], pin)
-            if found:
-                _unverified(say, found)
-                return _gguf_ref(model_id, entry, found, pin["quant"], None, pin["size_bytes"])
+            source = _pinned_file(mirror / "gguf" / pin["mirror_path"], pin)
+            if source:
+                if cfg.dry_run:  # the plan reports a mirror copy; nothing is copied now
+                    return _gguf_ref(model_id, entry, None, pin["quant"],
+                                     "sha256:" + pin["sha256"], pin["size_bytes"])
+                _copy_gguf(source, model_dir / pin["file"], pin["size_bytes"], say)
+                ref = dir_ref()
+                if ref:
+                    return ref
         if reuse:
             try:
-                blob, layer = _model_blob(tag, _mirror_ollama_dir(mirror))
-                return _gguf_ref(model_id, entry, blob, entry["quant"], layer["digest"],
-                                 layer["size"])
-            except BlobMissing as err:
-                raise ModelError(f"mirror manifest is incomplete: {err}") from None
+                mirror_dir = _mirror_ollama_dir(mirror)
+                layer = _model_layer(_read_manifest(_manifest_path(tag, mirror_dir), tag), tag)
             except ModelNotFound:
                 pass
-    # 3. local store
-    if reuse:
-        try:
-            blob, layer = _model_blob(tag, store)
-            return _gguf_ref(model_id, entry, blob, entry["quant"], layer["digest"],
-                             layer["size"])
-        except ModelNotFound:
-            pass
-    if pin:
-        for folder in (Path(cfg.model_dir or DEFAULT_MODEL_DIR),):
-            found = _pinned_file(folder / pin["file"], pin)
-            if found:
-                _unverified(say, found)
-                return _gguf_ref(model_id, entry, found, pin["quant"], None, pin["size_bytes"])
-    # 4. download
+            else:
+                if cfg.dry_run:
+                    return _gguf_ref(model_id, entry, None, entry["quant"], layer["digest"],
+                                     layer["size"])
+                try:
+                    import_from_mirror(mirror, tag, store, say)
+                except BlobMissing as err:
+                    raise ModelError(f"mirror manifest is incomplete: {err}") from None
+                return store_ref()
+    # 5. download
     if pin:
         return _download(model_id, entry, cfg, opener, hf_base, say)
     raise ModelNotFound(
@@ -447,7 +529,7 @@ def _resolve_ollama(model_id: str, entry: dict, cfg: Config, say) -> ModelRef:
         # The store blob is the GGUF file itself. The Ollama engine never loads this path;
         # it is there so the GGUF header can be read (computed memory curve).
         return ModelRef(model_id, model_id, entry["quant"], tag, blob, layer["digest"],
-                        layer["size"])
+                        layer["size"], "local store")
     except ModelNotFound:
         pass
     if mirror_layer is not None:
