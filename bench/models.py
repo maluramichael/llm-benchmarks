@@ -10,7 +10,8 @@ Ollama store (`manifests/...`, `blobs/sha256-<hex>`) and `gguf/<family>/<file>.g
 GGUF files only llama.cpp needs. A mirror root that is itself an Ollama store is accepted
 too. For Ollama the mirror is imported into the Ollama store (`import_from_mirror`), the
 local store comes next, and what is still missing is left to `ollama pull` by the engine
-adapter (the returned ref then has no digest).
+adapter (the returned ref then has no digest). Entries with `ollama_pull = false` (local tags
+that are not in the Ollama library) must come from the mirror or the local store.
 
 Safety rules: nothing in a target store is ever overwritten or deleted (existing blobs and
 manifests stay as they are), imports verify every digest while copying and write the
@@ -444,6 +445,10 @@ def _resolve_ollama(model_id: str, entry: dict, cfg: Config, say) -> ModelRef:
                         layer["size"])
     except ModelNotFound:
         pass
+    if entry.get("ollama_pull") is False:
+        raise ModelNotFound(
+            f"{tag} is not in the Ollama library: give --mirror with this tag, or create it "
+            f"from the pinned GGUF as described in bench/data/models.toml")
     # Not in the store: the Ollama adapter pulls it.
     _check_consent(f"Ollama model {tag}", entry["size_bytes"], cfg)
     return ModelRef(model_id, model_id, entry["quant"], tag, None, None, entry["size_bytes"])

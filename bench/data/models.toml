@@ -8,6 +8,8 @@
 #   quant              quantisation of the Ollama model layer (file_type of its GGUF)
 #   size_bytes         size of the Ollama model layer in bytes
 #   reuse_ollama_blob  llama.cpp may load the GGUF blob of the Ollama model directly
+#   ollama_pull        false: the tag is not in the Ollama library, it only comes from a
+#                      mirror or an existing local store (default true)
 #   [<class>.gguf]     a separate GGUF file for llama.cpp (pinned revision and sha256),
 #                      with its own quant: it can differ from the Ollama layer
 #       mirror_path    location below <mirror>/gguf
@@ -30,11 +32,24 @@ quant = "Q4_K_M"
 size_bytes = 16810714464
 reuse_ollama_blob = true
 
+# F: the library tag flint:40b is NVFP4, and Ollama offers no Q4_K_M. So that both engines
+# run the same weights, Ollama uses a local tag built from the pinned Hugging Face file
+# below. Its model layer IS that file (same sha256). Built with Ollama 0.40.13:
+#   ollama create flint-bench:40b-q4_K_M -f Modelfile
+# Modelfile (renderer, parser and parameters copied from the library flint:40b manifest):
+#   FROM ./Flint-Q4_K_M.gguf
+#   TEMPLATE {{ .Prompt }}
+#   RENDERER flint
+#   PARSER flint
+#   PARAMETER temperature 1
+#   PARAMETER top_k 20
+#   PARAMETER top_p 0.95
 [F]
-ollama_tag = "flint:40b"
-quant = "NVFP4"
-size_bytes = 22863084160
-reuse_ollama_blob = false
+ollama_tag = "flint-bench:40b-q4_K_M"
+quant = "Q4_K_M"
+size_bytes = 23387911136
+reuse_ollama_blob = true
+ollama_pull = false
 
 [F.gguf]
 quant = "Q4_K_M"

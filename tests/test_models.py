@@ -81,8 +81,9 @@ class CatalogTest(unittest.TestCase):
         self.assertEqual(set(cat), {"S", "M", "L", "F"})
         self.assertEqual([cat[k]["ollama_tag"] for k in "SML"],
                          ["qwen3.5:4b", "qwen3:14b", "qwen3.8:27b"])
-        self.assertTrue(all(cat[k]["reuse_ollama_blob"] for k in "SML"))
-        self.assertEqual(cat["F"]["ollama_tag"], "flint:40b")
+        self.assertTrue(all(cat[k]["reuse_ollama_blob"] for k in "SMLF"))
+        self.assertEqual(cat["F"]["ollama_tag"], "flint-bench:40b-q4_K_M")
+        self.assertIs(cat["F"]["ollama_pull"], False)  # local tag, not in the library
         pin = cat["F"]["gguf"]
         self.assertEqual(pin["repo"], "ggml-org/Flint-GGUF")
         self.assertEqual(pin["file"], "Flint-Q4_K_M.gguf")
@@ -90,9 +91,10 @@ class CatalogTest(unittest.TestCase):
         self.assertRegex(pin["sha256"], r"^[0-9a-f]{64}$")
         self.assertGreater(pin["size_bytes"], 20 * 10**9)
         self.assertTrue(all(cat[k]["quant"] for k in cat))
-        self.assertEqual([cat[k]["quant"] for k in "SML"], ["Q4_K_M"] * 3)
-        self.assertEqual(cat["F"]["quant"], "NVFP4")  # the Ollama layer
+        self.assertEqual([cat[k]["quant"] for k in "SMLF"], ["Q4_K_M"] * 4)
         self.assertEqual(pin["quant"], "Q4_K_M")  # the Hugging Face file
+        # the F Ollama tag was built from the pinned file: same bytes in both engines
+        self.assertEqual(cat["F"]["size_bytes"], pin["size_bytes"])
 
     def test_catalog_is_a_fresh_copy(self):
         models.catalog()["S"]["quant"] = "x"
@@ -400,20 +402,29 @@ class ResolveLlamacppTest(Base):
             models.resolve("F", "llamacpp", self.cfg(), entries=entries)
         self.assertEqual(existing.read_bytes(), b"partial")
 
-    def test_reuse_ollama_blobs_override_uses_the_nvfp4_blob(self):
+    def test_reuse_ollama_blobs_override(self):
+        entries = models.catalog()
+        entries["F"].update(ollama_tag="flint:40b", quant="NVFP4", reuse_ollama_blob=False)
         digest = make_model(self.store, "flint:40b", b"nvfp4-blob")
-        ref = models.resolve("F", "llamacpp", self.cfg(reuse_ollama_blobs=True))
+        ref = models.resolve("F", "llamacpp", self.cfg(reuse_ollama_blobs=True),
+                             entries=entries)
         self.assertEqual(ref.gguf_path.read_bytes(), b"nvfp4-blob")
         self.assertEqual((ref.quant, ref.digest), ("NVFP4", digest))
         # without the override the blob is ignored and the (large) download needs consent
         with self.assertRaises(NeedsConsent):
-            models.resolve("F", "llamacpp", self.cfg())
+            models.resolve("F", "llamacpp", self.cfg(), entries=entries)
+
+    def test_flint_llamacpp_reuses_the_local_ollama_blob(self):
+        digest = make_model(self.store, "flint-bench:40b-q4_K_M", b"q4km-blob")
+        ref = models.resolve("F", "llamacpp", self.cfg())
+        self.assertEqual(ref.gguf_path.read_bytes(), b"q4km-blob")
+        self.assertEqual((ref.quant, ref.digest), ("Q4_K_M", digest))
 
     def test_quant_follows_the_source(self):
         make_model(self.store, "qwen3:14b", b"blob")
         self.assertEqual(models.resolve("M", "llamacpp", self.cfg()).quant, "Q4_K_M")
-        make_model(self.store, "flint:40b", b"blob")
-        self.assertEqual(models.resolve("F", "ollama", self.cfg()).quant, "NVFP4")
+        make_model(self.store, "flint-bench:40b-q4_K_M", b"blob")
+        self.assertEqual(models.resolve("F", "ollama", self.cfg()).quant, "Q4_K_M")
         ref = models.resolve("F", "llamacpp", self.cfg(dry_run=True))  # pinned HF file
         self.assertEqual(ref.quant, "Q4_K_M")
 
@@ -545,10 +556,25 @@ class ResolveOllamaTest(Base):
             models.resolve("M", "ollama", self.cfg(no_download=True))
 
     def test_large_pull_needs_consent(self):
+        entries = models.catalog()
+        entries["F"].update(ollama_tag="flint:40b", ollama_pull=True)
         with self.assertRaises(NeedsConsent):
-            models.resolve("F", "ollama", self.cfg())
-        ref = models.resolve("F", "ollama", self.cfg(yes=True))
+            models.resolve("F", "ollama", self.cfg(), entries=entries)
+        ref = models.resolve("F", "ollama", self.cfg(yes=True), entries=entries)
         self.assertEqual(ref.ollama_tag, "flint:40b")
+
+    def test_local_tag_is_never_pulled(self):
+        for cfg in (self.cfg(), self.cfg(yes=True)):
+            with self.subTest(yes=cfg.yes), self.assertRaises(ModelNotFound) as ctx:
+                models.resolve("F", "ollama", cfg)
+            self.assertIn("not in the Ollama library", str(ctx.exception))
+
+    def test_local_tag_comes_from_the_mirror(self):
+        mirror_store = self.mirror / "ollama"
+        digest = make_model(mirror_store, "flint-bench:40b-q4_K_M", b"q4km")
+        ref = models.resolve("F", "ollama", self.cfg(mirror=str(self.mirror)))
+        self.assertEqual((ref.ollama_tag, ref.quant, ref.digest),
+                         ("flint-bench:40b-q4_K_M", "Q4_K_M", digest))
 
 
 if __name__ == "__main__":
