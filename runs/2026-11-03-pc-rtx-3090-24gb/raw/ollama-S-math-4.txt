@@ -1,0 +1,31 @@
+To find the number of positive integers smaller than 1000 that are divisible by 7 but not divisible by 11, we can use the Principle of Inclusion-Exclusion.
+
+Let $S$ be the set of positive integers less than 1000. So, $S = \{1, 2, 3, \dots, 999\}$.
+The size of this set is $|S| = 999$.
+
+We are looking for the count of numbers in $S$ that satisfy two conditions:
+1. Divisible by 7.
+2. Not divisible by 11.
+
+Let $A$ be the set of numbers in $S$ divisible by 7.
+Let $B$ be the set of numbers in $S$ divisible by 11.
+We want to find $|A| - |A \cap B|$. This represents numbers divisible by 7 minus those that are also divisible by both 7 and 11 (which means divisible by $\text{lcm}(7, 11) = 77$).
+
+**Step 1: Calculate the number of integers in $S$ divisible by 7 ($|A|$).**
+The largest multiple of 7 less than or equal to 999 is found by dividing 999 by 7:
+$$ \lfloor \frac{999}{7} \rfloor = 142 $$
+So, there are 142 positive integers less than 1000 divisible by 7.
+$|A| = 142$.
+
+**Step 2: Calculate the number of integers in $S$ divisible by both 7 and 11 ($|A \cap B|$).**
+A number is divisible by both 7 and 11 if and only if it is divisible by their least common multiple, which is $7 \times 11 = 77$.
+The largest multiple of 77 less than or equal to 999 is found by dividing 999 by 77:
+$$ \lfloor \frac{999}{77} \rfloor = \lfloor 12.97... \rfloor = 12 $$
+So, there are 12 positive integers less than 1000 divisible by 77.
+$|A \cap B| = 12$.
+
+**Step 3: Calculate the final result.**
+The number of integers divisible by 7 but not by 11 is:
+$$ |A| - |A \cap B| = 142 - 12 = 130 $$
+
+ANSWER: 130

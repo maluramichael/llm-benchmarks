@@ -1,0 +1,13 @@
+The word **BANANA** has 6 letters, with the following letter frequencies:
+
+- **B**: 1
+- **A**: 3
+- **N**: 2
+
+The total number of **distinct arrangements** of the letters is given by the formula for permutations of a multiset:
+
+$$
+\frac{6!}{3! \cdot 2! \cdot 1!} = \frac{720}{6 \cdot 2 \cdot 1} = \frac{720}{12} = 60
+$$
+
+ANSWER: 60

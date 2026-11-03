@@ -1,0 +1,25 @@
+Let the two numbers be $ x $ and $ y $, where $ x > y $.
+
+We are given:
+1. $ x + y = 58 $
+2. $ x - y = 14 $
+
+Add the two equations:
+$$
+(x + y) + (x - y) = 58 + 14
+$$
+$$
+2x = 72 \Rightarrow x = 36
+$$
+
+Substitute $ x = 36 $ into the first equation:
+$$
+36 + y = 58 \Rightarrow y = 22
+$$
+
+Now, find the product:
+$$
+x \cdot y = 36 \cdot 22 = 792
+$$
+
+ANSWER: 792

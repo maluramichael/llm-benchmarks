@@ -1,0 +1,81 @@
+To find the sum of all integers from 1 to 100 that are divisible by **3 or 5**, we can use the **principle of inclusion and exclusion**.
+
+---
+
+### Step 1: Sum of numbers divisible by 3
+
+We find the sum of all numbers from 1 to 100 that are divisible by 3.
+
+- The numbers divisible by 3 from 1 to 100 are:  
+  $ 3, 6, 9, \dots, 99 $
+
+- This is an arithmetic sequence with:
+  - First term $ a = 3 $
+  - Common difference $ d = 3 $
+  - Last term $ l = 99 $
+
+- Number of terms $ n $:  
+  $$
+  n = \frac{99 - 3}{3} + 1 = \frac{96}{3} + 1 = 32 + 1 = 33
+  $$
+
+- Sum of the sequence:
+  $$
+  S_3 = \frac{n}{2} \cdot (a + l) = \frac{33}{2} \cdot (3 + 99) = \frac{33}{2} \cdot 102 = 33 \cdot 51 = 1683
+  $$
+
+---
+
+### Step 2: Sum of numbers divisible by 5
+
+- Numbers divisible by 5 from 1 to 100:  
+  $ 5, 10, 15, \dots, 100 $
+
+- Arithmetic sequence with:
+  - $ a = 5 $
+  - $ d = 5 $
+  - $ l = 100 $
+
+- Number of terms $ n $:  
+  $$
+  n = \frac{100 - 5}{5} + 1 = \frac{95}{5} + 1 = 19 + 1 = 20
+  $$
+
+- Sum of the sequence:
+  $$
+  S_5 = \frac{20}{2} \cdot (5 + 100) = 10 \cdot 105 = 1050
+  $$
+
+---
+
+### Step 3: Sum of numbers divisible by both 3 and 5 (i.e., divisible by 15)
+
+- Numbers divisible by 15 from 1 to 100:  
+  $ 15, 30, 45, \dots, 90 $
+
+- Arithmetic sequence with:
+  - $ a = 15 $
+  - $ d = 15 $
+  - $ l = 90 $
+
+- Number of terms $ n $:  
+  $$
+  n = \frac{90 - 15}{15} + 1 = \frac{75}{15} + 1 = 5 + 1 = 6
+  $$
+
+- Sum of the sequence:
+  $$
+  S_{15} = \frac{6}{2} \cdot (15 + 90) = 3 \cdot 105 = 315
+  $$
+
+---
+
+### Step 4: Apply inclusion-exclusion principle
+
+$$
+\text{Total sum} = S_3 + S_5 - S_{15} = 1683 + 1050 - 315 = 2418
+$$
+
+---
+
+**ANSWER: 2418**

@@ -1,0 +1,21 @@
+```python
+def longest_common_prefix(strs):
+    if not strs:
+        return ""
+    
+    # Sort the list to bring the smallest strings to the front
+    # The common prefix of the entire list must be the prefix of the first and last strings after sorting
+    strs.sort()
+    
+    first = strs[0]
+    last = strs[-1]
+    
+    i = 0
+    while i < len(first) and i < len(last):
+        if first[i] == last[i]:
+            i += 1
+        else:
+            break
+    
+    return first[:i]
+```

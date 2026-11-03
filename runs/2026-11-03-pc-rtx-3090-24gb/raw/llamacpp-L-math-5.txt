@@ -1,0 +1,31 @@
+Let the two numbers be $x$ and $y$.
+
+We are given two equations:
+1) $x + y = 58$
+2) $x - y = 14$
+
+To find the values of $x$ and $y$, we can add the two equations together:
+$(x + y) + (x - y) = 58 + 14$
+$2x = 72$
+$x = 36$
+
+Now, substitute the value of $x$ back into the first equation to find $y$:
+$36 + y = 58$
+$y = 58 - 36$
+$y = 22$
+
+So, the two numbers are 36 and 22.
+
+The question asks for their product:
+Product $= x \times y$
+Product $= 36 \times 22$
+
+Calculation:
+$36 \times 20 = 720$
+$36 \times 2 = 72$
+$720 + 72 = 792$
+
+Alternatively:
+$36 \times 22 = 36 \times (20 + 2) = 720 + 72 = 792$
+
+ANSWER: 792

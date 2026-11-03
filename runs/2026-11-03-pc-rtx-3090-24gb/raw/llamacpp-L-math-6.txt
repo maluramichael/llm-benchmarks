@@ -1,0 +1,32 @@
+To find the remainder when $3^{101}$ is divided by 7, we can look for a pattern in the powers of 3 modulo 7.
+
+Let's compute the first few powers of 3 modulo 7:
+- $3^1 \equiv 3 \pmod 7$
+- $3^2 = 9 \equiv 2 \pmod 7$
+- $3^3 = 27 = 3 \times 9 \equiv 3 \times 2 = 6 \equiv -1 \pmod 7$
+- $3^4 = 3^3 \times 3 \equiv (-1) \times 3 = -3 \equiv 4 \pmod 7$
+- $3^5 = 3^4 \times 3 \equiv 4 \times 3 = 12 \equiv 5 \pmod 7$
+- $3^6 = 3^5 \times 3 \equiv 5 \times 3 = 15 \equiv 1 \pmod 7$
+
+We observe that $3^6 \equiv 1 \pmod 7$. This means the powers of 3 modulo 7 repeat in a cycle of length 6.
+
+To find $3^{101} \pmod 7$, we need to determine the remainder when the exponent 101 is divided by the cycle length 6.
+$$101 \div 6 = 16 \text{ with a remainder of } 5$$
+So, $101 = 6 \times 16 + 5$.
+
+Using the property of modular arithmetic:
+$$3^{101} = 3^{6 \times 16 + 5} = (3^6)^{16} \times 3^5$$
+
+Since $3^6 \equiv 1 \pmod 7$:
+$$(3^6)^{16} \equiv 1^{16} \equiv 1 \pmod 7$$
+
+Therefore:
+$$3^{101} \equiv 1 \times 3^5 \pmod 7$$
+$$3^{101} \equiv 3^5 \pmod 7$$
+
+From our earlier calculation, we know that:
+$$3^5 \equiv 5 \pmod 7$$
+
+Thus, the remainder is 5.
+
+ANSWER: 5

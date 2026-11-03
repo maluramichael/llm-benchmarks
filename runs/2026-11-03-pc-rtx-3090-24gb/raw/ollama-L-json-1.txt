@@ -1,0 +1,6 @@
+{
+  "name": "Maria Gomez",
+  "age": 34,
+  "city": "Lisbon",
+  "profession": "veterinarian"
+}

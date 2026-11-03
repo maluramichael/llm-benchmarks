@@ -1,0 +1,51 @@
+To solve the problem, we need to count how many **positive integers less than 1000** are **divisible by 7** but **not divisible by 11**.
+
+---
+
+### Step 1: Count numbers less than 1000 divisible by 7
+
+We want to find how many integers $ n $ satisfy:
+
+$$
+n < 1000 \quad \text{and} \quad n \equiv 0 \pmod{7}
+$$
+
+The largest multiple of 7 less than 1000 is:
+
+$$
+\left\lfloor \frac{999}{7} \right\rfloor = 142
+$$
+
+So, there are **142** positive integers less than 1000 that are divisible by 7.
+
+---
+
+### Step 2: Count numbers less than 1000 divisible by both 7 and 11
+
+These are the numbers divisible by the **least common multiple (LCM)** of 7 and 11.
+
+$$
+\text{LCM}(7, 11) = 77
+$$
+
+Now, count how many multiples of 77 are less than 1000:
+
+$$
+\left\lfloor \frac{999}{77} \right\rfloor = 12
+$$
+
+So, there are **12** numbers less than 1000 that are divisible by both 7 and 11.
+
+---
+
+### Step 3: Subtract to get the count of numbers divisible by 7 but **not** by 11
+
+$$
+142 - 12 = 130
+$$
+
+---
+
+### Final Answer:
+
+ANSWER: 130

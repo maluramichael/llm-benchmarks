@@ -1,0 +1,8 @@
+```python
+def second_largest(nums):
+    distinct_nums = list(set(nums))
+    if len(distinct_nums) < 2:
+        return None
+    distinct_nums.sort(reverse=True)
+    return distinct_nums[1]
+```

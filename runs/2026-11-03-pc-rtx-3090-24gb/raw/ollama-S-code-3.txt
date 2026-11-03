@@ -1,0 +1,30 @@
+```python
+def roman_to_int(s: str) -> int:
+    """Converts a Roman numeral string (uppercase, valid, value from 1 to 3999) to an integer."""
+    # Mapping of Roman numerals to their integer values
+    roman_map = {
+        'I': 1,
+        'V': 5,
+        'X': 10,
+        'L': 50,
+        'C': 100,
+        'D': 500,
+        'M': 1000
+    }
+
+    total = 0
+    prev_value = 0
+
+    # Iterate through the string in reverse to handle subtraction cases easily
+    for char in reversed(s):
+        current_value = roman_map[char]
+        if current_value < prev_value:
+            # Subtract if a smaller value precedes a larger one (e.g., IV)
+            total -= current_value
+        else:
+            # Add otherwise
+            total += current_value
+        prev_value = current_value
+
+    return total
+```

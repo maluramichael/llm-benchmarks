@@ -1,0 +1,33 @@
+### What This Code Does
+
+This code defines a function called `fib` that calculates the **nth number in the Fibonacci sequence**.
+
+The Fibonacci sequence starts with 0 and 1, and every subsequent number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+
+Here is the logic inside the function:
+1.  **Base Cases:** If `n` is less than 2, it simply returns `n`. This stops the recursion from going too deep for the first two numbers (0 and 1).
+2.  **Recursive Step:** If `n` is 2 or greater, it calculates the answer by adding the result of `fib(n-1)` and `fib(n-2)`.
+
+**Example Calculation for `fib(5)`:**
+*   To get to 5, we need `fib(4)` + `fib(3)`.
+*   To get `fib(4)`, we need `fib(3)` + `fib(2)`.
+*   To get `fib(3)`, we need `fib(2)` + `fib(1)`.
+*   Notice that `fib(3)` is calculated twice in this process!
+
+### Why It Is Faster Than Calling It Without the Cache
+
+Without the cache, this function uses a technique called **exponential recursion**. Because the function calls itself for both `n-1` and `n-2`, it creates a massive tree of calculations where the same numbers are computed over and over again.
+
+**Without `@lru_cache`:**
+To calculate `fib(40)`, the computer might perform roughly **10 million** addition operations. It re-calculates `fib(3)` dozens of times because it doesn't remember that it already figured out what `fib(3)` is. This makes the code incredibly slow for large numbers.
+
+**With `@lru_cache(maxsize=None)`:**
+The `lru_cache` decorator acts like a **smart notebook**. Before running the function's logic, it checks if it has already calculated the answer for that specific input (`n`).
+1.  If it finds the answer in the notebook, it returns it instantly (no calculation needed).
+2.  If not, it calculates the answer, writes it down in the notebook, and then returns it.
+
+Because of this "memoization" (remembering past results), every unique number is calculated **only once**. To calculate `fib(40)`, the computer performs roughly **70** addition operations instead of 10 million.
+
+### Summary
+*   **Without Cache:** Re-calculates the same numbers repeatedly $\rightarrow$ Extremely slow ($O(2^n)$ complexity).
+*   **With Cache:** Calculates each number only once and saves

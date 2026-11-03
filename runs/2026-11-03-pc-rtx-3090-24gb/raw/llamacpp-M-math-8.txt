@@ -1,0 +1,24 @@
+To find the number of **distinct arrangements** of the letters in the word **BANANA**, we start by noting that:
+
+- The word **BANANA** has **6 letters**.
+- The letters are: **B, A, N, A, N, A**.
+- The letter **A** appears **3 times**, the letter **N** appears **2 times**, and the letter **B** appears **1 time**.
+
+The total number of **distinct arrangements** of these letters is given by the **multinomial coefficient**:
+
+$$
+\frac{6!}{3! \cdot 2! \cdot 1!}
+$$
+
+Now compute:
+
+- $6! = 720$
+- $3! = 6$
+- $2! = 2$
+- $1! = 1$
+
+$$
+\frac{720}{6 \cdot 2 \cdot 1} = \frac{720}{12} = 60
+$$
+
+**ANSWER: 60**

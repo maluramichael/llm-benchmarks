@@ -1,0 +1,23 @@
+Let the width of the rectangle be $ w $. Then the length is $ 2w $.
+
+The perimeter of a rectangle is given by:
+
+$$
+P = 2(\text{length} + \text{width}) = 2(2w + w) = 2(3w) = 6w
+$$
+
+We are told the perimeter is 54:
+
+$$
+6w = 54 \Rightarrow w = 9
+$$
+
+So the width is 9 and the length is $ 2w = 18 $.
+
+The area of the rectangle is:
+
+$$
+\text{Area} = \text{length} \times \text{width} = 18 \times 9 = 162
+$$
+
+ANSWER: 162

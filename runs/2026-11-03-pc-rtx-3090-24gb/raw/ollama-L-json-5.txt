@@ -1,0 +1,7 @@
+{
+  "emails": [
+    "a.smith@example.com",
+    "b.jones@example.org",
+    "c.lee@example.net"
+  ]
+}

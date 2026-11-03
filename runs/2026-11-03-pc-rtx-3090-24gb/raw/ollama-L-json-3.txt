@@ -1,0 +1,4 @@
+{
+  "sentiment": "negative",
+  "confidence": 0.98
+}

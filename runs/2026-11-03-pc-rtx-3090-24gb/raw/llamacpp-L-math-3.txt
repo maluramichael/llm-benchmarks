@@ -1,0 +1,23 @@
+To find the final price of the jacket, we need to follow the sequence of price changes step-by-step.
+
+**Step 1: Calculate the marked-up price.**
+The original cost is $50.
+The markup is 40%.
+Markup amount = $50 \times 0.40 = $20$.
+Marked price = Original Cost + Markup Amount
+Marked price = $50 + $20 = $70$.
+
+**Step 2: Calculate the final discounted price.**
+The marked price is $70.
+The discount is 10% off the marked price.
+Discount amount = $70 \times 0.10 = $7$.
+Final price = Marked Price - Discount Amount
+Final price = $70 - $7 = $63$.
+
+Alternatively, you can calculate this directly using multipliers:
+Final Price = $50 \times (1 + 0.40) \times (1 - 0.10)$
+Final Price = $50 \times 1.4 \times 0.9$
+Final Price = $70 \times 0.9$
+Final Price = $63$
+
+ANSWER: 63

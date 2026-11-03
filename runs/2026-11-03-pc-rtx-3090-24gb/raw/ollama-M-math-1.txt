@@ -1,0 +1,22 @@
+To find the average speed of the train over the whole trip, we use the formula:
+
+$$
+\text{Average speed} = \frac{\text{Total distance}}{\text{Total time}}
+$$
+
+### Step 1: Calculate total distance
+$$
+180 \, \text{km} + 120 \, \text{km} = 300 \, \text{km}
+$$
+
+### Step 2: Calculate total time
+$$
+2.5 \, \text{hours} + 1.5 \, \text{hours} = 4 \, \text{hours}
+$$
+
+### Step 3: Calculate average speed
+$$
+\text{Average speed} = \frac{300 \, \text{km}}{4 \, \text{hours}} = 75 \, \text{km/h}
+$$
+
+ANSWER: 75

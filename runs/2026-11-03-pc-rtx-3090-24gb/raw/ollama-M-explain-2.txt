@@ -1,0 +1,59 @@
+Sure! Let's break down what this Python code does and why it's faster than calling the function without the cache.
+
+---
+
+### ✅ **What the code does:**
+
+This code defines a function called `fib(n)` that calculates the **Fibonacci number** for a given `n`. The Fibonacci sequence is defined as:
+
+- `fib(0) = 0`
+- `fib(1) = 1`
+- `fib(n) = fib(n - 1) + fib(n - 2)` for `n >= 2`
+
+But here's the twist: the function is decorated with `@lru_cache(maxsize=None)`, which means it **caches the results** of previous function calls.
+
+---
+
+### 🧠 **How the cache works:**
+
+- When you call `fib(5)`, the function calculates the result and stores it in a cache.
+- The next time you call `fib(5)`, it doesn't recalculate it — it just returns the stored value.
+- This is especially helpful for recursive functions like `fib`, where the same values are computed many times.
+
+---
+
+### 🐍 **Why it's faster with the cache:**
+
+Let's compare two scenarios:
+
+#### ❌ **Without the cache (naive recursion):**
+
+```python
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```
+
+- This is **very slow** for large `n` (like `n = 40` or more).
+- The reason is that it **recomputes the same values over and over again**. For example, `fib(3)` is calculated multiple times in the process of computing `fib(5)`.
+
+#### ✅ **With the cache (`@lru_cache`):**
+
+- The first time `fib(5)` is called, it computes the result and stores it.
+- The next time `fib(5)` is called, it just returns the stored value — **no computation needed**.
+- This reduces the number of function calls from **exponential** (without cache) to **linear** (with cache), which is a **huge performance improvement**.
+
+---
+
+### 📌 **In plain English:**
+
+This code calculates Fibonacci numbers **faster** because it **remembers** the results of previous calculations and reuses them instead of recalculating everything from scratch. This is especially helpful for recursive functions that repeat the same work many times.
+
+---
+
+### 📌 **Summary:**
+
+- `@lru_cache` is a decorator that **caches function results**.
+- It **speeds up recursive functions** like `fib` by avoiding redundant calculations.
+- Without the cache, `fib` is very slow for large numbers — with the cache, it's much faster.
+
+Let me know if you'd like to see a comparison of the performance!

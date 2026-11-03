@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-label="Total throughput with several parallel requests per device, model class and engine">
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="818" viewBox="0 0 960 818" role="img" aria-label="Total throughput with several parallel requests per device, model class and engine">
 <style>
     text { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #59636e; }
     .title { font-size: 20px; font-weight: 600; fill: #1f2328; }
@@ -21,7 +21,7 @@
     .gapbox { fill: none; stroke: #818b98; stroke-width: 1; stroke-dasharray: 3 2; }
     </style>
 <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" stroke-width="2.5" opacity="0.75"/></pattern></defs>
-<rect x="0.5" y="0.5" width="959" height="619" rx="8" fill="#ffffff" stroke="#d1d9e0"/>
+<rect x="0.5" y="0.5" width="959" height="817" rx="8" fill="#ffffff" stroke="#d1d9e0"/>
 <text x="28" y="42" class="title">Concurrent requests</text>
 <text x="28" y="64" class="sub">Total tokens per second across all requests at once. Higher is better.</text>
 <rect x="28" y="81" width="10" height="10" rx="2" fill="#2a78d6"/>
@@ -34,81 +34,152 @@
 <rect x="28" y="101" width="10" height="10" rx="2" fill="url(#hatch)"/>
 <text x="44" y="110" class="legend">Hatched: requests were served one after another, not in parallel</text>
 <text x="198.0" y="144" class="panel">Class S</text>
-<text x="577.0" y="144" class="panel">Class M</text>
-<text x="198.0" y="568" class="tick" text-anchor="start">0</text>
-<line x1="285.7" y1="156" x2="285.7" y2="552" class="grid"/>
-<text x="285.7" y="568" class="tick" text-anchor="middle">50</text>
-<line x1="373.3" y1="156" x2="373.3" y2="552" class="grid"/>
-<text x="373.3" y="568" class="tick" text-anchor="middle">100</text>
-<line x1="461.0" y1="156" x2="461.0" y2="552" class="grid"/>
-<text x="461.0" y="568" class="tick" text-anchor="middle">150</text>
-<line x1="198.0" y1="156" x2="198.0" y2="552" class="base"/>
-<text x="553.0" y="582" class="tick" text-anchor="end">tok/s</text>
-<path d="M198.0,186.0H354.8A4,4 0 0 1 358.8,190.0V194.0A4,4 0 0 1 354.8,198.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 1 at once, class S, llama.cpp: 91.7 tok/s</title></path>
-<text x="364.8" y="197.0" class="value">91.7</text>
-<path d="M198.0,202.0H327.7A4,4 0 0 1 331.7,206.0V210.0A4,4 0 0 1 327.7,214.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 1 at once, class S, Ollama: 76.3 tok/s</title></path>
-<text x="337.7" y="213.0" class="value">76.3</text>
-<path d="M198.0,230.0H402.9A4,4 0 0 1 406.9,234.0V238.0A4,4 0 0 1 402.9,242.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 2 at once, class S, llama.cpp: 119.2 tok/s</title></path>
-<text x="412.9" y="241.0" class="value">119.2</text>
-<path d="M198.0,246.0H330.9A4,4 0 0 1 334.9,250.0V254.0A4,4 0 0 1 330.9,258.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 2 at once, class S, Ollama: 78.1 tok/s (serialized)</title></path>
-<path d="M198.0,246.0H330.9A4,4 0 0 1 334.9,250.0V254.0A4,4 0 0 1 330.9,258.0H198.0Z" fill="url(#hatch)"/>
-<text x="340.9" y="257.0" class="value">78.1 serialized</text>
-<path d="M198.0,274.0H425.4A4,4 0 0 1 429.4,278.0V282.0A4,4 0 0 1 425.4,286.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 4 at once, class S, llama.cpp: 132.0 tok/s</title></path>
-<text x="435.4" y="285.0" class="value">132.0</text>
-<path d="M198.0,290.0H329.5A4,4 0 0 1 333.5,294.0V298.0A4,4 0 0 1 329.5,302.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 4 at once, class S, Ollama: 77.3 tok/s (serialized)</title></path>
-<path d="M198.0,290.0H329.5A4,4 0 0 1 333.5,294.0V298.0A4,4 0 0 1 329.5,302.0H198.0Z" fill="url(#hatch)"/>
-<text x="339.5" y="301.0" class="value">77.3 serialized</text>
-<path d="M198.0,318.0H441.6A4,4 0 0 1 445.6,322.0V326.0A4,4 0 0 1 441.6,330.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 8 at once, class S, llama.cpp: 141.2 tok/s</title></path>
-<text x="451.6" y="329.0" class="value">141.2</text>
-<path d="M198.0,334.0H302.3A4,4 0 0 1 306.3,338.0V342.0A4,4 0 0 1 302.3,346.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 8 at once, class S, Ollama: 61.8 tok/s (serialized)</title></path>
-<path d="M198.0,334.0H302.3A4,4 0 0 1 306.3,338.0V342.0A4,4 0 0 1 302.3,346.0H198.0Z" fill="url(#hatch)"/>
-<text x="312.3" y="345.0" class="value">61.8 serialized</text>
-<path d="M198.0,384.0H284.0A4,4 0 0 1 288.0,388.0V392.0A4,4 0 0 1 284.0,396.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 1 at once, class S, llama.cpp: 51.3 tok/s</title></path>
-<text x="294.0" y="395.0" class="value">51.3</text>
-<path d="M198.0,400.0H272.6A4,4 0 0 1 276.6,404.0V408.0A4,4 0 0 1 272.6,412.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 1 at once, class S, Ollama: 44.8 tok/s</title></path>
-<text x="282.6" y="411.0" class="value">44.8</text>
-<path d="M198.0,428.0H318.1A4,4 0 0 1 322.1,432.0V436.0A4,4 0 0 1 318.1,440.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 2 at once, class S, llama.cpp: 70.8 tok/s</title></path>
-<text x="328.1" y="439.0" class="value">70.8</text>
-<path d="M198.0,444.0H273.8A4,4 0 0 1 277.8,448.0V452.0A4,4 0 0 1 273.8,456.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 2 at once, class S, Ollama: 45.5 tok/s (serialized)</title></path>
-<path d="M198.0,444.0H273.8A4,4 0 0 1 277.8,448.0V452.0A4,4 0 0 1 273.8,456.0H198.0Z" fill="url(#hatch)"/>
-<text x="283.8" y="455.0" class="value">45.5 serialized</text>
-<path d="M198.0,472.0H345.4A4,4 0 0 1 349.4,476.0V480.0A4,4 0 0 1 345.4,484.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 4 at once, class S, llama.cpp: 86.3 tok/s</title></path>
-<text x="355.4" y="483.0" class="value">86.3</text>
-<path d="M198.0,488.0H273.6A4,4 0 0 1 277.6,492.0V496.0A4,4 0 0 1 273.6,500.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 4 at once, class S, Ollama: 45.4 tok/s (serialized)</title></path>
-<path d="M198.0,488.0H273.6A4,4 0 0 1 277.6,492.0V496.0A4,4 0 0 1 273.6,500.0H198.0Z" fill="url(#hatch)"/>
-<text x="283.6" y="499.0" class="value">45.4 serialized</text>
-<path d="M198.0,516.0H363.8A4,4 0 0 1 367.8,520.0V524.0A4,4 0 0 1 363.8,528.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 8 at once, class S, llama.cpp: 96.8 tok/s</title></path>
-<text x="373.8" y="527.0" class="value">96.8</text>
-<path d="M198.0,532.0H273.3A4,4 0 0 1 277.3,536.0V540.0A4,4 0 0 1 273.3,544.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 8 at once, class S, Ollama: 45.2 tok/s (serialized)</title></path>
-<path d="M198.0,532.0H273.3A4,4 0 0 1 277.3,536.0V540.0A4,4 0 0 1 273.3,544.0H198.0Z" fill="url(#hatch)"/>
-<text x="283.3" y="543.0" class="value">45.2 serialized</text>
-<text x="577.0" y="568" class="tick" text-anchor="start">0</text>
-<line x1="664.7" y1="156" x2="664.7" y2="552" class="grid"/>
-<text x="664.7" y="568" class="tick" text-anchor="middle">50</text>
-<line x1="752.3" y1="156" x2="752.3" y2="552" class="grid"/>
-<text x="752.3" y="568" class="tick" text-anchor="middle">100</text>
-<line x1="840.0" y1="156" x2="840.0" y2="552" class="grid"/>
-<text x="840.0" y="568" class="tick" text-anchor="middle">150</text>
-<line x1="577.0" y1="156" x2="577.0" y2="552" class="base"/>
-<text x="932.0" y="582" class="tick" text-anchor="end">tok/s</text>
-<text x="585.0" y="204.0" class="note">does not fit</text>
-<text x="585.0" y="248.0" class="note">skipped</text>
-<text x="585.0" y="292.0" class="note">skipped</text>
-<text x="585.0" y="336.0" class="note">skipped</text>
-<text x="585.0" y="402.0" class="note">not measured</text>
-<text x="585.0" y="446.0" class="note">not measured</text>
-<text x="585.0" y="490.0" class="note">not measured</text>
-<text x="585.0" y="534.0" class="note">not measured</text>
-<text x="28" y="171" class="device">PC RTX 3080 Ti 12 GB</text>
+<text x="450.7" y="144" class="panel">Class M</text>
+<text x="703.3" y="144" class="panel">Class L</text>
+<text x="198.0" y="766" class="tick" text-anchor="start">0</text>
+<line x1="243.6" y1="156" x2="243.6" y2="750" class="grid"/>
+<text x="243.6" y="766" class="tick" text-anchor="middle">50</text>
+<line x1="289.1" y1="156" x2="289.1" y2="750" class="grid"/>
+<text x="289.1" y="766" class="tick" text-anchor="middle">100</text>
+<line x1="334.7" y1="156" x2="334.7" y2="750" class="grid"/>
+<text x="334.7" y="766" class="tick" text-anchor="middle">150</text>
+<line x1="198.0" y1="156" x2="198.0" y2="750" class="base"/>
+<text x="426.7" y="780" class="tick" text-anchor="end">tok/s</text>
+<path d="M198.0,186.0H280.6A4,4 0 0 1 284.6,190.0V194.0A4,4 0 0 1 280.6,198.0H198.0Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 1 at once, class S, llama.cpp: 95.0 tok/s</title></path>
+<text x="290.6" y="197.0" class="value">95.0</text>
+<path d="M198.0,202.0H276.1A4,4 0 0 1 280.1,206.0V210.0A4,4 0 0 1 276.1,214.0H198.0Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 1 at once, class S, Ollama: 90.1 tok/s</title></path>
+<text x="286.1" y="213.0" class="value">90.1</text>
+<path d="M198.0,230.0H305.2A4,4 0 0 1 309.2,234.0V238.0A4,4 0 0 1 305.2,242.0H198.0Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 2 at once, class S, llama.cpp: 122.0 tok/s</title></path>
+<text x="315.2" y="241.0" class="value">122.0</text>
+<path d="M198.0,246.0H278.8A4,4 0 0 1 282.8,250.0V254.0A4,4 0 0 1 278.8,258.0H198.0Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 2 at once, class S, Ollama: 93.1 tok/s (serialized)</title></path>
+<path d="M198.0,246.0H278.8A4,4 0 0 1 282.8,250.0V254.0A4,4 0 0 1 278.8,258.0H198.0Z" fill="url(#hatch)"/>
+<text x="288.8" y="257.0" class="value">93.1 serialized</text>
+<path d="M198.0,274.0H316.9A4,4 0 0 1 320.9,278.0V282.0A4,4 0 0 1 316.9,286.0H198.0Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 4 at once, class S, llama.cpp: 134.9 tok/s</title></path>
+<text x="326.9" y="285.0" class="value">134.9</text>
+<path d="M198.0,290.0H278.1A4,4 0 0 1 282.1,294.0V298.0A4,4 0 0 1 278.1,302.0H198.0Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 4 at once, class S, Ollama: 92.3 tok/s (serialized)</title></path>
+<path d="M198.0,290.0H278.1A4,4 0 0 1 282.1,294.0V298.0A4,4 0 0 1 278.1,302.0H198.0Z" fill="url(#hatch)"/>
+<text x="288.1" y="301.0" class="value">92.3 serialized</text>
+<path d="M198.0,318.0H325.5A4,4 0 0 1 329.5,322.0V326.0A4,4 0 0 1 325.5,330.0H198.0Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 8 at once, class S, llama.cpp: 144.3 tok/s</title></path>
+<text x="335.5" y="329.0" class="value">144.3</text>
+<path d="M198.0,334.0H278.1A4,4 0 0 1 282.1,338.0V342.0A4,4 0 0 1 278.1,346.0H198.0Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 8 at once, class S, Ollama: 92.3 tok/s (serialized)</title></path>
+<path d="M198.0,334.0H278.1A4,4 0 0 1 282.1,338.0V342.0A4,4 0 0 1 278.1,346.0H198.0Z" fill="url(#hatch)"/>
+<text x="288.1" y="345.0" class="value">92.3 serialized</text>
+<path d="M198.0,384.0H277.5A4,4 0 0 1 281.5,388.0V392.0A4,4 0 0 1 277.5,396.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 1 at once, class S, llama.cpp: 91.7 tok/s</title></path>
+<text x="287.5" y="395.0" class="value">91.7</text>
+<path d="M198.0,400.0H263.5A4,4 0 0 1 267.5,404.0V408.0A4,4 0 0 1 263.5,412.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 1 at once, class S, Ollama: 76.3 tok/s</title></path>
+<text x="273.5" y="411.0" class="value">76.3</text>
+<path d="M198.0,428.0H302.6A4,4 0 0 1 306.6,432.0V436.0A4,4 0 0 1 302.6,440.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 2 at once, class S, llama.cpp: 119.2 tok/s</title></path>
+<text x="312.6" y="439.0" class="value">119.2</text>
+<path d="M198.0,444.0H265.1A4,4 0 0 1 269.1,448.0V452.0A4,4 0 0 1 265.1,456.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 2 at once, class S, Ollama: 78.1 tok/s (serialized)</title></path>
+<path d="M198.0,444.0H265.1A4,4 0 0 1 269.1,448.0V452.0A4,4 0 0 1 265.1,456.0H198.0Z" fill="url(#hatch)"/>
+<text x="275.1" y="455.0" class="value">78.1 serialized</text>
+<path d="M198.0,472.0H314.3A4,4 0 0 1 318.3,476.0V480.0A4,4 0 0 1 314.3,484.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 4 at once, class S, llama.cpp: 132.0 tok/s</title></path>
+<text x="324.3" y="483.0" class="value">132.0</text>
+<path d="M198.0,488.0H264.4A4,4 0 0 1 268.4,492.0V496.0A4,4 0 0 1 264.4,500.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 4 at once, class S, Ollama: 77.3 tok/s (serialized)</title></path>
+<path d="M198.0,488.0H264.4A4,4 0 0 1 268.4,492.0V496.0A4,4 0 0 1 264.4,500.0H198.0Z" fill="url(#hatch)"/>
+<text x="274.4" y="499.0" class="value">77.3 serialized</text>
+<path d="M198.0,516.0H322.7A4,4 0 0 1 326.7,520.0V524.0A4,4 0 0 1 322.7,528.0H198.0Z" fill="#2a78d6"><title>PC RTX 3080 Ti 12 GB, 8 at once, class S, llama.cpp: 141.2 tok/s</title></path>
+<text x="332.7" y="527.0" class="value">141.2</text>
+<path d="M198.0,532.0H250.3A4,4 0 0 1 254.3,536.0V540.0A4,4 0 0 1 250.3,544.0H198.0Z" fill="#eb6834"><title>PC RTX 3080 Ti 12 GB, 8 at once, class S, Ollama: 61.8 tok/s (serialized)</title></path>
+<path d="M198.0,532.0H250.3A4,4 0 0 1 254.3,536.0V540.0A4,4 0 0 1 250.3,544.0H198.0Z" fill="url(#hatch)"/>
+<text x="260.3" y="543.0" class="value">61.8 serialized</text>
+<path d="M198.0,582.0H240.8A4,4 0 0 1 244.8,586.0V590.0A4,4 0 0 1 240.8,594.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 1 at once, class S, llama.cpp: 51.3 tok/s</title></path>
+<text x="250.8" y="593.0" class="value">51.3</text>
+<path d="M198.0,598.0H234.8A4,4 0 0 1 238.8,602.0V606.0A4,4 0 0 1 234.8,610.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 1 at once, class S, Ollama: 44.8 tok/s</title></path>
+<text x="244.8" y="609.0" class="value">44.8</text>
+<path d="M198.0,626.0H258.5A4,4 0 0 1 262.5,630.0V634.0A4,4 0 0 1 258.5,638.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 2 at once, class S, llama.cpp: 70.8 tok/s</title></path>
+<text x="268.5" y="637.0" class="value">70.8</text>
+<path d="M198.0,642.0H235.4A4,4 0 0 1 239.4,646.0V650.0A4,4 0 0 1 235.4,654.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 2 at once, class S, Ollama: 45.5 tok/s (serialized)</title></path>
+<path d="M198.0,642.0H235.4A4,4 0 0 1 239.4,646.0V650.0A4,4 0 0 1 235.4,654.0H198.0Z" fill="url(#hatch)"/>
+<text x="245.4" y="653.0" class="value">45.5 serialized</text>
+<path d="M198.0,670.0H272.7A4,4 0 0 1 276.7,674.0V678.0A4,4 0 0 1 272.7,682.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 4 at once, class S, llama.cpp: 86.3 tok/s</title></path>
+<text x="282.7" y="681.0" class="value">86.3</text>
+<path d="M198.0,686.0H235.4A4,4 0 0 1 239.4,690.0V694.0A4,4 0 0 1 235.4,698.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 4 at once, class S, Ollama: 45.4 tok/s (serialized)</title></path>
+<path d="M198.0,686.0H235.4A4,4 0 0 1 239.4,690.0V694.0A4,4 0 0 1 235.4,698.0H198.0Z" fill="url(#hatch)"/>
+<text x="245.4" y="697.0" class="value">45.4 serialized</text>
+<path d="M198.0,714.0H282.2A4,4 0 0 1 286.2,718.0V722.0A4,4 0 0 1 282.2,726.0H198.0Z" fill="#2a78d6"><title>PC RTX 4060 Ti 8 GB, 8 at once, class S, llama.cpp: 96.8 tok/s</title></path>
+<text x="292.2" y="725.0" class="value">96.8</text>
+<path d="M198.0,730.0H235.2A4,4 0 0 1 239.2,734.0V738.0A4,4 0 0 1 235.2,742.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 8 at once, class S, Ollama: 45.2 tok/s (serialized)</title></path>
+<path d="M198.0,730.0H235.2A4,4 0 0 1 239.2,734.0V738.0A4,4 0 0 1 235.2,742.0H198.0Z" fill="url(#hatch)"/>
+<text x="245.2" y="741.0" class="value">45.2 serialized</text>
+<text x="450.7" y="766" class="tick" text-anchor="start">0</text>
+<line x1="496.2" y1="156" x2="496.2" y2="750" class="grid"/>
+<text x="496.2" y="766" class="tick" text-anchor="middle">50</text>
+<line x1="541.8" y1="156" x2="541.8" y2="750" class="grid"/>
+<text x="541.8" y="766" class="tick" text-anchor="middle">100</text>
+<line x1="587.3" y1="156" x2="587.3" y2="750" class="grid"/>
+<text x="587.3" y="766" class="tick" text-anchor="middle">150</text>
+<line x1="450.7" y1="156" x2="450.7" y2="750" class="base"/>
+<text x="679.3" y="780" class="tick" text-anchor="end">tok/s</text>
+<path d="M450.7,186.0H481.6A4,4 0 0 1 485.6,190.0V194.0A4,4 0 0 1 481.6,198.0H450.7Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 1 at once, class M, llama.cpp: 38.3 tok/s</title></path>
+<text x="491.6" y="197.0" class="value">38.3</text>
+<path d="M450.7,202.0H472.7A4,4 0 0 1 476.7,206.0V210.0A4,4 0 0 1 472.7,214.0H450.7Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 1 at once, class M, Ollama: 28.6 tok/s</title></path>
+<text x="482.7" y="213.0" class="value">28.6</text>
+<path d="M450.7,230.0H491.6A4,4 0 0 1 495.6,234.0V238.0A4,4 0 0 1 491.6,242.0H450.7Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 2 at once, class M, llama.cpp: 49.3 tok/s</title></path>
+<text x="501.6" y="241.0" class="value">49.3</text>
+<path d="M450.7,246.0H492.2A4,4 0 0 1 496.2,250.0V254.0A4,4 0 0 1 492.2,258.0H450.7Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 2 at once, class M, Ollama: 49.9 tok/s</title></path>
+<text x="502.2" y="257.0" class="value">49.9</text>
+<path d="M450.7,274.0H496.9A4,4 0 0 1 500.9,278.0V282.0A4,4 0 0 1 496.9,286.0H450.7Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 4 at once, class M, llama.cpp: 55.2 tok/s</title></path>
+<text x="506.9" y="285.0" class="value">55.2</text>
+<path d="M450.7,290.0H493.8A4,4 0 0 1 497.8,294.0V298.0A4,4 0 0 1 493.8,302.0H450.7Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 4 at once, class M, Ollama: 51.8 tok/s</title></path>
+<text x="503.8" y="301.0" class="value">51.8</text>
+<text x="458.7" y="336.0" class="note">does not fit</text>
+<text x="458.7" y="402.0" class="note">does not fit</text>
+<text x="458.7" y="446.0" class="note">skipped</text>
+<text x="458.7" y="490.0" class="note">skipped</text>
+<text x="458.7" y="534.0" class="note">skipped</text>
+<text x="458.7" y="600.0" class="note">not measured</text>
+<text x="458.7" y="644.0" class="note">not measured</text>
+<text x="458.7" y="688.0" class="note">not measured</text>
+<text x="458.7" y="732.0" class="note">not measured</text>
+<text x="703.3" y="766" class="tick" text-anchor="start">0</text>
+<line x1="748.9" y1="156" x2="748.9" y2="750" class="grid"/>
+<text x="748.9" y="766" class="tick" text-anchor="middle">50</text>
+<line x1="794.4" y1="156" x2="794.4" y2="750" class="grid"/>
+<text x="794.4" y="766" class="tick" text-anchor="middle">100</text>
+<line x1="840.0" y1="156" x2="840.0" y2="750" class="grid"/>
+<text x="840.0" y="766" class="tick" text-anchor="middle">150</text>
+<line x1="703.3" y1="156" x2="703.3" y2="750" class="base"/>
+<text x="932.0" y="780" class="tick" text-anchor="end">tok/s</text>
+<path d="M703.3,186.0H720.3A4,4 0 0 1 724.3,190.0V194.0A4,4 0 0 1 720.3,198.0H703.3Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 1 at once, class L, llama.cpp: 23.0 tok/s</title></path>
+<text x="730.3" y="197.0" class="value">23.0</text>
+<path d="M703.3,202.0H726.4A4,4 0 0 1 730.4,206.0V210.0A4,4 0 0 1 726.4,214.0H703.3Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 1 at once, class L, Ollama: 29.7 tok/s</title></path>
+<text x="736.4" y="213.0" class="value">29.7</text>
+<path d="M703.3,230.0H726.4A4,4 0 0 1 730.4,234.0V238.0A4,4 0 0 1 726.4,242.0H703.3Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 2 at once, class L, llama.cpp: 29.7 tok/s</title></path>
+<text x="736.4" y="241.0" class="value">29.7</text>
+<path d="M703.3,246.0H726.1A4,4 0 0 1 730.1,250.0V254.0A4,4 0 0 1 726.1,258.0H703.3Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 2 at once, class L, Ollama: 29.4 tok/s (serialized)</title></path>
+<path d="M703.3,246.0H726.1A4,4 0 0 1 730.1,250.0V254.0A4,4 0 0 1 726.1,258.0H703.3Z" fill="url(#hatch)"/>
+<text x="736.1" y="257.0" class="value">29.4 serialized</text>
+<path d="M703.3,274.0H729.6A4,4 0 0 1 733.6,278.0V282.0A4,4 0 0 1 729.6,286.0H703.3Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 4 at once, class L, llama.cpp: 33.2 tok/s</title></path>
+<text x="739.6" y="285.0" class="value">33.2</text>
+<path d="M703.3,290.0H725.3A4,4 0 0 1 729.3,294.0V298.0A4,4 0 0 1 725.3,302.0H703.3Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 4 at once, class L, Ollama: 28.5 tok/s (serialized)</title></path>
+<path d="M703.3,290.0H725.3A4,4 0 0 1 729.3,294.0V298.0A4,4 0 0 1 725.3,302.0H703.3Z" fill="url(#hatch)"/>
+<text x="735.3" y="301.0" class="value">28.5 serialized</text>
+<text x="711.3" y="336.0" class="note">does not fit</text>
+<text x="711.3" y="402.0" class="note">not measured</text>
+<text x="711.3" y="446.0" class="note">not measured</text>
+<text x="711.3" y="490.0" class="note">not measured</text>
+<text x="711.3" y="534.0" class="note">not measured</text>
+<text x="711.3" y="600.0" class="note">not measured</text>
+<text x="711.3" y="644.0" class="note">not measured</text>
+<text x="711.3" y="688.0" class="note">not measured</text>
+<text x="711.3" y="732.0" class="note">not measured</text>
+<text x="28" y="171" class="device">PC RTX 3090 24 GB</text>
 <text x="40" y="204.0" class="note">1 at once</text>
 <text x="40" y="248.0" class="note">2 at once</text>
 <text x="40" y="292.0" class="note">4 at once</text>
 <text x="40" y="336.0" class="note">8 at once</text>
 <line x1="28" y1="354" x2="932" y2="354" class="row"/>
-<text x="28" y="369" class="device">PC RTX 4060 Ti 8 GB</text>
+<text x="28" y="369" class="device">PC RTX 3080 Ti 12 GB</text>
 <text x="40" y="402.0" class="note">1 at once</text>
 <text x="40" y="446.0" class="note">2 at once</text>
 <text x="40" y="490.0" class="note">4 at once</text>
 <text x="40" y="534.0" class="note">8 at once</text>
-<text x="28" y="598" class="foot">Hatched bars: the engine served the requests one after another, so the figure is not parallel throughput.</text>
+<line x1="28" y1="552" x2="932" y2="552" class="row"/>
+<text x="28" y="567" class="device">PC RTX 4060 Ti 8 GB</text>
+<text x="40" y="600.0" class="note">1 at once</text>
+<text x="40" y="644.0" class="note">2 at once</text>
+<text x="40" y="688.0" class="note">4 at once</text>
+<text x="40" y="732.0" class="note">8 at once</text>
+<text x="28" y="796" class="foot">Hatched bars: the engine served the requests one after another, so the figure is not parallel throughput.</text>
 </svg>

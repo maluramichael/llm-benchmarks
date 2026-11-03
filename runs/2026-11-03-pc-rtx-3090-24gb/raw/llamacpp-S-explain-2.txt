@@ -1,0 +1,25 @@
+### What the Code Does
+
+This code defines a function called `fib` that calculates the **nth number in the Fibonacci sequence**.
+
+Here is the logic in plain English:
+1.  **The Base Cases**: If you ask for the 0th or 1st number (`n < 2`), it simply returns `0` or `1`. These are the starting points of the sequence.
+2.  **The Recursive Step**: If you ask for any other number (like 5, 10, or 100), it calculates the answer by adding the result of the previous number (`n-1`) and the one before that (`n-2`).
+    *   *Example*: To find `fib(5)`, it calculates `fib(4) + fib(3)`.
+    *   To find `fib(4)`, it calculates `fib(3) + fib(2)`.
+    *   Notice that `fib(3)` is being calculated twice here!
+
+Without the cache, this function repeats the same calculations over and over again. For large numbers, this creates a massive amount of redundant work.
+
+### Why It Is Faster (The Magic of `lru_cache`)
+
+The `@lru_cache(maxsize=None)` decorator acts like a **smart memory notebook**.
+
+1.  **First Time You Call It**: When you call `fib(5)` for the first time, the computer has to do all the math from scratch. It calculates `fib(4)` and `fib(3)` and adds them up.
+2.  **Storing the Result**: The `lru_cache` decorator remembers (caches) that `fib(5)` equals `5`. It saves this result in a temporary storage area.
+3.  **Next Time You Call It**: If you call `fib(5)` again, the decorator checks its notebook first. It sees, "Oh, we already know the answer is 5!" and returns the stored number instantly without doing any math.
+
+**The Real Speed Boost:**
+The speedup comes from how recursion works.
+*   **Without Cache**: To calculate `fib(30)`, the function calculates `fib(29)` and `fib(28)`. To get `fib(29)`, it calculates `fib(28)` and `fib(27)`. Notice that `fib(28)` is calculated twice, `fib(27)` three times, and so on. The number of calculations grows exponentially (very slowly at first, but very fast eventually).
+*   **With Cache**: Once `fib(28)` is calculated the first time, the cache saves it. The second time the function tries to calculate `fib(28)`, it just grabs the saved answer. This turns the exponential growth of work into a linear one.

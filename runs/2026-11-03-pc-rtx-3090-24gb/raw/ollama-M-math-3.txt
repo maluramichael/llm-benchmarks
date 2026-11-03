@@ -1,0 +1,13 @@
+The shop marks up the jacket by 40%, so the marked price is:
+
+$$
+50 + (0.40 \times 50) = 50 + 20 = 70 \text{ dollars}
+$$
+
+Then, the shop discounts the marked price by 10%, so the final price is:
+
+$$
+70 - (0.10 \times 70) = 70 - 7 = 63 \text{ dollars}
+$$
+
+ANSWER: 63

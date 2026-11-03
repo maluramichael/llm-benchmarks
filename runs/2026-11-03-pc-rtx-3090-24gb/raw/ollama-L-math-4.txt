@@ -1,0 +1,25 @@
+To find the number of positive integers smaller than 1000 that are divisible by 7 but not divisible by 11, we can follow these steps:
+
+1.  **Count the positive integers smaller than 1000 that are divisible by 7.**
+    The integers in question are of the form $7k$, where $k$ is a positive integer.
+    We need $7k < 1000$.
+    $$k < \frac{1000}{7} \approx 142.857$$
+    Since $k$ must be an integer, the maximum value for $k$ is 142.
+    So, there are **142** positive integers smaller than 1000 divisible by 7.
+
+2.  **Count the positive integers smaller than 1000 that are divisible by both 7 and 11.**
+    An integer is divisible by both 7 and 11 if and only if it is divisible by their least common multiple (LCM).
+    Since 7 and 11 are prime numbers, $\text{lcm}(7, 11) = 7 \times 11 = 77$.
+    The integers in question are of the form $77m$, where $m$ is a positive integer.
+    We need $77m < 1000$.
+    $$m < \frac{1000}{77} \approx 12.987$$
+    Since $m$ must be an integer, the maximum value for $m$ is 12.
+    So, there are **12** positive integers smaller than 1000 divisible by both 7 and 11.
+
+3.  **Subtract the count of integers divisible by both from the count of integers divisible by 7.**
+    We want the number of integers divisible by 7 but *not* by 11.
+    $$ \text{Count} = (\text{Divisible by 7}) - (\text{Divisible by 7 and 11}) $$
+    $$ \text{Count} = 142 - 12 $$
+    $$ \text{Count} = 130 $$
+
+ANSWER: 130

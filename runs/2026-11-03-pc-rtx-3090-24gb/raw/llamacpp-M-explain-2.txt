@@ -1,0 +1,72 @@
+Sure! Let's break down what this Python code does and **why it's faster** than calling the function without the cache.
+
+---
+
+### 🔍 What the Code Does
+
+Here's the code again:
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```
+
+This is a function called `fib` that calculates the **Fibonacci number** for a given input `n`. The Fibonacci sequence is defined as:
+
+- `fib(0) = 0`
+- `fib(1) = 1`
+- `fib(n) = fib(n-1) + fib(n-2)` for `n >= 2`
+
+So for example:
+- `fib(2) = 1`
+- `fib(3) = 2`
+- `fib(4) = 3`
+- `fib(5) = 5`
+- etc.
+
+---
+
+### 🧠 The `@lru_cache` Decorator
+
+The line `@lru_cache(maxsize=None)` is a **decorator** that tells Python to **cache the results** of the `fib` function.
+
+- `lru_cache` stands for **Least Recently Used Cache**.
+- `maxsize=None` means the cache can grow **unlimited** — it will remember **all** previously computed results.
+
+---
+
+### 🚀 Why It's Faster
+
+Let’s compare two versions of the `fib` function:
+
+#### ❌ Version 1: No Cache (Slow)
+```python
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```
+
+This version is **very slow** for large `n` because it **recomputes the same values many times**. For example:
+
+- To compute `fib(5)`, it computes `fib(4)` and `fib(3)`
+- To compute `fib(4)`, it computes `fib(3)` and `fib(2)`
+- To compute `fib(3)`, it computes `fib(2)` and `fib(1)`
+- And so on...
+
+This is a **recursive algorithm with exponential time complexity** — it gets **much slower** as `n` increases.
+
+#### ✅ Version 2: With `@lru_cache` (Fast)
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```
+
+This version is **much faster** because:
+
+- The first time `fib(5)` is called, it computes `fib(4)` and `fib(3)`, and so on.
+- The **next time** `fib(3)` is

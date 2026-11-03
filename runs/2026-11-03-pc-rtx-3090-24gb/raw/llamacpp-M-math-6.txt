@@ -1,0 +1,61 @@
+We are asked to find the remainder when $ 3^{101} $ is divided by 7, i.e., compute $ 3^{101} \mod 7 $.
+
+---
+
+### Step 1: Use modular arithmetic to simplify the exponent
+
+We can use **Fermat's Little Theorem**, which states that if $ p $ is a prime and $ a $ is not divisible by $ p $, then:
+
+$$
+a^{p-1} \equiv 1 \mod p
+$$
+
+Here, $ p = 7 $, and $ a = 3 $, which is not divisible by 7. So:
+
+$$
+3^6 \equiv 1 \mod 7
+$$
+
+---
+
+### Step 2: Reduce the exponent modulo 6
+
+Since $ 3^6 \equiv 1 \mod 7 $, we can write:
+
+$$
+3^{101} = 3^{6 \cdot 16 + 5} = (3^6)^{16} \cdot 3^5
+$$
+
+Now, modulo 7:
+
+$$
+(3^6)^{16} \equiv 1^{16} \equiv 1 \mod 7
+$$
+
+So:
+
+$$
+3^{101} \equiv 1 \cdot 3^5 \mod 7
+$$
+
+---
+
+### Step 3: Compute $ 3^5 \mod 7 $
+
+$$
+3^1 = 3 \mod 7 \\
+3^2 = 9 \equiv 2 \mod 7 \\
+3^3 = 3 \cdot 2 = 6 \mod 7 \\
+3^4 = 3 \cdot 6 = 18 \equiv 4 \mod 7 \\
+3^5 = 3 \cdot 4 = 12 \equiv 5 \mod 7
+$$
+
+---
+
+### Final Answer:
+
+$$
+3^{101} \equiv 5 \mod 7
+$$
+
+ANSWER: 5

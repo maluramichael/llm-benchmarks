@@ -1,0 +1,70 @@
+We are asked to find the remainder when $ 3^{101} $ is divided by 7, i.e., compute $ 3^{101} \mod 7 $.
+
+---
+
+### Step 1: Use modular arithmetic to simplify powers of 3 modulo 7
+
+We compute the powers of 3 modulo 7:
+
+- $ 3^1 \mod 7 = 3 $
+- $ 3^2 \mod 7 = 9 \mod 7 = 2 $
+- $ 3^3 \mod 7 = (3^2 \cdot 3) \mod 7 = (2 \cdot 3) \mod 7 = 6 $
+- $ 3^4 \mod 7 = (3^3 \cdot 3) \mod 7 = (6 \cdot 3) \mod 7 = 18 \mod 7 = 4 $
+- $ 3^5 \mod 7 = (3^4 \cdot 3) \mod 7 = (4 \cdot 3) \mod 7 = 12 \mod 7 = 5 $
+- $ 3^6 \mod 7 = (3^5 \cdot 3) \mod 7 = (5 \cdot 3) \mod 7 = 15 \mod 7 = 1 $
+
+We see that:
+
+$$
+3^6 \equiv 1 \mod 7
+$$
+
+This means that the powers of 3 modulo 7 repeat every 6 steps. So:
+
+$$
+3^{6k} \equiv 1 \mod 7
+$$
+
+---
+
+### Step 2: Use the repeating pattern to simplify $ 3^{101} \mod 7 $
+
+We divide 101 by 6:
+
+$$
+101 \div 6 = 16 \text{ remainder } 5
+$$
+
+So:
+
+$$
+3^{101} = 3^{6 \cdot 16 + 5} = (3^6)^{16} \cdot 3^5
+$$
+
+Using $ 3^6 \equiv 1 \mod 7 $, we get:
+
+$$
+(3^6)^{16} \equiv 1^{16} \equiv 1 \mod 7
+$$
+
+So:
+
+$$
+3^{101} \equiv 1 \cdot 3^5 \mod 7
+$$
+
+Earlier, we found:
+
+$$
+3^5 \mod 7 = 5
+$$
+
+---
+
+### Final Answer:
+
+$$
+3^{101} \mod 7 = 5
+$$
+
+ANSWER: 5

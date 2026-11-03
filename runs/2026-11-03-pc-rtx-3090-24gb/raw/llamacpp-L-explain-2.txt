@@ -1,0 +1,52 @@
+### What the Code Does
+
+This code calculates the **Fibonacci number** for a given input `n`.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones:
+`0, 1, 1, 2, 3, 5, 8, 13, 21, ...`
+
+- `fib(0)` returns `0`
+- `fib(1)` returns `1`
+- `fib(2)` returns `1` (0 + 1)
+- `fib(3)` returns `2` (1 + 1)
+- `fib(4)` returns `3` (1 + 2)
+- And so on...
+
+The function `fib(n)` works recursively:
+- If `n` is less than 2, it returns `n` directly (base case).
+- Otherwise, it returns `fib(n-1) + fib(n-2)`.
+
+The `@lru_cache(maxsize=None)` decorator is the key part. It tells Python to **remember** the results of previous calls to `fib` and reuse them instead of recalculating.
+
+---
+
+### Why It’s Faster Without the Cache
+
+Without the cache, the naive recursive Fibonacci function is **extremely slow** for even moderately large `n` (like `n=30` or higher). Here’s why:
+
+#### 1. **Exponential Time Complexity**
+The naive version recalculates the same values over and over again.
+
+For example, to compute `fib(5)`:
+```
+fib(5)
+├── fib(4)
+│   ├── fib(3)
+│   │   ├── fib(2)
+│   │   │   ├── fib(1)
+│   │   │   └── fib(0)
+│   │   └── fib(1)
+│   └── fib(2)
+│       ├── fib(1)
+│       └── fib(0)
+└── fib(3)
+    ├── fib(2)
+    │   ├── fib(1)
+    │   └── fib(0)
+    └── fib(1)
+```
+
+Notice how `fib(3)` is calculated **twice**, `fib(2)` is calculated **three times**, and `fib(1)` is calculated **five times**. This redundancy grows exponentially. The time complexity is **O(2ⁿ)**, which becomes impractical very quickly.
+
+#### 2. **With `lru_cache`: Memoization**
+The `lru_cache` decorator stores the result of each call to `fib(n)` in a dictionary (cache). The first time `fib(n)` is called, it computes the result and stores it. Every subsequent

@@ -1,0 +1,25 @@
+To find the average speed over the whole trip, we need to calculate the total distance traveled and divide it by the total time taken.
+
+**Step 1: Calculate the total distance.**
+The train travels two segments:
+1.  First segment: 180 km
+2.  Second segment: 120 km
+
+Total Distance = $180 \text{ km} + 120 \text{ km} = 300 \text{ km}$
+
+**Step 2: Calculate the total time.**
+The train takes two durations:
+1.  First segment: 2.5 hours
+2.  Second segment: 1.5 hours
+
+Total Time = $2.5 \text{ hours} + 1.5 \text{ hours} = 4.0 \text{ hours}$
+
+**Step 3: Calculate the average speed.**
+The formula for average speed is:
+$$ \text{Average Speed} = \frac{\text{Total Distance}}{\text{Total Time}} $$
+
+Substituting the values:
+$$ \text{Average Speed} = \frac{300 \text{ km}}{4.0 \text{ hours}} $$
+$$ \text{Average Speed} = 75 \text{ km/h} $$
+
+ANSWER: 75
