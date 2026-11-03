@@ -6,6 +6,8 @@ build n distinct 8,192 token prompts, send them all at once from n threads, meas
 
 * total_tps        generated tokens of all requests divided by the wall-clock time of the
                    whole batch (first send to last answer).
+* decode_tps_total sum over requests of gen_tokens / (wall_s - ttft_s): aggregate decode speed
+                   without the prefill and queue wait that total_tps includes.
 * per_request_tps  median of the per-request generation speeds the engine reports.
 * ttft_p50_s       median time to first token. Under load a request may wait for a slot.
 * requests         the raw numbers of every request.
@@ -33,6 +35,8 @@ Decisions for failures (same as the memory ladder):
   repeated. Every failure first asks the reset probe; "reset" = `aborted` + RunAborted.
 * a reset probe that failed after a good level keeps the level `ok` but stops climbing.
 * a level stored `aborted` is not repeated automatically (only --force / --force-test).
+* a foreign Ollama server (given by URL, `parallel` is None) ignores `parallel`: levels above
+  1 are stored `skipped` ("foreign Ollama server ignores parallel"), p1 still runs.
 * scope `warm-only` runs nothing.
 """
 
@@ -82,6 +86,22 @@ def _one_request(engine, model, prompt: str, go: Event) -> dict:
             "cached_tokens": timing.cached_tokens, "wall_s": time.perf_counter() - started}
 
 
+def _decode_tps_total(requests: list[dict]) -> float | None:
+    """Aggregate decode speed: sum of gen_tokens / (wall_s - ttft_s) over the requests.
+
+    Unlike total_tps it leaves out each request's wait and prefill (up to its first token).
+    Requests without a positive decode window are ignored; None when none is left.
+    """
+    rates = [r["gen_tokens"] / (r["wall_s"] - r["ttft_s"]) for r in requests
+             if r["gen_tokens"] and r["ttft_s"] is not None and r["wall_s"] - r["ttft_s"] > 0]
+    return sum(rates) if rates else None
+
+
+def _foreign_ollama(engine) -> bool:
+    """An Ollama server given by URL: its NUM_PARALLEL is not ours to set."""
+    return getattr(engine, "name", "") == "ollama" and getattr(engine, "parallel", 0) is None
+
+
 def _measure(ctx: RunContext, prompts: list[str]) -> dict:
     n = len(prompts)
     go = Event()
@@ -107,6 +127,7 @@ def _measure(ctx: RunContext, prompts: list[str]) -> dict:
     return {
         "parallel": n, "wall_s": wall, "gen_tokens": gen_tokens,
         "total_tps": gen_tokens / wall if wall > 0 else None,
+        "decode_tps_total": _decode_tps_total(requests),
         "per_request_tps": median(r["gen_tps"] for r in requests),
         "ttft_p50_s": median(r["ttft_s"] for r in requests),
         "cached_tokens": cached,
@@ -204,6 +225,9 @@ def run_concurrency(ctx: RunContext, levels: list[int] | None = None) -> None:
             is_forced = forced(ctx, test_key)
             if entry and entry["status"] in ("does_not_fit", "skipped") and not is_forced:
                 blocked = blocked or f"level p{n} {entry['status']}"
+                continue
+            if n > 1 and _foreign_ollama(ctx.engine):
+                _skip(ctx, n, "foreign Ollama server ignores parallel")
                 continue
             if blocked and not is_forced:
                 _skip(ctx, n, f"not run: {blocked}")

@@ -53,6 +53,7 @@ class ConcurrencyEngine(FakeEngine):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.lock = threading.Lock()
+        self.call_lock = threading.Lock()
         self.active = 0
         self.peak = 0
         self.hang = None  # Event: requests wait on it
@@ -67,7 +68,8 @@ class ConcurrencyEngine(FakeEngine):
                 self.barrier.wait(5)
             if self.hang is not None:
                 self.hang.wait(30)
-            return super().complete(model, prompt, sampling)
+            with self.call_lock:  # FakeEngine bookkeeping is not thread-safe
+                return super().complete(model, prompt, sampling)
         finally:
             with self.lock:
                 self.active -= 1
@@ -144,17 +146,45 @@ class ConcurrencyTest(unittest.TestCase):
         self.assertEqual(values["cached_tokens"], 4000)
 
     def test_throughput_numbers(self):
-        engine = ConcurrencyEngine(gen_tps=(50.0, 100.0, 150.0), ttft=0.4)
+        engine = ConcurrencyEngine(gen_tps=(50.0, 100.0, 1000.0), ttft=0.4)
         ticks = iter([10.0, 14.0])  # start, end of the batch: 4 s
         with mock.patch.object(concurrency, "_clock", lambda: next(ticks)):
-            ctx = self.run_levels(engine, [2])
-        values = self.entry(ctx, 2)["values"]
+            ctx = self.run_levels(engine, [3])
+        values = self.entry(ctx, 3)["values"]
         self.assertEqual(values["wall_s"], 4.0)
-        self.assertEqual(values["total_tps"], 2 * 256 / 4.0)
-        self.assertEqual(values["per_request_tps"], 75.0)
+        self.assertEqual(values["total_tps"], 3 * 256 / 4.0)
+        self.assertEqual(values["per_request_tps"], 100.0)  # median, the mean would be 383
         self.assertEqual(values["ttft_p50_s"], 0.4)
-        self.assertEqual(values["gen_tokens"], 512)
-        self.assertEqual([r["gen_tps"] for r in values["requests"]], [50.0, 100.0])
+        self.assertEqual(values["gen_tokens"], 768)
+        self.assertEqual(sorted(r["gen_tps"] for r in values["requests"]), [50.0, 100.0, 1000.0])
+
+    def test_decode_tps_total_formula(self):
+        requests = [{"gen_tokens": 200, "wall_s": 10.0, "ttft_s": 6.0},
+                    {"gen_tokens": 100, "wall_s": 5.0, "ttft_s": 1.0},
+                    {"gen_tokens": 50, "wall_s": 1.0, "ttft_s": 2.0}]  # no decode window: ignored
+        self.assertEqual(concurrency._decode_tps_total(requests), 200 / 4.0 + 100 / 4.0)
+        self.assertIsNone(concurrency._decode_tps_total(requests[2:]))
+
+    def test_decode_tps_total_is_stored(self):
+        ctx = self.run_levels(ConcurrencyEngine(), [2])
+        self.assertIn("decode_tps_total", self.entry(ctx, 2)["values"])
+
+    def test_foreign_ollama_ignores_parallel_so_higher_levels_are_skipped(self):
+        engine = ConcurrencyEngine(name="ollama")
+        engine.parallel = None  # a server given by URL
+        ctx = self.run_levels(engine)
+        self.assertEqual(self.entry(ctx, 1)["status"], "ok")
+        for n in (2, 4, 8):
+            entry = self.entry(ctx, n)
+            self.assertEqual(entry["status"], "skipped")
+            self.assertEqual(entry["values"]["reason"], "foreign Ollama server ignores parallel")
+        self.assertEqual(engine.parallels, [1])
+
+    def test_own_ollama_server_runs_all_levels(self):
+        engine = ConcurrencyEngine(name="ollama")
+        engine.parallel = 1
+        ctx = self.run_levels(engine, [1, 2])
+        self.assertEqual(self.entry(ctx, 2)["status"], "ok")
 
     def test_guard_stops_levels(self):
         engine = ConcurrencyEngine()
