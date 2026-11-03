@@ -48,7 +48,7 @@ from bench.engines.base import Sampling
 from bench.privacy import local_secrets, scrub
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, exact_counts,
-                          forced, guard_refusal, key, model_context_length, now, offload_fields,
+                          forced, guard_check, key, model_context_length, now, offload_fields,
                           reset_state, retry_truncated, scope_skip, skip_beyond, skip_for_guard,
                           step_meta, wants_run)
 
@@ -138,6 +138,7 @@ def run_smoke(ctx: RunContext) -> None:
     meta = {**step_meta(ctx), "thinking": bool(cfg.thinking)}
     state = {"ctx": None}
     pending = []
+    guard_basis = None
     for task in tasks:
         test_key = key(ctx, "smoke", task["id"])
         entry = ctx.store.get(test_key)
@@ -153,7 +154,7 @@ def run_smoke(ctx: RunContext) -> None:
         tasks = [t for t in tasks if t["id"] not in pending_ids]
         pending = []
     if pending:  # the guard applies to every suite, not only to memory
-        refusal = guard_refusal(ctx, SMOKE_CTX, take_reading)
+        refusal, guard_basis = guard_check(ctx, SMOKE_CTX, take_reading)
         if refusal:
             for task in pending:
                 skip_for_guard(ctx, [key(ctx, "smoke", task["id"])], refusal, meta,
@@ -184,11 +185,11 @@ def run_smoke(ctx: RunContext) -> None:
                                {"reason": detail, "category": task["category"]}, meta)
                 continue
             length = min(MAX_NEEDLE_CTX, detail, limit or MAX_NEEDLE_CTX)
-        _run_task(ctx, task, test_key, length, state, meta)
+        _run_task(ctx, task, test_key, length, state, meta, guard_basis)
 
 
 def _run_task(ctx: RunContext, task: dict, test_key: str, length: int | None, state: dict,
-              meta: dict) -> None:
+              meta: dict, guard_basis: str | None = None) -> None:
     ctx.store.mark_running(test_key, meta)
     started = now()
     try:
@@ -229,6 +230,8 @@ def _run_task(ctx: RunContext, task: dict, test_key: str, length: int | None, st
               "raw": _write_raw(ctx, task["id"], result), "gen_tokens": result.timing.gen_tokens,
               "driver_reset_check": check_state}
     values.update(offload_fields(ctx))
+    if guard_basis:
+        values["guard_basis"] = guard_basis
     if length is not None:
         values["context_tokens"] = length
     ctx.store.save(test_key, status, values, meta)

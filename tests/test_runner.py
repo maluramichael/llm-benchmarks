@@ -198,7 +198,7 @@ class RunnerTest(unittest.TestCase):
         data = self.results()
         self.assertEqual(data["system"]["os"], "Test OS")
         self.assertEqual(data["run"]["device"], DEVICE)
-        self.assertEqual(data["run"]["bench_version"], "1.1.2")
+        self.assertEqual(data["run"]["bench_version"], "1.1.3")
         self.assertRegex(data["run"]["started_at"], r"^\d{4}-\d\d-\d\dT")
         engine = data["engines"]["ollama"]
         self.assertEqual(engine["version"], "fake-1")
@@ -921,6 +921,31 @@ class RunnerTest(unittest.TestCase):
         reason = self.results()["tests"]["ollama/S/memory/fit"]["values"]["reason"]
         self.assertIn("30.0 GiB", reason)
         self.assertIn("24.0 GiB", reason)
+
+    def test_unresolvable_model_that_cannot_fit_anyway_is_no_problem(self):
+        small = json.loads(json.dumps(SYSTEM))
+        small["gpus"][0].update(vram_total_mb=4096, vram_free_mb=4000)
+
+        def resolve(model_id, engine, cfg, say=None):
+            if model_id == "L":
+                raise ModelNotFound("no GGUF for L found")
+            return self.resolve(model_id, engine, cfg)
+        seen = []
+        env = self.env(system=lambda: small, resolve=resolve)
+        env.suites = {"memory": lambda ctx: seen.append(ctx.model.id)}
+        code = runner.run(self.cfg(models=["S", "L"], suites=["memory"]), env)
+        self.assertEqual((code, seen), (0, ["S"]), self.text)
+        entry = self.results()["tests"]["ollama/L/memory/fit"]
+        self.assertEqual(entry["status"], "does_not_fit")
+        self.assertIn("catalog size", entry["values"]["reason"])
+        self.assertNotIn("no GGUF for L", "\n".join(self.results().get("notes", [])))
+
+    def test_unresolvable_model_that_would_fit_is_still_a_problem(self):
+        def resolve(model_id, engine, cfg, say=None):
+            raise ModelNotFound("no GGUF for S found")
+        code = runner.run(self.cfg(), self.env(resolve=resolve))  # 24 GB card, S is 2.6 GB
+        self.assertEqual(code, 1)
+        self.assertIn("no GGUF for S", "\n".join(self.results()["notes"]))
 
     def test_run_summary_is_printed(self):
         runner.run(self.cfg(), self.env())

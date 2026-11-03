@@ -115,6 +115,23 @@ class SmokeGuardTest(unittest.TestCase):
         entry = ctx.store.get(key(ctx, "smoke", "needle-10"))
         self.assertEqual(entry["values"]["context_tokens"], 16384)
 
+    def test_measured_rung_beats_the_estimate(self):
+        ctx = self.ctx(ChatEngine())
+        ctx.cfg.tasks = ["math-1"]
+        ctx.store.save(key(ctx, "memory", "ctx-16384"), "ok", {"ctx": 16384})
+        smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "math-1"))
+        self.assertEqual(entry["status"], "ok")
+        self.assertEqual(entry["values"]["guard_basis"], "measured ctx-16384")
+        self.assertEqual(ctx.guard.required, [])
+
+    def test_estimate_is_used_when_no_rung_is_big_enough(self):
+        ctx = self.ctx(ChatEngine())
+        ctx.cfg.tasks = ["math-1"]
+        smoke.run_smoke(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "smoke", "math-1"))["status"], "skipped")
+        self.assertEqual(len(ctx.guard.required), 1)
+
     def test_code_tasks_keep_their_own_skip_reason(self):
         ctx = self.ctx()
         smoke.run_smoke(ctx)

@@ -308,20 +308,56 @@ def _record_engine(state: _State, engine) -> None:
     state.store.set_section("engines", state.engines_info)
 
 
-def _resolve(state: _State, label: str, model_id: str, engine_name: str, dry: bool):
-    """`models.resolve` with every failure turned into a problem and a note; None then."""
+def _resolve(state: _State, label: str, model_id: str, engine_name: str, dry: bool,
+             quiet: bool = False):
+    """`models.resolve`. Returns (ref, message): a failure is a problem and a note (unless
+    `quiet`), ref is None then and message says why."""
     cfg = dataclasses.replace(state.cfg, dry_run=True) if dry else state.cfg
     try:
-        return state.env.resolve(model_id, engine_name, cfg, say=state.say)
+        return state.env.resolve(model_id, engine_name, cfg, say=state.say), None
     except models.NeedsConsent as err:
-        state.fail(f"{label}: {err}")
+        message = f"{label}: {err}"
     except models.ModelError as err:
-        state.fail(f"{label}: {_clean(str(err))}")
+        message = f"{label}: {_clean(str(err))}"
     except RunAborted:
         raise
     except Exception as err:  # e.g. the NAS share is gone
-        state.fail(f"{label}: cannot resolve the model: {clean_error(err)}")
+        message = f"{label}: cannot resolve the model: {clean_error(err)}"
+    if not quiet:
+        state.fail(message)
+    return None, message
+
+
+def _too_big(state: _State, gpu: dict, weights_mb: float, note: str = "") -> str | None:
+    """Why weights plus the safety reserve exceed the card; None when they do not (or the
+    VRAM figure is unknown or unreliable). Decided before anything is copied."""
+    total = int(gpu.get("vram_total_mb") or 0)
+    reserve = state.guard.reserve_mb()
+    if total and weights_mb and plan.vram_is_reliable(gpu) and weights_mb + reserve > total:
+        return (f"the weights alone ({weights_mb / 1024:.1f} GiB{note}) plus the "
+                f"{reserve / 1024:.1f} GiB safety reserve exceed the {total / 1024:.1f} GiB "
+                "of the card")
     return None
+
+
+def _catalog_weights_mb(model_id: str, engine_name: str) -> float:
+    """Size of the model in the catalog (MiB); 0 when it has none. For llama.cpp the pinned
+    GGUF file when there is one, else the size of the Ollama model layer."""
+    try:
+        entry = models.catalog().get(model_id) or {}
+    except models.ModelError:
+        return 0
+    size = (entry.get("gguf") or {}).get("size_bytes") if engine_name == "llamacpp" else None
+    return (size or entry.get("size_bytes") or 0) / MIB
+
+
+def _record_no_fit(state: _State, engine_name: str, model_id: str, label: str,
+                   reason: str) -> None:
+    key = f"{engine_name}/{model_id}/memory/fit"
+    entry = state.store.get(key)
+    if entry is None or entry["status"] != "does_not_fit":
+        state.store.save(key, "does_not_fit", {"reason": reason})
+    state.say(f"{label}: does not fit, not run ({reason})")
 
 
 def _model_available(state: _State, engine, ref) -> bool:
@@ -346,27 +382,27 @@ def _resolve_models(state: _State, engine_name: str) -> list:
     cfg, store = state.cfg, state.store
     resolved = []
     gpu = _gpu_of(state.system, cfg.gpu or 0)
-    total = int(gpu.get("vram_total_mb") or 0)
     for model_id in cfg.models:
         label = f"{engine_name}/{model_id}"
         # 1. Dry run: size and quant only. Nothing is copied or downloaded, so a model that
         #    cannot fit never costs a multi-GB copy.
-        ref = _resolve(state, label, model_id, engine_name, dry=True)
+        ref, message = _resolve(state, label, model_id, engine_name, dry=True, quiet=True)
         if ref is None:
+            # Not found. If the catalog size alone already does not fit, that is no problem:
+            # the model would not have run on this card anyway.
+            reason = _too_big(state, gpu, _catalog_weights_mb(model_id, engine_name),
+                              ", catalog size")
+            if reason:
+                _record_no_fit(state, engine_name, model_id, label, reason)
+            else:
+                state.fail(message)
             continue
-        weights = (ref.size_bytes or 0) / MIB
-        reserve = state.guard.reserve_mb()
-        if total and weights and plan.vram_is_reliable(gpu) and weights + reserve > total:
-            reason = (f"the weights alone ({weights / 1024:.1f} GiB) plus the {reserve / 1024:.1f} "
-                      f"GiB safety reserve exceed the {total / 1024:.1f} GiB of the card")
-            key = f"{engine_name}/{ref.id}/memory/fit"
-            entry = store.get(key)
-            if entry is None or entry["status"] != "does_not_fit":
-                store.save(key, "does_not_fit", {"reason": reason})
-            state.say(f"{label}: does not fit, not run ({reason})")
+        reason = _too_big(state, gpu, (ref.size_bytes or 0) / MIB)
+        if reason:
+            _record_no_fit(state, engine_name, ref.id, label, reason)
             continue
         # 2. It will run: now import, copy or download for real.
-        ref = _resolve(state, label, model_id, engine_name, dry=False)
+        ref, _ = _resolve(state, label, model_id, engine_name, dry=False)
         if ref is not None:
             resolved.append(ref)
     return resolved

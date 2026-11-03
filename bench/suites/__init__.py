@@ -268,23 +268,47 @@ def memory_estimate_mb(ctx: RunContext, n_ctx: int, parallel: int = 1) -> int | 
     return int((weights + per_token * n_ctx * parallel) // (1024 * 1024))
 
 
-def guard_refusal(ctx: RunContext, n_ctx: int, read_vram, parallel: int = 1) -> str | None:
-    """None when the model may be loaded with `n_ctx` tokens, else the reason ("does not
-    fit (guard): ..."). `read_vram(gpu_index)` takes the VRAM reading (the suite's own
-    take_reading). Without an estimate nothing is checked. The model is unloaded first so
-    the reading shows what is free without it."""
-    stored = stored_no_fit(ctx, n_ctx)
+def measured_rung(ctx: RunContext, needed: int) -> int | None:
+    """The smallest memory rung of this engine and model that is stored `ok` and has a
+    context of at least `needed` tokens: measured proof that the model loads that big."""
+    prefix = key(ctx, "memory", "ctx-")
+    found = [int(k[len(prefix):]) for k, e in ctx.store.data["tests"].items()
+             if k.startswith(prefix) and k[len(prefix):].isdigit()
+             and e.get("status") == "ok" and int(k[len(prefix):]) >= needed]
+    return min(found) if found else None
+
+
+def guard_check(ctx: RunContext, n_ctx: int, read_vram,
+                parallel: int = 1) -> tuple[str | None, str | None]:
+    """May the model be loaded for `n_ctx` tokens per slot and `parallel` slots?
+
+    Returns (refusal, basis). refusal is None when it may, else "does not fit (guard): ...".
+    basis says what the answer rests on: "measured ctx-<n>" (a memory rung of at least the
+    needed context is ok: evidence beats the estimate), "estimate" (weights plus KV cache
+    from memory/computed, asked of the guard with a VRAM reading after an unload), or None
+    (nothing known, nothing checked). A rung at or below the needed context that did not
+    fit refuses without asking the guard.
+    """
+    needed = n_ctx * parallel
+    if (ctx.store.get(key(ctx, "memory", "fit")) or {}).get("status") == "does_not_fit":
+        return stored_no_fit(ctx, needed), None
+    rung = measured_rung(ctx, needed)
+    if rung is not None:
+        return None, f"measured ctx-{rung}"
+    stored = stored_no_fit(ctx, needed)
     if stored:
-        return stored
+        return stored, None
     estimate = memory_estimate_mb(ctx, n_ctx, parallel)
     if estimate is None:
-        return None
+        return None, None
     try:
         ctx.engine.unload(ctx.model)
     except Exception:
         pass
     allowed, why = ctx.guard.before_step(estimate, read_vram(ctx.guard.gpu_index))
-    return None if allowed else f"does not fit (guard): {why}"
+    if not allowed:
+        return f"does not fit (guard): {why}", None
+    return None, "estimate"
 
 
 def skip_for_guard(ctx: RunContext, test_keys: list[str], reason: str, meta: dict,

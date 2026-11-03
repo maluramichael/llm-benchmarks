@@ -21,8 +21,9 @@ fits"), when no VRAM figure exists for the depth ("no memory figure for depth N"
 from the rung, else from memory/computed), or when the guard refuses.
 With --scope no-context or warm-only the deep step is stored `skipped` ("not in scope
 <scope>", flag `scope_skipped`); a later --scope full run measures it.
-Before anything is loaded the guard is asked for the memory estimate at 10,240 tokens (the
-same helper as the concurrency suite): refused (or memory/ctx-<n> of the same or a smaller
+Before anything is loaded: a memory rung of the same engine and model with at least 10,240
+tokens that is `ok` proves the fit (guard_basis "measured ctx-<n>"); only without one the
+guard is asked for the memory estimate at 10,240 tokens (guard_basis "estimate"): refused (or memory/ctx-<n> of the same or a smaller
 context is does_not_fit) means every step to run is stored `skipped` with "does not fit
 (guard): <reason>". A loaded step records gpu_fraction, and partial_offload when below 100 %.
 A step stored `aborted` (driver reset, or a crash recovered as aborted) is not repeated
@@ -44,7 +45,7 @@ from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
                           make_prompt, median, now, prepare_counting, reset_state, retry_truncated,
-                          fresh_prompt, guard_refusal, model_context_length, offload_fields,
+                          fresh_prompt, guard_check, model_context_length, offload_fields,
                           scope_skip, skip_beyond, skip_for_guard, step_meta, wants_run)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
@@ -238,6 +239,7 @@ def run_speed(ctx: RunContext) -> None:
     ctx.nonce = secrets.token_hex(3)  # fresh prompts even if this is a rerun on a warm server
     meta = step_meta(ctx)
     todo = []
+    guard_basis = None
     for step in steps:
         test_key = key(ctx, "speed", step)
         entry = ctx.store.get(test_key)
@@ -249,10 +251,11 @@ def run_speed(ctx: RunContext) -> None:
         skip_beyond(ctx, todo, limit, meta)
         return
     if todo:  # the guard applies to every suite, not only to memory
-        refusal = guard_refusal(ctx, SPEED_CTX, take_reading)
+        refusal, state_basis = guard_check(ctx, SPEED_CTX, take_reading)
         if refusal:
             skip_for_guard(ctx, todo, refusal, meta)
             return
+        guard_basis = state_basis
     for step in steps:
         test_key = key(ctx, "speed", step)
         if not wants_run(ctx, test_key):
@@ -293,4 +296,6 @@ def run_speed(ctx: RunContext) -> None:
                            {"reason": "GPU driver reset detected during this step"}, meta)
             raise RunAborted(f"GPU driver reset detected during {test_key}")
         values["driver_reset_check"] = check
+        if guard_basis and step != "llama-bench":
+            values["guard_basis"] = guard_basis
         ctx.store.save(test_key, "ok", values, meta)

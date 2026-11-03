@@ -294,6 +294,30 @@ class ConcurrencyTest(unittest.TestCase):
             self.assertTrue(entry["values"]["beyond_model_context"])
         self.assertFalse([c for c in engine.calls if c.startswith("load")])
 
+    def computed(self, ctx):
+        ctx.store.save(key(ctx, "memory", "computed"), "ok",
+                       {"weights_bytes": 1024**3, "kv_bytes_per_token": 1000})
+
+    def test_measured_rung_covers_the_levels_it_is_big_enough_for(self):
+        guard = Guard()
+        ctx = self.ctx(ConcurrencyEngine(), guard=guard)
+        self.computed(ctx)
+        ctx.store.save(key(ctx, "memory", "ctx-32768"), "ok", {"ctx": 32768})  # 3 x 10240
+        concurrency.run_concurrency(ctx, [1, 2, 4])
+        self.assertEqual(self.entry(ctx, 2)["values"]["guard_basis"], "measured ctx-32768")
+        self.assertEqual(self.entry(ctx, 1)["values"]["guard_basis"], "measured ctx-32768")
+        self.assertEqual(self.entry(ctx, 4)["values"]["guard_basis"], "estimate")  # 40960 > 32768
+        self.assertEqual(len(guard.required), 1)  # only p4 asked the guard
+
+    def test_failed_rung_at_or_below_the_needed_context_stops_the_level(self):
+        guard = Guard()
+        ctx = self.ctx(ConcurrencyEngine(), guard=guard)
+        ctx.store.save(key(ctx, "memory", "ctx-16384"), "does_not_fit", {})
+        concurrency.run_concurrency(ctx, [1, 2])  # p2 needs 20480 >= 16384
+        self.assertEqual(self.entry(ctx, 1)["status"], "ok")  # 10240 < 16384
+        self.assertEqual(self.entry(ctx, 2)["status"], "does_not_fit")
+        self.assertIn("memory/ctx-16384", self.entry(ctx, 2)["values"]["reason"])
+
     def test_missing_model_is_error_not_does_not_fit(self):
         class Missing(ConcurrencyEngine):
             def load(self, model, ctx, parallel=1):

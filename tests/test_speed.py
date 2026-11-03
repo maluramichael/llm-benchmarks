@@ -325,6 +325,38 @@ class SpeedTest(unittest.TestCase):
         self.assertTrue(entry["values"]["beyond_model_context"])
         self.assertFalse([c for c in engine.calls if c.startswith("load")])
 
+    def test_measured_rung_beats_the_estimate(self):
+        ctx = self.refusing_ctx()  # the estimate (21760 MB) is refused...
+        ctx.store.save(key(ctx, "memory", "ctx-16384"), "ok", {"ctx": 16384})  # ...but measured ok
+        speed.run_speed(ctx)
+        entry = ctx.store.get(key(ctx, "speed", "warm"))
+        self.assertEqual(entry["status"], "ok")
+        self.assertEqual(entry["values"]["guard_basis"], "measured ctx-16384")
+        self.assertEqual(ctx.guard.required, [])
+
+    def test_smaller_measured_rung_is_not_evidence_for_a_larger_context(self):
+        ctx = self.refusing_ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"ctx": 8192})  # < 10240
+        speed.run_speed(ctx)
+        entry = ctx.store.get(key(ctx, "speed", "warm"))
+        self.assertEqual(entry["status"], "skipped")  # falls back to the estimate: refused
+        self.assertEqual(ctx.guard.required, [20 * 1024 + 1280])
+
+    def test_failed_rung_at_or_below_the_context_still_skips(self):
+        ctx = self.refusing_ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {})
+        speed.run_speed(ctx)
+        self.assertIn("memory/ctx-8192", ctx.store.get(key(ctx, "speed", "warm"))["values"]["reason"])
+        self.assertEqual(ctx.guard.required, [])
+
+    def test_estimate_is_the_basis_when_nothing_was_measured(self):
+        ctx = make_ctx(self.tmp.name, FakeEngine())
+        ctx.store.save(key(ctx, "memory", "computed"), "ok",
+                       {"weights_bytes": 1024**3, "kv_bytes_per_token": 1000})
+        speed.run_speed(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "speed", "warm"))["values"]["guard_basis"],
+                         "estimate")
+
     def test_stored_memory_does_not_fit_skips_without_asking_the_guard(self):
         ctx = make_ctx(self.tmp.name, FakeEngine())
         ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {"reason": "VRAM"})

@@ -52,7 +52,7 @@ from threading import Event
 from bench.engines.base import EngineError, Sampling
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, median,
-                          model_context_length, model_missing, now, offload_fields,
+                          guard_check, model_context_length, model_missing, now, offload_fields,
                           prepare_counting, reset_state, skip_beyond, step_meta)
 
 MIB = 1024 * 1024
@@ -166,13 +166,21 @@ def _level(ctx: RunContext, n: int, base_slot: int, meta: dict) -> str:
         try:
             engine.unload(ctx.model)
             before = take_reading(guard.gpu_index)
-            estimate = _estimate_mb(ctx, n)
-            if estimate is None:
-                values["guard_note"] = "no memory estimate (memory/computed missing), VRAM not pre-checked"
-            allowed, why = guard.before_step(estimate or 0, before)
-            if not allowed:
-                store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
+            # Measured ladder rungs beat the estimate (see bench.suites.guard_check); the
+            # reading above stays: after_step compares against it.
+            refusal, basis = guard_check(ctx, SLOT_CTX, lambda index: before, parallel=n)
+            if refusal:
+                store.save(test_key, "does_not_fit", {**values, "reason": refusal}, meta)
                 return "does_not_fit"
+            if basis:
+                values["guard_basis"] = basis
+            else:  # nothing known about the size: still check the reserve against 0
+                values["guard_note"] = ("no memory estimate (memory/computed missing), "
+                                        "VRAM not pre-checked")
+                allowed, why = guard.before_step(0, before)
+                if not allowed:
+                    store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
+                    return "does_not_fit"
             values["load_s"] = engine.load(ctx.model, SLOT_CTX, parallel=n)
             values["ctx_per_slot"] = SLOT_CTX
             prepare_counting(ctx, SLOT_CTX * n)
