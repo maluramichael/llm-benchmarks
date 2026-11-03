@@ -16,6 +16,7 @@ from pathlib import Path
 from bench import VERSION
 from bench.engines.base import EngineError, PromptTruncated
 from bench.corpus import cut_to_tokens
+from bench.gguf import read_metadata
 from bench.privacy import local_secrets, scrub
 
 SLOT_STRIDE_CHARS = 1009  # corpus offset between two slots (prime: no alignment with lines)
@@ -39,6 +40,7 @@ class RunContext:
     raw_dir: Path
     prompts: dict = field(default_factory=dict)  # (slot, n_tokens) -> prompt, memoised
     nonce: str = ""  # per run_speed call; makes a rerun use fresh prompts
+    facts: dict = field(default_factory=dict)  # memoised facts about the model
 
 
 def key(ctx: RunContext, suite: str, step: str) -> str:
@@ -179,6 +181,48 @@ def median(values) -> float | int | None:
     import statistics
     present = [v for v in values if v is not None]
     return statistics.median(present) if present else None
+
+
+def model_context_length(ctx: RunContext) -> int | None:
+    """The context length the model was trained for (GGUF `<arch>.context_length`), read
+    from the model file once; None when there is no file or no such key."""
+    if "context_length" not in ctx.facts:
+        value = None
+        path = getattr(ctx.model, "gguf_path", None)
+        if path is not None:
+            try:
+                meta = read_metadata(path)
+                found = meta.get(f"{meta.get('general.architecture')}.context_length")
+                if isinstance(found, int) and not isinstance(found, bool) and found > 0:
+                    value = found
+            except (OSError, ValueError, EOFError):
+                pass
+        ctx.facts["context_length"] = value
+    return ctx.facts["context_length"]
+
+
+def beyond_reason(limit: int) -> str:
+    return f"beyond the model's context length ({limit})"
+
+
+def beyond_values(limit: int) -> dict:
+    return {"reason": beyond_reason(limit), "beyond_model_context": True,
+            "context_length": limit}
+
+
+def is_beyond_skip(entry) -> bool:
+    return bool(entry and entry["status"] == "skipped"
+                and (entry.get("values") or {}).get("beyond_model_context"))
+
+
+def skip_beyond(ctx: RunContext, test_keys: list[str], limit: int, meta: dict,
+                extra: dict | None = None) -> None:
+    """Store steps that need more context than the model has as `skipped` with the flag
+    `beyond_model_context`. Such a step is no limit of the hardware, so it never counts as
+    a failure; an earlier error or does_not_fit of it is replaced."""
+    for test_key in test_keys:
+        if not is_beyond_skip(ctx.store.get(test_key)):
+            ctx.store.save(test_key, "skipped", {**(extra or {}), **beyond_values(limit)}, meta)
 
 
 PARTIAL = 0.999  # below this share on the GPU a model is partly offloaded to the CPU

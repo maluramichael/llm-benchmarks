@@ -157,6 +157,62 @@ class MemoryTest(unittest.TestCase):
         memory.run_memory(ctx)
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-16384"))["status"], "does_not_fit")
 
+    def short_context_ctx(self, **kw):
+        path = write_gguf(Path(self.tmp.name) / "short.gguf",
+                          {**DENSE, "llama.context_length": 40960})
+        ctx = self.ctx(**kw)
+        ctx.model.gguf_path = path
+        return ctx
+
+    def test_rungs_beyond_the_model_context_are_skipped_and_flagged(self):
+        engine = FakeEngine()
+        ctx = self.short_context_ctx(engine=engine)
+        memory.run_memory(ctx)
+        for n in (8192, 16384, 32768):
+            self.assertEqual(ctx.store.get(key(ctx, "memory", f"ctx-{n}"))["status"], "ok", n)
+        for n in (65536, 131072, 262144):
+            entry = ctx.store.get(key(ctx, "memory", f"ctx-{n}"))
+            self.assertEqual(entry["status"], "skipped", n)
+            self.assertEqual(entry["values"]["reason"], "beyond the model's context length (40960)")
+            self.assertTrue(entry["values"]["beyond_model_context"])
+            self.assertEqual(entry["values"]["context_length"], 40960)
+        self.assertNotIn("load:65536", engine.calls)
+        computed = ctx.store.get(key(ctx, "memory", "computed"))["values"]
+        self.assertEqual(computed["context_length"], 40960)
+
+    def test_beyond_rungs_are_no_limit_and_do_not_blame_a_lower_step(self):
+        ctx = self.short_context_ctx(guard=Guard(refuse_at=2))  # 32768 does not fit
+        memory.run_memory(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-32768"))["status"],
+                         "does_not_fit")
+        entry = ctx.store.get(key(ctx, "memory", "ctx-65536"))
+        self.assertTrue(entry["values"]["beyond_model_context"])
+        self.assertNotIn("lower step", entry["values"]["reason"])
+
+    def test_earlier_error_and_does_not_fit_on_beyond_rungs_are_replaced_on_resume(self):
+        ctx = self.short_context_ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-65536"), "error", {"error": "prompt truncated"})
+        ctx.store.save(key(ctx, "memory", "ctx-131072"), "does_not_fit", {"reason": "HTTP 400"})
+        ctx.store.save(key(ctx, "memory", "ctx-262144"), "skipped",
+                       {"reason": "lower step 131072 did not fit or crashed"})
+        memory.run_memory(ctx)  # no --force
+        for n in (65536, 131072, 262144):
+            entry = ctx.store.get(key(ctx, "memory", f"ctx-{n}"))
+            self.assertEqual(entry["status"], "skipped", n)
+            self.assertTrue(entry["values"]["beyond_model_context"], n)
+
+    def test_beyond_rungs_are_not_touched_twice(self):
+        ctx = self.short_context_ctx()
+        memory.run_memory(ctx)
+        stamp = ctx.store.get(key(ctx, "memory", "ctx-65536"))["finished_at"]
+        memory.run_memory(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-65536"))["finished_at"], stamp)
+
+    def test_models_without_a_context_length_key_are_unchanged(self):
+        ctx = self.ctx()
+        memory.run_memory(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-262144"))["status"], "ok")
+
     def test_missing_model_is_error_not_does_not_fit(self):
         def fail(kind, arg):
             if kind == "load":

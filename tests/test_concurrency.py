@@ -280,6 +280,20 @@ class ConcurrencyTest(unittest.TestCase):
         self.assertEqual(values["gpu_fraction"], 1.0)
         self.assertNotIn("partial_offload", values)
 
+    def test_levels_are_skipped_when_a_slot_is_longer_than_the_model_context(self):
+        from gguf_writer import write_gguf
+        engine = ConcurrencyEngine()
+        ctx = self.ctx(engine)
+        ctx.model.gguf_path = write_gguf(
+            Path(self.tmp.name) / "m.gguf",
+            {"general.architecture": "llama", "llama.context_length": 4096})
+        concurrency.run_concurrency(ctx)
+        for n in (1, 2, 4, 8):
+            entry = self.entry(ctx, n)
+            self.assertEqual(entry["status"], "skipped", n)
+            self.assertTrue(entry["values"]["beyond_model_context"])
+        self.assertFalse([c for c in engine.calls if c.startswith("load")])
+
     def test_missing_model_is_error_not_does_not_fit(self):
         class Missing(ConcurrencyEngine):
             def load(self, model, ctx, parallel=1):

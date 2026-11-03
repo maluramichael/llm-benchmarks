@@ -52,7 +52,8 @@ from threading import Event
 from bench.engines.base import EngineError, Sampling
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, median,
-                          model_missing, now, offload_fields, prepare_counting, reset_state, step_meta)
+                          model_context_length, model_missing, now, offload_fields,
+                          prepare_counting, reset_state, skip_beyond, step_meta)
 
 MIB = 1024 * 1024
 DEFAULT_LEVELS = [1, 2, 4, 8]
@@ -235,6 +236,12 @@ def run_concurrency(ctx: RunContext, levels: list[int] | None = None) -> None:
         return
     levels = sorted({int(n) for n in (levels or DEFAULT_LEVELS) if int(n) > 0})
     meta = step_meta(ctx)
+    limit = model_context_length(ctx)
+    if limit and SLOT_CTX > limit:  # one slot is longer than the model can handle
+        keys = [key(ctx, "concurrency", f"p{n}") for n in levels]
+        skip_beyond(ctx, [k for k in keys if (ctx.store.get(k) or {}).get("status") != "ok"],
+                    limit, meta)
+        return
     ctx.nonce = ctx.nonce or "c"  # prompts are tagged; speed sets its own nonce per run
     blocked: str | None = None
     base = CONC_SLOT

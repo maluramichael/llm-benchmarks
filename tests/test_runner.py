@@ -198,7 +198,7 @@ class RunnerTest(unittest.TestCase):
         data = self.results()
         self.assertEqual(data["system"]["os"], "Test OS")
         self.assertEqual(data["run"]["device"], DEVICE)
-        self.assertEqual(data["run"]["bench_version"], "1.1.1")
+        self.assertEqual(data["run"]["bench_version"], "1.1.2")
         self.assertRegex(data["run"]["started_at"], r"^\d{4}-\d\d-\d\dT")
         engine = data["engines"]["ollama"]
         self.assertEqual(engine["version"], "fake-1")

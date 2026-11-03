@@ -89,6 +89,32 @@ class SmokeGuardTest(unittest.TestCase):
         self.assertEqual([c for c in engine.calls if c.startswith("load")], [])
         self.assertEqual(ctx.guard.required, [20 * 1024 + 1024])  # weights + KV at 8192
 
+    def test_model_with_a_short_context_is_not_measured_beyond_it(self):
+        from gguf_writer import write_gguf
+        engine = ChatEngine()
+        ctx = self.ctx(engine, guard=Guard())
+        ctx.model.gguf_path = write_gguf(
+            Path(self.tmp.name) / "m.gguf",
+            {"general.architecture": "llama", "llama.context_length": 4096})
+        smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "math-1"))
+        self.assertEqual(entry["status"], "skipped")
+        self.assertTrue(entry["values"]["beyond_model_context"])
+        self.assertIn("(4096)", entry["values"]["reason"])
+        self.assertEqual(engine.chats, [])
+
+    def test_needle_length_is_capped_by_the_model_context(self):
+        from gguf_writer import write_gguf
+        engine = ChatEngine(lambda i, m, t, s: "7391-QZ")
+        ctx = self.ctx(engine, guard=Guard(), cfg=Config(tasks=["needle-10"]))
+        ctx.store.save(key(ctx, "memory", "ctx-65536"), "ok", {"ctx": 65536})
+        ctx.model.gguf_path = write_gguf(
+            Path(self.tmp.name) / "m.gguf",
+            {"general.architecture": "llama", "llama.context_length": 16384})
+        smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "needle-10"))
+        self.assertEqual(entry["values"]["context_tokens"], 16384)
+
     def test_code_tasks_keep_their_own_skip_reason(self):
         ctx = self.ctx()
         smoke.run_smoke(ctx)

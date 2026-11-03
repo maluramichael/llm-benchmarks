@@ -29,8 +29,8 @@ from bench.gguf import attention_layer_count, kv_bytes_per_token, memory_curve, 
 from bench.safety import ladder_start, take_reading
 from bench.engines.base import PromptTruncated
 from bench.suites import (RunAborted, RunContext, SHRINK_UNKNOWN, TRUNCATED_REASON, clean_error,
-                          exact_counts, forced, fresh_prompt, key, model_missing, now,
-                          reset_state, retry_truncated, step_meta)
+                          exact_counts, forced, fresh_prompt, key, model_context_length, model_missing,
+                          now, reset_state, retry_truncated, skip_beyond, step_meta)
 
 MIB = 1024 * 1024
 OUTPUT_TOKENS = 128
@@ -75,6 +75,7 @@ def _computed(ctx: RunContext) -> tuple[str, dict]:
     sliding, recurrent = _flags(meta)
     return "ok", {
         "weights_bytes": weights,
+        "context_length": model_context_length(ctx),
         "kv_bytes_per_token": kv_bytes_per_token(meta, CACHE_TYPE_BYTES),
         "attention_layers": attention_layer_count(meta),
         "cache_type_bytes": CACHE_TYPE_BYTES,
@@ -239,6 +240,10 @@ def _skip_above(ctx: RunContext, n: int, steps: list[int], reason: str) -> None:
 
 def _ladder(ctx: RunContext, meta: dict) -> None:
     steps = _steps(ctx)
+    limit = model_context_length(ctx)
+    if limit:  # rungs above the trained context are no limit of the hardware: not measured
+        skip_beyond(ctx, [key(ctx, "memory", f"ctx-{n}") for n in steps if n > limit], limit, meta)
+        steps = [n for n in steps if n <= limit]
     prefix = key(ctx, "memory", "")
     estimates = _estimates(ctx)
     forced_steps = [n for n in steps if forced(ctx, key(ctx, "memory", f"ctx-{n}"))]

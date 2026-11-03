@@ -311,6 +311,20 @@ class SpeedTest(unittest.TestCase):
         speed.run_speed(ctx)
         self.assertEqual(ctx.guard.required, [20 * 1024 + 1280])
 
+    def test_model_with_a_short_context_is_not_measured_beyond_it(self):
+        from gguf_writer import write_gguf
+        engine = FakeEngine()
+        ctx = make_ctx(self.tmp.name, engine)
+        ctx.model.gguf_path = write_gguf(
+            Path(self.tmp.name) / "m.gguf",
+            {"general.architecture": "llama", "llama.context_length": 4096})
+        speed.run_speed(ctx)
+        entry = ctx.store.get(key(ctx, "speed", "warm"))
+        self.assertEqual(entry["status"], "skipped")
+        self.assertEqual(entry["values"]["reason"], "beyond the model's context length (4096)")
+        self.assertTrue(entry["values"]["beyond_model_context"])
+        self.assertFalse([c for c in engine.calls if c.startswith("load")])
+
     def test_stored_memory_does_not_fit_skips_without_asking_the_guard(self):
         ctx = make_ctx(self.tmp.name, FakeEngine())
         ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {"reason": "VRAM"})

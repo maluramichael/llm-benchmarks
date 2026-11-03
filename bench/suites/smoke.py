@@ -48,8 +48,9 @@ from bench.engines.base import Sampling
 from bench.privacy import local_secrets, scrub
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, exact_counts,
-                          forced, guard_refusal, key, now, offload_fields, reset_state,
-                          retry_truncated, scope_skip, skip_for_guard, step_meta, wants_run)
+                          forced, guard_refusal, key, model_context_length, now, offload_fields,
+                          reset_state, retry_truncated, scope_skip, skip_beyond, skip_for_guard,
+                          step_meta, wants_run)
 
 TASKS_DIR = Path(__file__).resolve().parent.parent / "data" / "tasks"
 CATEGORY_COUNTS = {"math": 8, "code": 6, "json": 5, "tool_calls": 5, "long_context": 3,
@@ -143,6 +144,14 @@ def run_smoke(ctx: RunContext) -> None:
         if (wants_run(ctx, test_key) and not (task["check"]["type"] == "code" and cfg.no_code_exec)
                 and not (entry and entry["status"] == "aborted" and not forced(ctx, test_key))):
             pending.append(task)
+    limit = model_context_length(ctx)
+    if pending and limit and SMOKE_CTX > limit:  # the model cannot run this context at all
+        for task in pending:
+            skip_beyond(ctx, [key(ctx, "smoke", task["id"])], limit, meta,
+                        {"category": task["category"]})
+        pending_ids = {t["id"] for t in pending}
+        tasks = [t for t in tasks if t["id"] not in pending_ids]
+        pending = []
     if pending:  # the guard applies to every suite, not only to memory
         refusal = guard_refusal(ctx, SMOKE_CTX, take_reading)
         if refusal:
@@ -174,7 +183,7 @@ def run_smoke(ctx: RunContext) -> None:
                 ctx.store.save(test_key, "skipped",
                                {"reason": detail, "category": task["category"]}, meta)
                 continue
-            length = min(MAX_NEEDLE_CTX, detail)
+            length = min(MAX_NEEDLE_CTX, detail, limit or MAX_NEEDLE_CTX)
         _run_task(ctx, task, test_key, length, state, meta)
 
 

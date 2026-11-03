@@ -44,8 +44,8 @@ from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
                           make_prompt, median, now, prepare_counting, reset_state, retry_truncated,
-                          fresh_prompt, guard_refusal, offload_fields, scope_skip, skip_for_guard,
-                          step_meta, wants_run)
+                          fresh_prompt, guard_refusal, model_context_length, offload_fields,
+                          scope_skip, skip_beyond, skip_for_guard, step_meta, wants_run)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -244,6 +244,10 @@ def run_speed(ctx: RunContext) -> None:
         if wants_run(ctx, test_key) and not (
                 entry and entry["status"] == "aborted" and not forced(ctx, test_key)):
             todo.append(test_key)
+    limit = model_context_length(ctx)
+    if todo and limit and SPEED_CTX > limit:  # the model cannot run this context at all
+        skip_beyond(ctx, todo, limit, meta)
+        return
     if todo:  # the guard applies to every suite, not only to memory
         refusal = guard_refusal(ctx, SPEED_CTX, take_reading)
         if refusal:
