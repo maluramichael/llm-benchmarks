@@ -295,6 +295,11 @@ class LlamaCppEngine:
         """What happened during the last load (flash attention choice and fallback)."""
         return dict(self._meta)
 
+    @property
+    def bench_bin(self) -> Path | None:
+        """Path of llama-bench once start() has found the binaries, else None."""
+        return self._binaries[1] if self._binaries else None
+
     def start(self) -> None:
         """Find (or download, unless disabled) the binaries. No server runs yet."""
         if self._binaries is None:
