@@ -1,19 +1,29 @@
 # Launcher for Windows: finds uv or fetches it into .\.bench\uv, then runs bench.py.
 # No admin rights, no PATH changes. Everything it sets (environment variables, current
-# directory) is put back before it ends, so the user's shell stays as it was.
+# directory) is put back before it ends, also after an error or Ctrl+C, so the user's
+# shell stays as it was: variables that did not exist before are removed again.
 $ErrorActionPreference = 'Stop'
+
+# Snapshot of the variables this script or the uv installer may touch.
+$watched = @('BENCH_CWD') + @(Get-ChildItem Env: | Where-Object { $_.Name -like 'UV_*' } |
+    ForEach-Object { $_.Name }) + @('UV_INSTALL_DIR', 'UV_NO_MODIFY_PATH')
+$saved = @{}
+foreach ($name in ($watched | Select-Object -Unique)) {
+    $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
+
+# `--engines ollama,llamacpp` typed without quotes arrives as an array; join it again.
+$forward = @(foreach ($argument in $args) {
+    if ($argument -is [array]) { $argument -join ',' } else { $argument }
+})
 
 # Relative paths the user gives (--output, --mirror, ...) mean the directory bench was
 # started in, not the repository: hand it over before changing into the repository.
-$saved = @{}
-foreach ($name in 'BENCH_CWD', 'UV_INSTALL_DIR', 'UV_NO_MODIFY_PATH') {
-    $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
-}
 $exitCode = 1
 $startDirectory = (Get-Location -PSProvider FileSystem).ProviderPath
 Push-Location -LiteralPath $PSScriptRoot
-$env:BENCH_CWD = $startDirectory
 try {
+    $env:BENCH_CWD = $startDirectory
     $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
     $localUv = Join-Path $PSScriptRoot '.bench\uv\uv.exe'
 
@@ -30,11 +40,19 @@ try {
         $uv = $localUv
     }
 
-    & $uv run --no-project --python 3.12 bench.py @args
+    & $uv run --no-project --python 3.12 bench.py @forward
     $exitCode = $LASTEXITCODE
 } finally {
+    # Put back what was there, remove what was not (also anything new named UV_*).
+    foreach ($item in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'UV_*' })) {
+        if (-not $saved.ContainsKey($item.Name)) { $saved[$item.Name] = $null }
+    }
     foreach ($name in $saved.Keys) {
-        [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process')
+        if ($null -eq $saved[$name]) {
+            Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+        } else {
+            Set-Item -LiteralPath "Env:$name" -Value $saved[$name]
+        }
     }
     Pop-Location
 }

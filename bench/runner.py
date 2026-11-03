@@ -99,28 +99,40 @@ def run_dir_name(day: date, device: str) -> str:
     return f"{day.isoformat()}-{slugify(device)}"
 
 
-def _is_legacy(folder: Path) -> bool:
+def _continuable(folder: Path) -> bool:
+    """A folder with a readable, current results.json of a real (not legacy) run. Anything
+    else is foreign: it is left alone and never continued."""
     try:
-        data = json.loads((folder / "results.json").read_text(encoding="utf-8-sig"))
-    except (OSError, ValueError):
+        data = ResultStore(folder / "results.json").data
+    except StoreError:
         return False
-    return isinstance(data, dict) and data.get("legacy") is True
+    return (folder / "results.json").is_file() and data.get("legacy") is not True
+
+
+def _free_name(folder: Path) -> Path:
+    candidate, number = folder, 2
+    while candidate.exists():
+        candidate = folder.with_name(f"{folder.name}-{number}")
+        number += 1
+    return candidate
 
 
 def find_run_dir(output: Path, device: str, today: date) -> Path:
-    """The folder of the newest earlier run of this device (any date, legacy runs excluded),
-    else a new folder named after `today`."""
+    """The folder of the newest earlier run of this device (any date). Legacy runs and
+    folders without a readable results.json are never continued. Otherwise a new folder
+    named after `today` (with -2, -3 ... when that name is taken)."""
     output = Path(output)
     slug = slugify(device)
     found = []
     if output.is_dir():
         for folder in output.iterdir():
             match = RUN_DIR_NAME.match(folder.name)
-            if folder.is_dir() and match and match.group(2) == slug and not _is_legacy(folder):
+            if (folder.is_dir() and match and match.group(2) == slug
+                    and _continuable(folder)):
                 found.append(folder)
     if found:
         return sorted(found, key=lambda f: f.name)[-1]
-    return output / run_dir_name(today, device)
+    return _free_name(output / run_dir_name(today, device))
 
 
 # --- helpers -------------------------------------------------------------------------------
@@ -139,12 +151,6 @@ def _gpu_of(system: dict, index: int) -> dict:
         if gpu.get("index") == index:
             return gpu
     return gpus[index] if 0 <= index < len(gpus) else {}
-
-
-def _vram_is_reliable(gpu: dict) -> bool:
-    """Windows reports at most 4 GB for AMD and Intel cards (WMI): then the figure is not
-    a reason to skip a model."""
-    return gpu.get("vendor") in ("nvidia", "apple") or sys.platform != "win32"
 
 
 def _stored_doctor_rows(rows: list[dict]) -> list[dict]:
@@ -188,6 +194,30 @@ class _State:
             self.store.set_section("notes", self.notes)
 
 
+def _dict_of(value) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _first_gpu(system: dict) -> dict:
+    gpus = [g for g in _dict_of(system).get("gpus") or [] if isinstance(g, dict)]
+    return gpus[0] if gpus else {}
+
+
+def _warn_changes(state: _State, run_info: dict, first: dict, now: dict) -> None:
+    """Results from a changed setup in one run folder are not comparable: say so."""
+    old, new = _first_gpu(first), _first_gpu(now)
+    changes = []
+    for label, was, is_now in (("GPU", old.get("name"), new.get("name")),
+                               ("GPU driver", old.get("driver"), new.get("driver")),
+                               ("bench version", run_info.get("bench_version"), VERSION)):
+        if was and is_now and was != is_now:
+            changes.append(f"the {label} changed since the run started (was {was}, "
+                           f"now {is_now})")
+    for message in changes:
+        state.say(f"warning: {message}")
+        state.note(message)
+
+
 def _existing_notes(store: ResultStore) -> list[str]:
     notes = store.data.get("notes")
     if isinstance(notes, str):
@@ -209,6 +239,12 @@ def _record_engine(state: _State, engine) -> None:
     except Exception:
         pass
     info["thinking"] = bool(state.cfg.thinking)
+    before = _dict_of(state.engines_info.get(engine.name)).get("version")
+    if before and info.get("version") and before != info["version"]:
+        message = (f"the engine version of {engine.name} changed since the run started "
+                   f"(was {before}, now {info['version']})")
+        state.say(f"warning: {message}")
+        state.note(message)
     state.engines_info[engine.name] = _clean(info)
     state.store.set_section("engines", state.engines_info)
 
@@ -228,9 +264,14 @@ def _resolve_models(state: _State, engine_name: str) -> list:
         except models.ModelError as err:
             state.problem(f"{label}: {_clean(str(err))}")
             continue
+        except RunAborted:
+            raise
+        except Exception as err:  # e.g. the NAS share is gone
+            state.problem(f"{label}: cannot resolve the model: {clean_error(err)}")
+            continue
         weights = (ref.size_bytes or 0) / MIB
         reserve = state.guard.reserve_mb()
-        if total and weights and _vram_is_reliable(gpu) and weights + reserve > total:
+        if total and weights and plan.vram_is_reliable(gpu) and weights + reserve > total:
             reason = (f"the weights alone ({weights / 1024:.1f} GB) plus the {reserve / 1024:.1f} "
                       f"GB safety reserve exceed the {total / 1024:.1f} GB of the card")
             key = f"{engine_name}/{ref.id}/memory/fit"
@@ -262,6 +303,7 @@ def _run_model(state: _State, engine, ref) -> bool:
         except (RunAborted, KeyboardInterrupt):
             raise
         except Exception as err:
+            _retryable(state.store, f"the {name} suite stopped with an unexpected error")
             state.problem(f"{label}: the {name} suite failed: {clean_error(err)}")
             state.note(f"{label}: the {name} suite stopped with an unexpected error "
                        f"({clean_error(err)})")
@@ -274,7 +316,11 @@ def _run_engine(state: _State, engine_name: str) -> None:
     refs = _resolve_models(state, engine_name)
     if not refs:
         return
-    engine = state.env.make_engine(engine_name, state.cfg)
+    try:
+        engine = state.env.make_engine(engine_name, state.cfg)
+    except Exception as err:
+        state.problem(f"{engine_name}: cannot create the engine: {clean_error(err)}")
+        return
     try:
         try:
             engine.start()
@@ -295,13 +341,17 @@ def _run_engine(state: _State, engine_name: str) -> None:
             state.say(f"warning: stopping {engine_name} failed: {clean_error(err)}")
 
 
-def _mark_interrupted(store: ResultStore) -> None:
-    """Ctrl+C is not a crash: the test that was running is retried, not marked aborted
-    (which would make the context ladder treat it as a rung that does not fit)."""
+def _retryable(store: ResultStore, reason: str) -> None:
+    """Turn tests left `running` into `error`. Neither Ctrl+C nor a Python exception is a
+    crash: recover_crashed would call them `aborted`, which for a ladder rung means
+    "does not fit, never retried"."""
     for key, entry in list(store.data["tests"].items()):
         if entry.get("status") == "running":
-            store.save(key, "error", {"reason": "interrupted by the user (Ctrl+C); "
-                                                "it is measured again by the next run"})
+            store.save(key, "error", {"reason": reason})
+
+
+def _mark_interrupted(store: ResultStore) -> None:
+    _retryable(store, "interrupted by the user (Ctrl+C); it is measured again by the next run")
 
 
 # --- run -----------------------------------------------------------------------------------
@@ -337,6 +387,8 @@ def _run(cfg: Config, env: Env) -> int:
     findings = env.preflight(cfg, gpu_index)
     for finding in findings:
         say(f"warning: {finding['text']}")
+        if finding.get("detail"):
+            say(f"  {finding['detail']}")
     if findings and cfg.abort_if_busy:
         say("Ending before the run because --abort-if-busy is set. Close what is using the "
             "GPU and run the same command again.")
@@ -360,11 +412,20 @@ def _run(cfg: Config, env: Env) -> int:
                    dict(store.data.get("models") or {}), dict(store.data.get("engines") or {}))
 
     started = dict(store.data.get("run") or {})
+    if store.data["tests"]:
+        say(f"continuing run {run_dir.name} started {started.get('started_at', 'earlier')} "
+            f"with {len(store.data['tests'])} results")
     started.setdefault("device", device)
     started.setdefault("started_at", _utc_now())
     started.setdefault("bench_version", VERSION)
+    clean_system = _clean(system)
+    first = store.data.get("system_first")
+    if first is None:  # runs from before system_first existed: the stored system was the first
+        first = store.data.get("system") or clean_system
+        store.set_section("system_first", first)
+    _warn_changes(state, started, first, clean_system)
     store.set_section("run", started)
-    store.set_section("system", _clean(system))
+    store.set_section("system", clean_system)
     for key in store.recover_crashed():
         state.note(f"{key} was still running when an earlier run ended (crash or power loss); "
                    "it was marked aborted")
@@ -393,7 +454,16 @@ def _run(cfg: Config, env: Env) -> int:
     with env.keep_awake():
         try:
             for engine_name in cfg.engines:
-                _run_engine(state, engine_name)
+                try:
+                    _run_engine(state, engine_name)
+                except (RunAborted, KeyboardInterrupt):
+                    raise
+                except Exception as err:
+                    _retryable(store, f"{engine_name} stopped with an unexpected error")
+                    state.problem(f"{engine_name}: stopped with an unexpected error: "
+                                  f"{clean_error(err)}")
+                    state.note(f"{engine_name} stopped with an unexpected error "
+                               f"({clean_error(err)})")
         except RunAborted as err:
             aborted = err
         except KeyboardInterrupt:
@@ -422,10 +492,17 @@ def _run(cfg: Config, env: Env) -> int:
         counts[entry["status"]] = counts.get(entry["status"], 0) + 1
     say(f"Results: {run_dir / 'results.json'}")
     say("Tests: " + (", ".join(f"{s} {n}" for s, n in sorted(counts.items())) or "none"))
-    unfinished = sum(n for s, n in counts.items() if s not in FINAL)
-    if unfinished and not (aborted or interrupted):
-        state.problems.append(f"{unfinished} test(s) ended with error or are unfinished")
-        say(f"{unfinished} test(s) ended with an error or are unfinished; run the same "
+    retryable = sorted(k for k, e in store.data["tests"].items()
+                       if e["status"] in ("error", "running"))
+    aborted_keys = sorted(k for k, e in store.data["tests"].items() if e["status"] == "aborted")
+    if aborted_keys:
+        say("Steps that caused a GPU driver reset (or were left running by a crash) are not "
+            "repeated automatically. To measure one again, run with --force-test <key>:")
+        for key in aborted_keys[:20]:
+            say(f"  --force-test {key}")
+    if retryable and not (aborted or interrupted):
+        state.problems.append(f"{len(retryable)} test(s) ended with error or are unfinished")
+        say(f"{len(retryable)} test(s) ended with an error or are unfinished; run the same "
             "command again to retry them.")
 
     if interrupted:

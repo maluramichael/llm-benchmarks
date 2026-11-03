@@ -1,6 +1,8 @@
 import contextlib
 import io
 import json
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -76,12 +78,12 @@ class CliTest(unittest.TestCase):
     def test_doctor_shows_rows_and_findings(self):
         rows = [{"check": "uptime", "status": "ok", "text": "up for 5 min"},
                 {"check": "processes", "status": "ok", "text": "fine", "detail": "x 1 MB"}]
-        finding = [{"kind": "gpu_busy", "text": "busy", "note": "n"}]
+        finding = [{"kind": "gpu_busy", "text": "busy", "note": "n", "detail": "tool pid 9"}]
         code, text = self.run_main(["doctor"], **{"bench.cli.safety.doctor": lambda cfg: rows,
                                                   "bench.cli.preflight.check":
                                                       lambda cfg, gpu: finding})
         self.assertEqual(code, 0)
-        for expected in ("up for 5 min", "x 1 MB", "gpu_busy", "busy"):
+        for expected in ("up for 5 min", "x 1 MB", "gpu_busy", "busy", "tool pid 9"):
             self.assertIn(expected, text)
 
     def test_report_renders_the_run_folder_given_as_output(self):
@@ -159,9 +161,41 @@ class CliTest(unittest.TestCase):
         for name in ("BENCH_CWD", "UV_INSTALL_DIR", "UV_NO_MODIFY_PATH"):
             self.assertIn(name, ps.split("finally", 1)[0].split("foreach", 1)[1])
         finally_block = ps.split("} finally {", 1)[1]
-        self.assertIn("SetEnvironmentVariable", finally_block)
+        self.assertIn("Set-Item", finally_block)
         self.assertIn("Pop-Location", finally_block)
         self.assertIn("Push-Location", ps)
+
+    def test_powershell_launcher_joins_array_arguments(self):
+        ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
+        self.assertIn("-is [array]", ps)
+        self.assertIn("-join ','", ps)
+        self.assertIn("@forward", ps)
+        self.assertNotIn("bench.py @args", ps)
+
+    def test_powershell_launcher_removes_variables_that_did_not_exist(self):
+        finally_block = (ROOT / "bench.ps1").read_text(encoding="utf-8").split("} finally {")[1]
+        self.assertIn("Remove-Item", finally_block)
+        self.assertIn("UV_", (ROOT / "bench.ps1").read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(shutil.which("pwsh") and os.name != "nt", "needs pwsh on macOS/Linux")
+    def test_powershell_launcher_for_real(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_uv = Path(tmp) / "uv"
+            fake_uv.write_text('#!/bin/sh\nfor a in "$@"; do echo "ARG:$a"; done\n',
+                               encoding="utf-8")
+            fake_uv.chmod(0o755)
+            script = (f"$env:PATH = '{tmp}' + [IO.Path]::PathSeparator + $env:PATH; "
+                      f"& '{ROOT / 'bench.ps1'}' run --engines ollama,llamacpp --models S,M; "
+                      "'UV=[' + $env:UV_INSTALL_DIR + '][' + $env:UV_NO_MODIFY_PATH + ']"
+                      "[' + $env:BENCH_CWD + ']'; (Get-Location).Path")
+            result = subprocess.run(["pwsh", "-NoProfile", "-Command", script], cwd=tmp,
+                                    capture_output=True, text=True, check=False)
+        out = result.stdout
+        self.assertIn("ARG:ollama,llamacpp", out, out + result.stderr)
+        self.assertIn("ARG:S,M", out)
+        self.assertNotIn("ARG:llamacpp\n", out)
+        self.assertIn("UV=[][][]", out)
+        self.assertIn(os.path.realpath(tmp), os.path.realpath(out.strip().splitlines()[-1]))
 
     def test_bench_py_entry_point(self):
         result = subprocess.run(

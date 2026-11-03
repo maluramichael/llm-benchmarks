@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from bench import plan
 from bench.config import Config
@@ -161,6 +162,34 @@ class PlanTest(unittest.TestCase):
         entry = self.make({"gpus": [], "memory_for_models_gb": 64, "ram_gb": 64},
                           models=("L",))[0]
         self.assertTrue(entry["fits"])
+
+    def test_mirror_copy_is_reported_as_such(self):
+        ref = ModelRef("F", "F", "Q4_K_M", "t", None, "sha256:mirror", 23_387_911_136)
+        entries = plan.make_plan(Config(engines=["ollama"], models=["F"], mirror="/m"),
+                                 card(48000), resolve=lambda *a, **k: ref)
+        self.assertEqual(entries[0]["source"], "mirror")
+        self.assertTrue(entries[0]["fits"])
+        self.assertTrue(entries[0]["needs_consent"])
+        self.assertIn("mirror copy 23.4 GB", plan.format_plan(entries))
+        pulled = ModelRef("F", "F", "Q4_K_M", "t", None, None, 23_387_911_136)
+        entries = plan.make_plan(Config(engines=["ollama"], models=["F"], mirror="/m"),
+                                 card(48000), resolve=lambda *a, **k: pulled)
+        self.assertEqual(entries[0]["source"], "download")
+
+    def test_unreliable_vram_is_unknown_not_a_failure(self):
+        amd = card(4096)
+        amd["gpus"][0]["vendor"] = "amd"
+        with mock.patch.object(plan.sys, "platform", "win32"):
+            entry = self.make(amd, models=("L",))[0]
+            nvidia = card(4096)
+            nvidia["gpus"][0]["vendor"] = "nvidia"
+            sure = self.make(nvidia, models=("L",))[0]
+        self.assertIsNone(entry["fits"])
+        self.assertIn("unreliable", entry["reason"])
+        self.assertIn("unknown", plan.format_plan([entry]))
+        self.assertFalse(sure["fits"])
+        with mock.patch.object(plan.sys, "platform", "linux"):
+            self.assertFalse(self.make(amd, models=("L",))[0]["fits"])
 
     def test_format_plan_is_plain_english_without_em_dashes(self):
         entries = self.make(card(8192), engines=("llamacpp", "ollama"))

@@ -2,14 +2,17 @@
 
 Read-only. Two things are looked for:
 
-* other processes with a compute context on the benchmark GPU (nvidia-smi
-  --query-compute-apps; NVIDIA only),
+* other compute workloads on the benchmark GPU: processes of type C in the process table of
+  plain `nvidia-smi` (NVIDIA only), and known engines (ollama, llama-server, python, ...)
+  whatever their type. Ordinary desktop programs have a graphics context (G, C+G) and are
+  ignored,
 * an Ollama server that already listens on the default port 11434 and was not started by
   bench. bench never uses it (unless --ollama-url is given) and never stops it, but it can
   hold GPU memory or answer for a model that bench thinks it loaded.
 
-Every finding is a dict `{kind, text, note}`. `text` is for the console and may name
-processes; `note` is generic and is what gets stored in results.json.
+Every finding is a dict `{kind, text, note}`. `text` is for the console and names at most a count and engines from KNOWN_ENGINES;
+`detail` (console only) lists every process; `note` is generic and is what gets stored in
+results.json.
 On the office PCs the shared OllamaServe is stopped by the Ansible playbook before a run;
 this check only detects and warns.
 """
@@ -18,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import urllib.request
 
@@ -46,52 +50,66 @@ def _fetch_ps(url: str):
         return None
 
 
-def _csv_rows(text: str | None) -> list[list[str]]:
+# Process table of plain `nvidia-smi`: GPU, GI ID, CI ID, PID, Type, name, memory.
+# Type is C (compute), G (graphics) or C+G. Under Windows (WDDM) every desktop program has a
+# graphics context, so only real compute workloads count. The name may contain spaces.
+_PROCESS_ROW = re.compile(
+    r"^\|\s*(?P<gpu>\d+)\s+\S+\s+\S+\s+(?P<pid>\d+)\s+(?P<type>C\+G|C|G)\s+"
+    r"(?P<name>.+?)\s+(?P<memory>N/A|\d+\s*MiB)\s*\|\s*$")
+# Names (lower case, part of the program name) of engines and compute tools worth naming.
+KNOWN_ENGINES = ("ollama", "llama-server", "llama-cli", "python", "comfyui", "koboldcpp",
+                 "lm studio", "lm-studio")
+
+
+def parse_processes(text: str | None) -> list[dict]:
+    """The rows of the process table of `nvidia-smi` as dicts gpu, pid, type, name, memory."""
     rows = []
     for line in (text or "").splitlines():
-        if line.strip():
-            rows.append([part.strip() for part in line.split(",")])
+        match = _PROCESS_ROW.match(line)
+        if match:
+            rows.append({"gpu": int(match["gpu"]), "pid": int(match["pid"]),
+                         "type": match["type"], "name": match["name"].strip(),
+                         "memory": match["memory"].replace(" ", "")})
     return rows
 
 
-def _gpu_processes(gpu_index: int, run) -> list[tuple[str, str]]:
-    """(pid, process name) of the other processes on GPU `gpu_index`."""
+def _known_engine(name: str) -> str | None:
+    base = re.split(r"[\\/]", name.lower())[-1]
+    for engine in KNOWN_ENGINES:
+        if engine in base:
+            return engine
+    return None
+
+
+def _gpu_workloads(gpu_index: int, run) -> list[dict]:
+    """Processes on GPU `gpu_index` that run compute (type C) or are a known engine."""
     exe = find_nvidia_smi()
     if not exe:
         return []
-    apps = run([exe, "--query-compute-apps=gpu_uuid,pid,process_name,used_memory",
-                "--format=csv,noheader,nounits"])
-    if not apps:
-        return []
-    uuids = {row[0]: row[1] for row in _csv_rows(
-        run([exe, "--query-gpu=index,uuid", "--format=csv,noheader"])) if len(row) >= 2}
-    wanted = uuids.get(str(gpu_index))  # None: mapping unknown, count every process
-    found = []
-    for row in _csv_rows(apps):
-        if len(row) < 3:
-            continue
-        uuid, pid, name = row[0], row[1], row[2]
-        if wanted is not None and uuid != wanted:
-            continue
-        if pid == str(os.getpid()):
-            continue
-        found.append((pid, name))
-    return found
+    rows = parse_processes(run([exe]))
+    return [r for r in rows
+            if r["gpu"] == gpu_index and r["pid"] != os.getpid()
+            and (r["type"] == "C" or _known_engine(r["name"]))]
 
 
 def check(cfg, gpu_index: int, *, run=run_text, port_open=_port_open,
           fetch_ps=_fetch_ps) -> list[dict]:
     findings: list[dict] = []
     try:
-        processes = _gpu_processes(gpu_index, run)
+        workloads = _gpu_workloads(gpu_index, run)
     except Exception:
-        processes = []
-    if processes:
-        names = ", ".join(sorted({name for _pid, name in processes}))
+        workloads = []
+    if workloads:
+        names = sorted({n for n in (_known_engine(r["name"]) for r in workloads) if n})
+        named = f" ({', '.join(names)})" if names else ""
+        detail = ", ".join(f"{r['name']} pid {r['pid']} type {r['type']} {r['memory']}"
+                           for r in workloads)
         findings.append({
             "kind": "gpu_busy",
-            "text": f"{len(processes)} other process(es) use GPU {gpu_index}: {names}. "
-                    "They distort the numbers and take VRAM; close them for a clean run.",
+            "text": f"{len(workloads)} other process(es) run compute work on GPU "
+                    f"{gpu_index}{named}. They distort the numbers and take VRAM; close them "
+                    "for a clean run.",
+            "detail": detail,
             "note": f"another process was using the benchmark GPU at the start "
                     f"(GPU {gpu_index})"})
     if "ollama" in cfg.engines and not cfg.ollama_url:

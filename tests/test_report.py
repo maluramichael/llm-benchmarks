@@ -43,6 +43,10 @@ def sample_results():
                                           "per_request_tps": 169.0, "ttft_p50_s": 1.1}),
         "llamacpp/S/concurrency/p2": ok({"parallel": 2, "total_tps": 126.0,
                                           "per_request_tps": 124.0, "ttft_p50_s": 2.0}),
+        "ollama/S/concurrency/p4": ok({"parallel": 4, "total_tps": 60.0, "per_request_tps": 15.0,
+                                        "ttft_p50_s": 3.0, "effective_parallel": 1,
+                                        "effective_ctx": 16384, "serialized": True,
+                                        "serialized_note": "engine ran 4 requests with parallel 1"}),
         "llamacpp/S/smoke/math-1": ok({"passed": True, "category": "math", "reason": "answer 42",
                                         "raw": "raw/llamacpp-S-math-1.txt"}),
         "llamacpp/S/smoke/math-2": ok({"passed": False, "category": "math",
@@ -120,6 +124,23 @@ class RenderTest(unittest.TestCase):
         self.assertIn("decode_tps_total", self.text)
         self.assertIn("170.0", self.text)
         self.assertIn("126.0", self.text)
+
+    def test_concurrency_shows_effective_parallel_and_serialization(self):
+        self.assertIn("Effective parallel", self.text)
+        self.assertIn("Serialized", self.text)
+        self.assertIn("Effective context", self.text)
+        self.assertIn("engine ran 4 requests with parallel 1", self.text)
+        row = [l for l in self.text.splitlines() if l.startswith("| 4 |")][0]
+        self.assertIn("| 1 | 16384 | yes |", row.replace("  ", " "))
+
+    def test_failed_smoke_task_shows_its_reason(self):
+        row = [l for l in self.text.splitlines() if l.startswith("| math-2 |")][0]
+        self.assertIn("expected 7", row)
+        data = sample_results()
+        del data["tests"]["llamacpp/S/smoke/math-2"]["values"]["reason"]
+        row = [l for l in report.render_run_readme(data).splitlines()
+               if l.startswith("| math-2 |")][0]
+        self.assertIn("no reason", row)
 
     def test_smoke_table_has_results_and_raw_links(self):
         self.assertIn("[raw](raw/llamacpp-S-math-1.txt)", self.text)
@@ -205,6 +226,17 @@ class WriteReportTest(unittest.TestCase):
                 report.write_report(self.run_dir)
         self.assertTrue(any("nero" in leak for leak in raised.exception.leaks))
         self.assertFalse((self.run_dir / "README.md").exists())
+
+    def test_leak_only_visible_in_the_rendered_text_is_found(self):
+        # "ner\u006f" is "nero" for the renderer but not for a scan of the raw JSON text
+        text = json.dumps(sample_results()).replace(
+            "Measured right after boot.", "host ner\\u006f")
+        self.results.write_text(text, encoding="utf-8")
+        self.assertNotIn("nero", text)
+        with mock.patch.object(report, "local_secrets", return_value=["nero"]):
+            with self.assertRaises(PrivacyError) as raised:
+                report.write_report(self.run_dir)
+        self.assertTrue(any(leak.startswith("README.md") for leak in raised.exception.leaks))
 
     def test_leak_in_a_raw_answer(self):
         self.write(sample_results())

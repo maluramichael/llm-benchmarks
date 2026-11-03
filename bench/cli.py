@@ -35,6 +35,8 @@ def _doctor_command(cfg) -> int:
     findings = preflight.check(cfg, cfg.gpu or 0)
     for finding in findings:
         print(f"[warn] {finding['kind']}: {finding['text']}")
+        if finding.get("detail"):
+            print(f"       {finding['detail']}")
     if not findings:
         print("[ok  ] nothing else uses the GPU, no foreign Ollama server on port 11434")
     return 0

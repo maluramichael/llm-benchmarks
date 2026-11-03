@@ -428,16 +428,19 @@ def _resolve_llamacpp(model_id: str, entry: dict, cfg: Config, opener, hf_base: 
 def _resolve_ollama(model_id: str, entry: dict, cfg: Config, say) -> ModelRef:
     tag = entry["ollama_tag"]
     store = Path(cfg.ollama_models_dir or default_ollama_models_dir())
+    mirror_layer = None
     if cfg.mirror:
         if URL_RE.match(cfg.mirror):
             raise ModelError("URL mirrors are not supported yet; use a directory")
         try:
             mirror_dir = _mirror_ollama_dir(Path(cfg.mirror))
-            _read_manifest(_manifest_path(tag, mirror_dir), tag)
+            manifest = _read_manifest(_manifest_path(tag, mirror_dir), tag)
         except ModelNotFound:
             pass
         else:
-            if not cfg.dry_run:
+            if cfg.dry_run:
+                mirror_layer = _model_layer(manifest, tag)
+            else:
                 import_from_mirror(Path(cfg.mirror), tag, store, say)
     try:
         blob, layer = _model_blob(tag, store)
@@ -447,6 +450,10 @@ def _resolve_ollama(model_id: str, entry: dict, cfg: Config, say) -> ModelRef:
                         layer["size"])
     except ModelNotFound:
         pass
+    if mirror_layer is not None:
+        # Dry run: the mirror has it and a real run copies it. Nothing is copied now.
+        return ModelRef(model_id, model_id, entry["quant"], tag, None, mirror_layer["digest"],
+                        mirror_layer["size"])
     if entry.get("ollama_pull") is False:
         raise ModelNotFound(
             f"{tag} is not in the Ollama library: give --mirror with this tag, or create it "

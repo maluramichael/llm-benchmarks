@@ -557,6 +557,20 @@ class ResolveOllamaTest(Base):
         models.resolve("M", "ollama", self.cfg(mirror=str(self.mirror), dry_run=True))
         self.assertFalse(self.store.exists())
 
+    def test_dry_run_counts_the_mirror_copy(self):
+        digest = make_model(self.mirror / "ollama", "qwen3:14b", b"mirror-14b")
+        ref = models.resolve("M", "ollama", self.cfg(mirror=str(self.mirror), dry_run=True))
+        self.assertEqual((ref.digest, ref.size_bytes), (digest, len(b"mirror-14b")))
+        self.assertIsNone(ref.gguf_path)  # not copied yet
+        self.assertFalse(self.store.exists())
+
+    def test_dry_run_finds_a_tag_that_only_the_mirror_has(self):
+        make_model(self.mirror / "ollama", "flint-bench:40b-q4_K_M", b"flint")
+        ref = models.resolve("F", "ollama", self.cfg(mirror=str(self.mirror), dry_run=True))
+        self.assertEqual(ref.size_bytes, len(b"flint"))
+        with self.assertRaises(ModelNotFound):  # without the mirror it is still not available
+            models.resolve("F", "ollama", self.cfg(dry_run=True))
+
     def test_local_store_without_mirror(self):
         digest = make_model(self.store, "qwen3:14b", b"local")
         ref = models.resolve("M", "ollama", self.cfg())

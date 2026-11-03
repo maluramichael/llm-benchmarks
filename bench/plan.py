@@ -4,7 +4,8 @@
 
     engine, model, cls, quant     what it is
     available                     the model could be found or resolved at all
-    fits, reason                  fits at 8k context plus the safety reserve? and why
+    source                        local, mirror (copied by the run) or download
+    fits, reason                  fits at 8k (None: unknown, VRAM figure unreliable) context plus the safety reserve? and why
     need_gb, available_gb         the numbers behind it (None when unknown)
     download_gb                   0 when the file is there, None when it cannot be resolved
     needs_consent                 download above 20 GB and no --yes
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import sys
 from typing import Callable
 
 from bench import models
@@ -56,6 +58,12 @@ def _gb(value) -> str:
         return "unknown"
     text = f"{value:.1f}"
     return (text[:-2] if text.endswith(".0") else text) + " GB"
+
+
+def vram_is_reliable(gpu: dict | None) -> bool:
+    """Windows reports at most 4 GB for AMD and Intel cards (WMI): that figure is no reason
+    to say a model does not fit."""
+    return bool(gpu) and (gpu.get("vendor") in ("nvidia", "apple") or sys.platform != "win32")
 
 
 def _gpu(system: dict, index: int) -> dict | None:
@@ -147,7 +155,7 @@ def make_plan(cfg, system: dict, *, store=None,
     for engine in cfg.engines:
         for model_id in cfg.models:
             entry = {"engine": engine, "model": model_id, "cls": model_id, "quant": None,
-                     "available": True, "fits": False, "reason": "", "need_gb": None, "available_gb": None,
+                     "available": True, "source": None, "fits": False, "reason": "", "need_gb": None, "available_gb": None,
                      "download_gb": None, "needs_consent": False, "minutes_low": 0,
                      "minutes_high": 0, "new": _is_new(store, engine, model_id), "notes": []}
             entries.append(entry)
@@ -159,6 +167,8 @@ def make_plan(cfg, system: dict, *, store=None,
                 continue
             entry["cls"], entry["quant"] = ref.cls, ref.quant
             download = 0.0 if ref.gguf_path is not None else (ref.size_bytes or 0) / 1e9
+            entry["source"] = ("local" if ref.gguf_path is not None else
+                               "mirror" if cfg.mirror and ref.digest else "download")
             entry["download_gb"] = round(download, 1)
             entry["needs_consent"] = download > CONSENT_GB and not cfg.yes
             curve, weights, notes = _needs(ref, steps)
@@ -170,7 +180,15 @@ def make_plan(cfg, system: dict, *, store=None,
             what = (f"{_gb(need_gb)} at 8k context (weights {_gb(weights_gb)} plus KV cache "
                     f"{_gb(need_gb - weights_gb)})") if curve else (
                 f"{_gb(weights_gb)} (weights only, KV cache unknown)")
-            if available is None:
+            gpu = _gpu(system, index)
+            if available is not None and gpu and not vram_is_reliable(gpu):
+                entry["fits"] = None
+                entry["available_gb"] = round(available / 1024, 1)
+                entry["reason"] = (f"unknown: needs {what}, but the VRAM figure of this card "
+                                   f"({_gb(available / 1024)}) is unreliable on Windows; the run "
+                                   "finds out")
+                rungs = list(cfg.ctx_steps)
+            elif available is None:
                 entry["fits"] = True
                 entry["reason"] = f"needs {what}; memory size unknown, not checked"
                 rungs = list(cfg.ctx_steps)
@@ -193,20 +211,27 @@ def make_plan(cfg, system: dict, *, store=None,
 
 def format_plan(entries: list[dict]) -> str:
     """The plan as plain text lines for the console."""
-    lines = [f"{'engine':9} {'model':6} {'quant':8} {'result':12} {'download':>9} "
+    lines = [f"{'engine':9} {'model':6} {'quant':8} {'result':12} {'download':>21} "
              f"{'time':>11}  {'state'}"]
     low = high = 0
     for e in entries:
-        result = "fits" if e["fits"] else "does not fit" if e["available"] else "unavailable"
-        download = "-" if e["download_gb"] is None else (
-            "local" if e["download_gb"] == 0 else f"{e['download_gb']:.1f} GB")
-        time = f"{e['minutes_low']}-{e['minutes_high']} min" if e["fits"] else "-"
+        result = ("unavailable" if not e.get("available", True) else "unknown" if e["fits"] is None
+                  else "fits" if e["fits"] else "does not fit")
+        if e["download_gb"] is None:
+            download = "-"
+        elif e["download_gb"] == 0:
+            download = "local"
+        else:
+            download = ("mirror copy " if e.get("source") == "mirror" else "") + \
+                f"{e['download_gb']:.1f} GB"
+        runs = e["fits"] is not False and e.get("available", True)
+        time = f"{e['minutes_low']}-{e['minutes_high']} min" if runs else "-"
         state = "new" if e["new"] else "measured"
         if e["needs_consent"]:
             state += ", needs --yes"
         lines.append(f"{e['engine']:9} {e['model']:6} {(e['quant'] or '-'):8} {result:12} "
-                     f"{download:>9} {time:>11}  {state}")
-        if e["fits"]:
+                     f"{download:>21} {time:>11}  {state}")
+        if runs:
             low += e["minutes_low"]
             high += e["minutes_high"]
     lines.append("")

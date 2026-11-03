@@ -440,14 +440,22 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(self.engines, {})
         self.assertIn("S", self.text)
 
-    def test_corrupt_results_file_is_a_clear_error(self):
+    def test_folder_without_readable_results_is_never_continued(self):
         folder = self.out / "2026-11-03-pc-rtx-3090-24gb"
         folder.mkdir(parents=True)
         (folder / "results.json").write_text("{not json", encoding="utf-8")
-        code = runner.run(self.cfg(), self.env())
-        self.assertEqual(code, 1)
-        self.assertIn("results.json", self.text)
-        self.assertEqual(self.engines, {})
+        empty = self.out / "2026-11-02-pc-rtx-3090-24gb"
+        empty.mkdir()
+        self.assertEqual(runner.run(self.cfg(), self.env()), 0, self.text)
+        self.assertEqual((folder / "results.json").read_text(encoding="utf-8"), "{not json")
+        self.assertTrue((self.out / "2026-11-03-pc-rtx-3090-24gb-2" / "results.json").is_file())
+        self.assertFalse((empty / "results.json").exists())
+
+    def test_find_run_dir_picks_a_free_name(self):
+        for name in ("2026-11-03-pc", "2026-11-03-pc-2"):
+            (self.out / name).mkdir(parents=True)
+        self.assertEqual(runner.find_run_dir(self.out, "PC", date(2026, 11, 3)).name,
+                         "2026-11-03-pc-3")
 
     def test_corpus_failure_is_a_clear_error(self):
         def corpus(cfg):
@@ -502,6 +510,138 @@ class RunnerTest(unittest.TestCase):
         runner.run(self.cfg(force=True), self.env())
         engine = self.engines["ollama"][0]
         self.assertGreater(engine.complete_count, 0)
+
+    # fix round 1
+    def test_aborted_steps_are_listed_but_do_not_fail_a_later_clean_run(self):
+        def abort(ctx):
+            ctx.store.save("ollama/S/memory/ctx-8192", "aborted", {"reason": "reset"})
+            raise RunAborted("GPU driver reset detected")
+        first = self.env()
+        first.suites = {**first.suites, "memory": abort}
+        self.assertEqual(runner.run(self.cfg(), first), runner.EXIT_ABORTED)
+        self.messages.clear()
+        second = self.env()
+        second.suites = {name: (lambda ctx: None) for name in second.suites}
+        self.assertEqual(runner.run(self.cfg(), second), 0, self.text)
+        self.assertIn("--force-test ollama/S/memory/ctx-8192", self.text)
+        self.assertIn("driver reset", self.text)
+        self.assertNotIn("retry them", self.text)
+
+    def test_error_steps_still_fail_with_the_retry_advice(self):
+        def err(ctx):
+            ctx.store.save("ollama/S/speed/warm", "error", {"error": "x"})
+        env = self.env()
+        env.suites = {**env.suites, "speed": err}
+        self.assertEqual(runner.run(self.cfg(), env), 1)
+        self.assertIn("run the same command again to retry", self.text)
+
+    def test_resolve_crash_is_a_problem_not_a_traceback(self):
+        def resolve(model_id, engine, cfg, say=None):
+            if model_id == "M":
+                raise OSError("the share is gone")
+            return self.resolve(model_id, engine, cfg)
+        seen = []
+        env = self.env(resolve=resolve)
+        env.suites = {"memory": lambda ctx: seen.append(ctx.model.id)}
+        code = runner.run(self.cfg(models=["M", "S"], suites=["memory"]), env)
+        self.assertEqual((code, seen), (1, ["S"]))
+        self.assertIn("the share is gone", self.text)
+        self.assertTrue((self.run_dir() / "README.md").is_file())
+
+    def test_engine_construction_failure_does_not_skip_the_other_engine(self):
+        def make(name, cfg):
+            if name == "llamacpp":
+                raise RuntimeError("cannot build engine")
+            return self.make_engine(name, cfg)
+        seen = []
+        env = self.env(make_engine=make)
+        env.suites = {"memory": lambda ctx: seen.append(ctx.engine.name)}
+        code = runner.run(self.cfg(engines=["llamacpp", "ollama"], suites=["memory"]), env)
+        self.assertEqual((code, seen), (1, ["ollama"]))
+        self.assertIn("cannot build engine", self.text)
+        self.assertTrue((self.run_dir() / "README.md").is_file())
+
+    def test_unexpected_suite_error_turns_running_entries_into_retryable_errors(self):
+        def boom(ctx):
+            ctx.store.mark_running("ollama/S/speed/warm", {})
+            raise ValueError("broken suite")
+        env = self.env()
+        env.suites = {**env.suites, "speed": boom}
+        runner.run(self.cfg(), env)
+        entry = self.results()["tests"]["ollama/S/speed/warm"]
+        self.assertEqual(entry["status"], "error")
+        self.runs_again = runner.run(self.cfg(), self.env())
+        self.assertNotEqual(self.results()["tests"]["ollama/S/speed/warm"]["status"], "aborted")
+
+    def test_continuing_a_run_is_announced_and_the_first_system_is_kept(self):
+        runner.run(self.cfg(), self.env())
+        first = self.results()
+        self.messages.clear()
+        changed = json.loads(json.dumps(SYSTEM))
+        changed["gpus"][0]["driver"] = "2.0"
+        runner.run(self.cfg(), self.env(system=lambda: changed))
+        self.assertIn("continuing run", self.text)
+        self.assertIn(self.run_dir().name, self.text)
+        self.assertRegex(self.text, r"started 2026-\d\d-\d\dT")
+        self.assertRegex(self.text, r"with \d+ results")
+        data = self.results()
+        self.assertEqual(data["system_first"], first["system"])
+        self.assertEqual(data["system"]["gpus"][0]["driver"], "2.0")
+        self.assertIn("driver", self.text)
+        self.assertTrue(any("driver" in n and "1.0" in n and "2.0" in n for n in data["notes"]))
+
+    def test_first_run_does_not_claim_to_continue(self):
+        runner.run(self.cfg(), self.env())
+        self.assertNotIn("continuing run", self.text)
+
+    def test_changed_engine_and_bench_versions_are_noted(self):
+        runner.run(self.cfg(), self.env())
+        self.messages.clear()
+
+        def make(name, cfg):
+            engine = self.make_engine(name, cfg)
+            engine.version = lambda: "fake-2"
+            return engine
+        with mock.patch.object(runner, "VERSION", "9.9.9"):
+            runner.run(self.cfg(), self.env(make_engine=make))
+        notes = " ".join(self.results()["notes"])
+        self.assertIn("engine version", notes)
+        self.assertIn("fake-1", notes)
+        self.assertIn("fake-2", notes)
+        self.assertIn("bench version", notes)
+        self.assertIn("warning", self.text)
+
+    def test_same_setup_adds_no_change_warnings(self):
+        runner.run(self.cfg(), self.env())
+        self.messages.clear()
+        runner.run(self.cfg(), self.env())
+        self.assertNotIn("changed since", self.text)
+
+    def test_skip_rule_includes_the_reserve(self):
+        def resolve_mib(mib):
+            return lambda model_id, engine, cfg, say=None: ModelRef(
+                model_id, model_id, "Q4_K_M", "t", None, None, mib * 1024 * 1024)
+        seen = []
+        env = self.env(resolve=resolve_mib(24576 - 1536 + 100))  # fits the card, not with reserve
+        env.suites = {"memory": lambda ctx: seen.append(1)}
+        runner.run(self.cfg(suites=["memory"]), env)
+        self.assertEqual(seen, [])
+        self.assertEqual(self.results()["tests"]["ollama/S/memory/fit"]["status"], "does_not_fit")
+
+    def test_skip_rule_lets_a_model_through_that_fits_with_reserve(self):
+        seen = []
+        env = self.env(resolve=lambda model_id, engine, cfg, say=None: ModelRef(
+            model_id, model_id, "Q4_K_M", "t", None, None, (24576 - 1536 - 100) * 1024 * 1024))
+        env.suites = {"memory": lambda ctx: seen.append(1)}
+        runner.run(self.cfg(suites=["memory"]), env)
+        self.assertEqual(seen, [1])
+
+    def test_preflight_detail_is_printed_but_not_stored(self):
+        rows = [{"kind": "gpu_busy", "text": "1 process", "detail": "ComfyUI pid 5 C 9000MiB",
+                 "note": "busy"}]
+        runner.run(self.cfg(), self.env(preflight=lambda cfg, gpu: rows))
+        self.assertIn("ComfyUI pid 5", self.text)
+        self.assertNotIn("ComfyUI", json.dumps(self.results()))
 
     def test_run_summary_is_printed(self):
         runner.run(self.cfg(), self.env())

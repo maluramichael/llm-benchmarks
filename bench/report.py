@@ -71,6 +71,8 @@ def _note(entry: dict) -> str:
     for name in ("reason", "error"):
         if values.get(name):
             parts.append(str(values[name]))
+    if values.get("serialized_note"):
+        parts.append(str(values["serialized_note"]))
     if values.get("cache_contaminated"):
         parts.append("prompt cache contaminated")
     if values.get("driver_reset_check") == "unknown":
@@ -251,14 +253,21 @@ def _concurrency_section(steps: dict) -> list[str]:
     header = ["Parallel", "Status", "Total tok/s"]
     if include_decode:
         header.append("decode_tps_total")
-    header += ["Per request tok/s", "TTFT p50 s", "Note"]
+    header += ["Per request tok/s", "TTFT p50 s"]
+    include_effective = any("effective_parallel" in _dict(e.get("values")) for _, e in levels)
+    if include_effective:
+        header += ["Effective parallel", "Effective context", "Serialized"]
+    header.append("Note")
     rows = []
     for n, entry in levels:
         v = _dict(entry.get("values"))
         row = [n, entry.get("status"), v.get("total_tps")]
         if include_decode:
             row.append(v.get("decode_tps_total"))
-        row += [v.get("per_request_tps"), v.get("ttft_p50_s"), _note(entry)]
+        row += [v.get("per_request_tps"), v.get("ttft_p50_s")]
+        if include_effective:
+            row += [v.get("effective_parallel"), v.get("effective_ctx"), v.get("serialized")]
+        row.append(_note(entry))
         rows.append(row)
     return ["### Concurrency", ""] + _table(header, rows) + [""]
 
@@ -305,7 +314,10 @@ def _smoke_section(steps: dict) -> list[str]:
         v = _dict(entry.get("values"))
         raw = v.get("raw")
         link = f"[raw]({raw})" if isinstance(raw, str) and SAFE_RAW.match(raw) else "-"
-        rows.append([task, category, _result(entry), _note(entry), link])
+        detail = _note(entry)
+        if _result(entry) == "fail" and not detail:
+            detail = "no reason given"
+        rows.append([task, category, _result(entry), detail, link])
     # Raw cells are links: keep them unescaped by building the rows by hand.
     out += ["| Task | Category | Result | Detail | Raw answer |", "|:--|:--|:--|:--|:--|"]
     for row in rows:
