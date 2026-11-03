@@ -13,17 +13,28 @@ Fixed parameters: temperature 0, seed 42, 256 output tokens, `cfg.reps` repetiti
 Every request uses its own prompt (see bench.suites.make_prompt) so no engine prompt cache
 can serve it by accident; only `cache` repeats a prompt on purpose.
 
-A driver reset (Windows) after a step stores the step as `aborted` and raises RunAborted.
+Order: the memory suite must run before speed (runner order memory -> speed). The deep
+llama-bench run needs a measured ladder rung; while no `memory/ctx-*` entry exists (full
+scope, memory suite selected) the `llama-bench` step is left pending, not stored. Once the
+ladder ran without any fitting rung, the step is stored with `deep: null`.
+A step stored `aborted` (driver reset, or a crash recovered as aborted) is not repeated
+automatically; only --force / --force-test run it again.
+Every run_speed call uses a fresh prompt nonce, so a rerun against a warm server stays cold.
+
+A driver reset (Windows) after a step, or a failing step while the reset probe says reset, stores the step as `aborted` and raises RunAborted.
 When the reset probe itself fails, the step is kept and marked `driver_reset_check:
 "unknown"` (a speed step is short and not the risky one; the context ladder is stricter).
 """
 
 from __future__ import annotations
 
+import secrets
+
 from bench.engines.base import Sampling
 from bench.engines.llamacpp import run_llama_bench
-from bench.suites import (RunAborted, RunContext, clean_error, key, make_prompt, median, now,
-                          reset_state, step_meta)
+from bench.safety import take_reading
+from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, median,
+                          now, reset_state, step_meta)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -59,8 +70,13 @@ def _ensure_loaded(ctx: RunContext, state: dict) -> None:
         state["loaded"] = True
 
 
+def _contaminated(runs: list[dict]) -> bool:
+    return any((r["cached_tokens"] or 0) > CONTAMINATION * r["prompt_tokens"] for r in runs)
+
+
 def _cold(ctx: RunContext, state: dict) -> dict:
-    _ensure_loaded(ctx, state)
+    # Prompts first (the tokenizer may need the model); then every repetition starts
+    # with an unload. Unloading an engine that holds nothing is a no-op.
     reps = ctx.cfg.reps
     prompts = [make_prompt(ctx, COLD_TOKENS, COLD_SLOT + i) for i in range(reps)]
     runs = []
@@ -77,6 +93,7 @@ def _cold(ctx: RunContext, state: dict) -> dict:
     values = _summary(runs)
     values["load_s"] = median(r["load_s"] for r in runs)
     values["ttft_incl_load_s"] = median(r["ttft_incl_load_s"] for r in runs)
+    values["cache_contaminated"] = _contaminated(runs)
     return values
 
 
@@ -85,8 +102,7 @@ def _warm(ctx: RunContext, state: dict) -> dict:
     prompts = [make_prompt(ctx, WARM_TOKENS, WARM_SLOT + i) for i in range(ctx.cfg.reps)]
     runs = [_run_fields(ctx.engine.complete(ctx.model, p, _sampling()).timing) for p in prompts]
     values = _summary(runs)
-    values["cache_contaminated"] = any(
-        (r["cached_tokens"] or 0) > CONTAMINATION * r["prompt_tokens"] for r in runs)
+    values["cache_contaminated"] = _contaminated(runs)
     return values
 
 
@@ -147,10 +163,27 @@ def _llama_bench(ctx: RunContext, state: dict) -> dict:
     values["deep"] = None
     depth = _deep_depth(ctx)
     if depth:
-        deep_rows = run_llama_bench(
-            binary, ctx.model, ["-p", "512", "-n", "256", "-d", str(depth), *common])
-        values["deep"] = {"depth": depth, **_bench_rows(deep_rows, depth)}
+        used = (ctx.store.get(key(ctx, "memory", f"ctx-{depth}")) or {}).get("values", {})
+        allowed, why = ctx.guard.before_step(
+            int(used.get("vram_used_mb") or 0), take_reading(ctx.guard.gpu_index))
+        if not allowed:
+            values["deep"] = {"depth": depth, "skipped": why}
+        else:
+            deep_rows = run_llama_bench(
+                binary, ctx.model, ["-p", "512", "-n", "256", "-d", str(depth), *common])
+            values["deep"] = {"depth": depth, **_bench_rows(deep_rows, depth)}
+    else:
+        values["deep_reason"] = "no memory ladder step fits"
     return values
+
+
+def _waits_for_memory(ctx: RunContext) -> bool:
+    """True while the deep llama-bench run cannot know its depth yet (memory not run)."""
+    cfg = ctx.cfg
+    if cfg.scope != "full" or "memory" not in cfg.suites:
+        return False
+    prefix = key(ctx, "memory", "ctx-")
+    return not any(k.startswith(prefix) for k in ctx.store.data["tests"])
 
 
 _STEP_FUNCTIONS = {"cold": _cold, "warm": _warm, "cache": _cache, "llama-bench": _llama_bench}
@@ -162,11 +195,18 @@ def run_speed(ctx: RunContext) -> None:
     if ctx.engine.name != "llamacpp":
         steps = [s for s in steps if s != "llama-bench"]
     state = {"loaded": False}
+    ctx.prompts.clear()
+    ctx.nonce = secrets.token_hex(3)  # fresh prompts even if this is a rerun on a warm server
     meta = step_meta(ctx)
     for step in steps:
         test_key = key(ctx, "speed", step)
         if not ctx.store.should_run(test_key, ctx.cfg.force, ctx.cfg.force_tests):
             continue
+        entry = ctx.store.get(test_key)
+        if entry and entry["status"] == "aborted" and not forced(ctx, test_key):
+            continue  # may have reset the driver: only --force/--force-test repeats it
+        if step == "llama-bench" and _waits_for_memory(ctx):
+            continue  # stays pending until the memory suite has run
         ctx.store.mark_running(test_key, meta)
         started = now()
         try:
@@ -176,7 +216,14 @@ def run_speed(ctx: RunContext) -> None:
             raise
         except Exception as err:
             state["loaded"] = False  # unknown state: load again for the next step
-            ctx.store.save(test_key, "error", {"error": clean_error(err)}, meta)
+            check = reset_state(ctx, started)  # a dead engine is how a driver reset looks
+            if check == "reset":
+                ctx.store.save(test_key, "aborted",
+                               {"reason": "GPU driver reset detected during this step",
+                                "error": clean_error(err)}, meta)
+                raise RunAborted(f"GPU driver reset detected during {test_key}") from None
+            ctx.store.save(test_key, "error",
+                           {"error": clean_error(err), "driver_reset_check": check}, meta)
             continue
         if check == "reset":
             ctx.store.save(test_key, "aborted",

@@ -144,6 +144,30 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-16384"))["status"], "does_not_fit")
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-32768"))["status"], "skipped")
 
+    def test_failing_rung_with_driver_reset_aborts(self):
+        def fail(kind, arg):
+            if kind == "complete":
+                return EngineError("connection reset")
+        ctx = self.ctx(FakeEngine(fail_on=fail), guard=Guard(reset=True))
+        with self.assertRaises(RunAborted):
+            memory.run_memory(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-8192"))["status"], "aborted")
+
+    def test_failing_rung_with_unknown_reset_is_not_retried(self):
+        def fail(kind, arg):
+            if kind == "complete":
+                return ValueError("weird")
+        engine = FakeEngine(fail_on=fail)
+        ctx = self.ctx(engine, guard=Guard(reset=None))
+        memory.run_memory(ctx)
+        entry = ctx.store.get(key(ctx, "memory", "ctx-8192"))
+        self.assertEqual(entry["status"], "does_not_fit")
+        self.assertEqual(entry["values"]["driver_reset_check"], "unknown")
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-16384"))["status"], "skipped")
+        attempts = engine.attempts
+        memory.run_memory(ctx)
+        self.assertEqual(engine.attempts, attempts)
+
     def test_idempotent(self):
         engine = FakeEngine()
         ctx = self.ctx(engine)

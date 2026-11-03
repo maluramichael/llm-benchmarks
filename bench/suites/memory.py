@@ -11,7 +11,9 @@ ctx-<n>     one measured rung per context step: unload, VRAM guard, load with n 
 
 Decisions for failures:
 * engine error while loading or filling a rung (EngineError) = `does_not_fit`.
-* any other exception = `error` (retried next run) and the ladder stops for this run.
+* any other exception = `error` (retried next run) and the ladder stops for this run, unless
+  the reset probe says "unknown": then `does_not_fit`, so a rung that may have reset the
+  driver is never repeated. Every failure first asks the reset probe; "reset" = `aborted`.
 * guard refuses (VRAM reserve, partial offload, shared memory or swap growth) =
   `does_not_fit`.
 * driver reset = rung `aborted`, RunAborted is raised, the run ends.
@@ -141,12 +143,21 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
             if not allowed:
                 store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
                 return "does_not_fit"
-        except EngineError as err:
-            store.save(test_key, "does_not_fit", {**values, "reason": clean_error(err)}, meta)
-            return "does_not_fit"
         except RunAborted:
             raise
         except Exception as err:
+            # A dead engine is how a driver reset usually looks: check before judging.
+            check = reset_state(ctx, started)
+            if check == "reset":
+                store.save(test_key, "aborted",
+                           {**values, "reason": "GPU driver reset detected during this rung",
+                            "error": clean_error(err)}, meta)
+                raise RunAborted(f"GPU driver reset detected during {test_key}") from None
+            values["driver_reset_check"] = check
+            if isinstance(err, EngineError) or check == "unknown":
+                # unknown: never retry a rung that may have reset the driver
+                store.save(test_key, "does_not_fit", {**values, "reason": clean_error(err)}, meta)
+                return "does_not_fit"
             store.save(test_key, "error", {**values, "error": clean_error(err)}, meta)
             return "error"
         check = reset_state(ctx, started)

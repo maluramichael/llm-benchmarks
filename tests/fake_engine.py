@@ -7,7 +7,7 @@ class FakeEngine:
     name = "fake"
 
     def __init__(self, gen_tps=(100.0,), ttft=0.5, load_s=2.0, cached_on_repeat=True,
-                 fail_on=None, name=None):
+                 fail_on=None, name=None, always_cached=0):
         if name:
             self.name = name
         self.gen_tps = list(gen_tps)
@@ -19,6 +19,7 @@ class FakeEngine:
         self.calls: list[str] = []  # "load:<ctx>", "unload", "complete"
         self.rs_mb = None
         self.fraction = 1.0
+        self.always_cached = always_cached
         self.attempts = 0
 
     # engine interface
@@ -53,6 +54,7 @@ class FakeEngine:
             if err:
                 raise err
         cached = len(prompt.split()) if (prompt in self.prompts and self.cached_on_repeat) else 0
+        cached = cached or self.always_cached
         self.prompts.append(prompt)
         self.calls.append("complete")
         tps = self.gen_tps[index % len(self.gen_tps)]

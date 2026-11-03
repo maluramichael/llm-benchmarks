@@ -37,6 +37,7 @@ class RunContext:
     corpus_text: str
     raw_dir: Path
     prompts: dict = field(default_factory=dict)  # (slot, n_tokens) -> prompt, memoised
+    nonce: str = ""  # per run_speed call; makes a rerun use fresh prompts
 
 
 def key(ctx: RunContext, suite: str, step: str) -> str:
@@ -88,7 +89,8 @@ def make_prompt(ctx: RunContext, n_tokens: int, slot: int) -> str:
     body = text[start:]
     while len(body) < need:
         body += "\n\n" + text
-    header = f"Document {slot}.\n\n"
+    tag = f"{ctx.nonce}-{slot}" if ctx.nonce else str(slot)
+    header = f"Document {tag}.\n\n"
     count = lambda t: ctx.engine.count_tokens(ctx.model, t)  # noqa: E731
     prompt = cut_to_tokens(header + body[:need], n_tokens, count)
     used = count(prompt)

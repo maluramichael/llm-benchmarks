@@ -5,6 +5,7 @@ from unittest import mock
 
 from bench.config import Config
 from bench.engines.base import EngineError, ModelRef
+from bench.safety import Reading
 from bench.store import ResultStore
 from bench.suites import RunAborted, RunContext, key
 from bench.suites import speed
@@ -23,6 +24,11 @@ class Guard:
     def driver_reset_since(self, ts):
         return self.reset
 
+    def before_step(self, required_mb, reading):
+        return (self.refuse is None, self.refuse or "ok")
+
+    refuse = None
+
 
 def make_ctx(tmp, engine, cfg=None, guard=None):
     model = ModelRef("m1", "S", "q4", None, None, "sha-1", 1000)
@@ -33,6 +39,10 @@ def make_ctx(tmp, engine, cfg=None, guard=None):
 
 class SpeedTest(unittest.TestCase):
     def setUp(self):
+        patcher = mock.patch.object(speed, "take_reading",
+                                    lambda idx, frac=None: Reading(20000, frac, None, None))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
@@ -40,6 +50,63 @@ class SpeedTest(unittest.TestCase):
         ctx = make_ctx(self.tmp.name, engine, **kw)
         speed.run_speed(ctx)
         return ctx
+
+    def test_speed_median_differs_from_mean(self):
+        ctx = self.run_speed(FakeEngine(gen_tps=(90, 100, 200)))
+        entry = ctx.store.get(key(ctx, "speed", "warm"))
+        self.assertEqual(entry["values"]["gen_tps"], 100)
+
+    def test_cold_starts_with_unload_before_every_load(self):
+        engine = FakeEngine()
+        self.run_speed(engine)
+        self.assertEqual(engine.calls[0], "unload")
+        for i, call in enumerate(engine.calls[:12]):
+            if call.startswith("load:"):
+                self.assertEqual(engine.calls[i - 1], "unload")
+
+    def test_cold_cache_contamination_flagged(self):
+        ctx = self.run_speed(FakeEngine(always_cached=400))
+        self.assertTrue(ctx.store.get(key(ctx, "speed", "cold"))["values"]["cache_contaminated"])
+
+    def test_failing_step_with_driver_reset_aborts(self):
+        def fail(kind, index):
+            if kind == "complete":
+                return EngineError("connection refused")
+        ctx = make_ctx(self.tmp.name, FakeEngine(fail_on=fail), guard=Guard(reset=True))
+        with self.assertRaises(RunAborted):
+            speed.run_speed(ctx)
+        entry = ctx.store.get(key(ctx, "speed", "cold"))
+        self.assertEqual(entry["status"], "aborted")
+
+    def test_failing_step_records_unknown_reset_check(self):
+        def fail(kind, index):
+            if kind == "complete" and index == 0:
+                return EngineError("boom")
+        ctx = make_ctx(self.tmp.name, FakeEngine(fail_on=fail), guard=Guard(reset=None))
+        speed.run_speed(ctx)
+        entry = ctx.store.get(key(ctx, "speed", "cold"))
+        self.assertEqual(entry["status"], "error")
+        self.assertEqual(entry["values"]["driver_reset_check"], "unknown")
+
+    def test_aborted_step_is_not_rerun_automatically(self):
+        engine = FakeEngine()
+        ctx = make_ctx(self.tmp.name, engine)
+        ctx.store.save(key(ctx, "speed", "cold"), "aborted", {"reason": "reset"})
+        speed.run_speed(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "speed", "cold"))["status"], "aborted")
+        self.assertEqual(ctx.store.get(key(ctx, "speed", "warm"))["status"], "ok")
+        ctx.cfg.force_tests = ["*/speed/cold"]
+        speed.run_speed(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "speed", "cold"))["status"], "ok")
+
+    def test_rerun_uses_fresh_prompts(self):
+        engine = FakeEngine()
+        ctx = self.run_speed(engine)
+        first = set(engine.prompts)
+        engine.prompts.clear()
+        ctx.cfg.force = True
+        speed.run_speed(ctx)
+        self.assertFalse(first & set(engine.prompts))
 
     def test_speed_median(self):
         ctx = self.run_speed(FakeEngine(gen_tps=(100, 120, 110)))
@@ -129,7 +196,7 @@ class SpeedTest(unittest.TestCase):
 
     def test_llama_bench_runs_for_llamacpp(self):
         engine = FakeEngine(name="llamacpp")
-        cfg = Config(llama_bench=Path("/x/llama-bench"))
+        cfg = Config(llama_bench=Path("/x/llama-bench"), suites=["speed"])
         rows = [{"n_prompt": 512, "n_gen": 0, "avg_ts": 900.0},
                 {"n_prompt": 8192, "n_gen": 0, "avg_ts": 700.0},
                 {"n_prompt": 0, "n_gen": 256, "avg_ts": 80.0}]
@@ -142,9 +209,32 @@ class SpeedTest(unittest.TestCase):
         self.assertEqual(values["tg256_tps"], 80.0)
         self.assertIsNone(values["deep"])
 
+    def test_llama_bench_waits_for_memory(self):
+        engine = FakeEngine(name="llamacpp")
+        cfg = Config(llama_bench=Path("/x/llama-bench"))  # full scope, memory selected
+        with mock.patch.object(speed, "run_llama_bench") as bench:
+            ctx = self.run_speed(engine, cfg=cfg)
+        self.assertEqual(bench.call_count, 0)
+        self.assertIsNone(ctx.store.get(key(ctx, "speed", "llama-bench")))
+
+    def test_llama_bench_deep_refused_by_guard(self):
+        engine = FakeEngine(name="llamacpp")
+        cfg = Config(llama_bench=Path("/x/llama-bench"), suites=["speed"])
+        guard = Guard()
+        guard.refuse = "low VRAM"
+        ctx = make_ctx(self.tmp.name, engine, cfg=cfg, guard=guard)
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"vram_used_mb": 5000})
+        calls = []
+        with mock.patch.object(speed, "run_llama_bench",
+                               side_effect=lambda *a, **k: calls.append(a[2]) or []):
+            speed.run_speed(ctx)
+        self.assertEqual(len(calls), 1)
+        deep = ctx.store.get(key(ctx, "speed", "llama-bench"))["values"]["deep"]
+        self.assertEqual(deep, {"depth": 8192, "skipped": "low VRAM"})
+
     def test_llama_bench_deep_uses_largest_ok_memory_step(self):
         engine = FakeEngine(name="llamacpp")
-        cfg = Config(llama_bench=Path("/x/llama-bench"))
+        cfg = Config(llama_bench=Path("/x/llama-bench"), suites=["speed"])
         ctx = make_ctx(self.tmp.name, engine, cfg=cfg)
         for n in (8192, 16384):
             ctx.store.save(key(ctx, "memory", f"ctx-{n}"), "ok", {})
