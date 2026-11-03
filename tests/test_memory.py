@@ -105,6 +105,22 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual(values["driver_reset_check"], "none")
         self.assertEqual(engine.calls[-1], "unload")
 
+    def test_rung_records_vram_baseline_after_unload(self):
+        # free VRAM is 22000 MB after the unload and 20000 MB after the run: baseline 2000 MB
+        readings = iter([Reading(22000, None, None, None), Reading(20000, None, None, None)] * len(STEPS))
+        with mock.patch.object(memory, "take_reading", lambda idx, frac=None: next(readings)):
+            ctx = self.ctx()
+            memory.run_memory(ctx)
+        values = ctx.store.get(key(ctx, "memory", "ctx-8192"))["values"]
+        self.assertEqual(values["vram_baseline_mb"], 2000)
+        self.assertEqual(values["vram_used_mb"], 4000)
+
+    def test_refused_rung_keeps_the_baseline(self):
+        ctx = self.ctx(guard=Guard(refuse_at=0))
+        memory.run_memory(ctx)
+        values = ctx.store.get(key(ctx, "memory", "ctx-8192"))["values"]
+        self.assertEqual(values["vram_baseline_mb"], 4000)
+
     def test_memory_ladder_stops(self):
         # computed has no guard call; the guard sees one call per ladder step
         guard = Guard(refuse_at=3)  # steps 8k, 16k, 32k pass, 64k refused

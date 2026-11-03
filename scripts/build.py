@@ -17,6 +17,7 @@ standard library only too), so CI needs nothing but python3.
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import re
@@ -35,12 +36,15 @@ CLASS_ORDER = ["S", "M", "L", "XL", "F"]
 CATEGORY_ORDER = ["math", "code", "json", "tool_calls", "long_context", "creative", "code_explain"]
 
 # Color follows the engine, never its rank. New engines get the next free slot
-# here, by hand, so existing colors never move.
-ENGINES = ["llamacpp", "ollama", "mlx"]
-ENGINE_NAMES = {"llamacpp": "llama.cpp", "ollama": "Ollama", "mlx": "MLX"}
+# here, by hand, so existing colors never move. The four slots (blue, orange, aqua,
+# yellow) pass the dataviz validator on the adjacent pairs, light on #ffffff and dark on
+# #0d1117 (worst color-vision separation delta E 8.4). The light aqua and yellow are
+# below 3:1 contrast, so every bar carries a direct value label and every chart a legend.
+ENGINES = ["llamacpp", "ollama", "mlx", "vllm"]
+ENGINE_NAMES = {"llamacpp": "llama.cpp", "ollama": "Ollama", "mlx": "MLX", "vllm": "vLLM"}
 SERIES = {
-    "light": ["#2a78d6", "#eb6834", "#1baf7a"],
-    "dark": ["#3987e5", "#d95926", "#199e70"],
+    "light": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"],
+    "dark": ["#3987e5", "#d95926", "#199e70", "#c98500"],
 }
 # One blue ramp for the smoke grid (five bins of pass rate), checked with the
 # dataviz validator in --ordinal mode against the chart surface of each theme.
@@ -177,10 +181,16 @@ def _date_of(name: str, results: dict) -> str:
     return str(started)[:10]
 
 
+def _gpu_names(data: dict) -> tuple:
+    gpus = (data.get("system") or {}).get("gpus") if isinstance(data.get("system"), dict) else None
+    names = [clean(g["name"]).strip() for g in gpus or [] if isinstance(g, dict) and isinstance(g.get("name"), str)]
+    return tuple(sorted(names))
+
+
 def load_runs(root: Path = ROOT) -> list[dict]:
     """Every runs/*/results.json as a normalized dict, oldest first.
 
-    Keys: dir, date, device, legacy, tests. Raises SystemExit naming the folder
+    Keys: dir, date, device, legacy, tests, gpus. Raises SystemExit naming the folder
     (never the content) when a file does not pass validate().
     """
     runs = []
@@ -200,6 +210,7 @@ def load_runs(root: Path = ROOT) -> list[dict]:
             "device": clean(data["device"] if legacy else data["run"]["device"]).strip(),
             "legacy": legacy,
             "tests": {} if legacy else data["tests"],
+            "gpus": () if legacy else _gpu_names(data),
         })
     runs.sort(key=lambda r: (r["date"], r["dir"]))
     return runs
@@ -219,23 +230,56 @@ def old_reports(root: Path) -> list[dict]:
 
 # --------------------------------------------------------------------- facts
 
+FINAL_STATUSES = {"ok", "does_not_fit", "skipped", "error"}
+
+
+def device_labels(runs: list[dict]) -> dict[tuple, str]:
+    """(device, gpus) -> label. Two machines that share a device name but have different GPUs
+    must not merge, so such names get the GPU appended."""
+    gpus_by_name: dict[str, set] = {}
+    for run in runs:
+        if not run["legacy"]:
+            gpus_by_name.setdefault(run["device"], set()).add(run["gpus"])
+    labels = {}
+    for run in runs:
+        if run["legacy"]:
+            continue
+        name, gpus = run["device"], run["gpus"]
+        split = len(gpus_by_name[name]) > 1
+        labels[(name, gpus)] = f"{name} ({', '.join(gpus) or 'unknown GPU'})" if split else name
+    return labels
+
 
 class Facts:
-    """The newest entry per (device, engine, model, suite, step) over all runs.
+    """The results behind every chart.
 
-    A newer run replaces an older one. A newer `running` or `aborted` entry
-    (a crash leftover) does not hide an older final result.
+    For every (device, engine, model, suite) all steps come from ONE run: the newest run that
+    has at least one final entry (ok, does_not_fit, skipped, error) for that suite. A newer run
+    that only left `running` or `aborted` entries behind (a crash) does not hide it. Mixing
+    steps of several runs would give impossible tables (an old ladder with a new rung).
     """
 
     def __init__(self, runs: list[dict]):
-        self.entries: dict[tuple, dict] = {}
-        for run in sorted((r for r in runs if not r["legacy"]), key=lambda r: (r["date"], r["dir"])):
+        live = sorted((r for r in runs if not r["legacy"]), key=lambda r: (r["date"], r["dir"]))
+        labels = device_labels(live)
+        groups: dict[tuple, list[dict]] = {}
+        for run in live:
+            label = labels[(run["device"], run["gpus"])]
+            per: dict[tuple, dict] = {}
             for key, entry in run["tests"].items():
                 engine, model, suite, step = key.split("/", 3)
-                full = (run["device"], engine, model, suite, step)
-                if full in self.entries and entry.get("status") in ("running", "aborted"):
-                    continue
-                self.entries[full] = entry
+                per.setdefault((engine, model, suite), {})[step] = entry
+            for group, steps in per.items():
+                groups.setdefault((label,) + group, []).append(steps)
+        self.entries: dict[tuple, dict] = {}
+        for (label, engine, model, suite), candidates in groups.items():
+            chosen = candidates[-1]
+            for steps in reversed(candidates):
+                if any(e.get("status") in FINAL_STATUSES for e in steps.values()):
+                    chosen = steps
+                    break
+            for step, entry in chosen.items():
+                self.entries[(label, engine, model, suite, step)] = entry
 
     def get(self, device, engine, model, suite, step):
         return self.entries.get((device, engine, model, suite, step))
@@ -269,8 +313,8 @@ def gap_label(entry) -> str:
 
 
 class Cell:
-    def __init__(self, value=None, label="", hatched=False, suffix="", tip=""):
-        self.value, self.label, self.hatched, self.suffix, self.tip = value, label, hatched, suffix, tip
+    def __init__(self, value=None, label="", hatched=False, suffix=""):
+        self.value, self.label, self.hatched, self.suffix = value, label, hatched, suffix
 
 
 def fit_gap(facts: Facts, device, engine, model) -> Cell | None:
@@ -281,16 +325,24 @@ def fit_gap(facts: Facts, device, engine, model) -> Cell | None:
 
 
 def speed_cell(field: str, step: str = "warm"):
-    def build(facts: Facts, device, model, engine):
+    def build(facts: Facts, device, model, engine, variant="", tag=None):
         entry = facts.get(device, engine, model, "speed", step)
         if entry is None:
-            return fit_gap(facts, device, engine, model)
+            return fit_gap(facts, device, engine, model) if step == "warm" else None
         value = number((entry.get("values") or {}).get(field)) if entry.get("status") == "ok" else None
         return Cell(value) if value is not None else Cell(label=gap_label(entry))
     return build
 
 
-def context_cell(facts: Facts, device, model, engine):
+_WARM_TTFT = speed_cell("ttft_s", "warm")
+_CACHE_TTFT = speed_cell("ttft_s", "cache")
+
+
+def ttft_cell(facts: Facts, device, model, engine, variant="", tag=None):
+    return (_CACHE_TTFT if variant == "cache" else _WARM_TTFT)(facts, device, model, engine)
+
+
+def context_cell(facts: Facts, device, model, engine, variant="", tag=None):
     rungs = {}
     for step, entry in facts.steps(device, engine, model, "memory").items():
         if step.startswith("ctx-") and step[4:].isdigit():
@@ -299,11 +351,16 @@ def context_cell(facts: Facts, device, model, engine):
         return fit_gap(facts, device, engine, model)
     ok = [n for n, e in rungs.items() if e.get("status") == "ok"]
     if not ok:
-        worst = rungs[min(rungs)]
-        return Cell(label=gap_label(worst))
+        return Cell(label=gap_label(rungs[min(rungs)]))
     top = max(ok)
-    plus = not any(n > top and e.get("status") != "ok" for n, e in rungs.items())
-    return Cell(float(top), suffix="+" if plus else "")
+    above = {e.get("status") for n, e in rungs.items() if n > top}
+    if above & {"error", "aborted", "running"}:
+        suffix = "*"  # the ladder stopped by accident: the real limit is unknown
+    elif above:
+        suffix = ""  # a rung above did not fit or was skipped: this is the limit
+    else:
+        suffix = "+"  # the ladder ended with a working rung: the limit is higher
+    return Cell(float(top), suffix=suffix)
 
 
 def concurrency_levels(facts: Facts, device) -> list[int]:
@@ -404,6 +461,8 @@ def legend_items(items: list[tuple[str, str, str]], x0: float, y: float, max_x: 
             x, y = x0, y + 20
         if kind == "swatch":
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="{color}"/>')
+        elif kind == "faint":
+            el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="{color}" fill-opacity="{FAINT}" stroke="{color}" stroke-width="1.5"/>')
         elif kind == "hatch":
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="{color}"/>')
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="url(#hatch)"/>')
@@ -434,10 +493,23 @@ def footer(lines: list[str], y: float, pad: int, width: int) -> tuple[list[str],
 
 # --------------------------------------------------------------------- grouped bar charts
 
+PAD, LABEL_W, COL_GAP, WIDTH = 28, 170, 24, 960
+BAR_H, BAR_GAP = 12, 4
+FAINT = 0.4  # opacity of the second bar of a pair (cache request)
+
+
+def chunks(items: list, size: int) -> list[list]:
+    return [items[i:i + size] for i in range(0, len(items), size)]
+
 
 def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: str, cell_fn,
-              fmt, notes: list[str], rows_fn=None, ctx_axis: bool = False, aria: str) -> str:
-    """Engines side by side, one panel per model class, one row per device (or device and level)."""
+              fmt, notes: list[str], rows_fn=None, ctx_axis: bool = False, aria: str,
+              variants=(("", ""),), suffix_notes=None) -> str:
+    """Engines side by side, one panel per model class, one row per device (or device and level).
+
+    The chart is always 960 px wide: more than four classes (three with hatched bars, which need
+    wider labels) wrap into further bands of panels below.
+    """
     facts = Facts(runs)
     t = THEMES[theme]
     devices = facts.devices()
@@ -450,25 +522,26 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
     for device, sub, tag in rows:
         for model in models:
             for engine in engines:
-                cell = cell_fn(facts, device, model, engine) if tag is None else cell_fn(facts, device, model, engine, tag)
-                grid[(device, sub, model, engine)] = cell
-    # Keep only rows, panels and engines that carry something to show.
-    present = [(k, c) for k, c in grid.items() if c is not None]
-    if not any(c.value is not None for _k, c in present):
+                for variant, _text in variants:
+                    grid[(device, sub, model, engine, variant)] = cell_fn(facts, device, model, engine, variant, tag)
+    present = [c for c in grid.values() if c is not None]
+    if not any(c.value is not None for c in present):
         return ""
-    rows = [r for r in rows if any(grid[(r[0], r[1], m, e)] is not None for m in models for e in engines)]
-    models = [m for m in models if any(c is not None for (_d, _s, mm, _e), c in grid.items() if mm == m)]
-    engines = [e for e in engines if any(c is not None for (_d, _s, _m, ee), c in grid.items() if ee == e)]
+    rows = [r for r in rows if any(grid[(r[0], r[1], m, e, v)] is not None
+                                   for m in models for e in engines for v, _ in variants)]
+    models = [m for m in models if any(c is not None for k, c in grid.items() if k[2] == m)]
+    engines = [e for e in engines if any(c is not None for k, c in grid.items() if k[3] == e)]
+    series = [(e, v) for e in engines for v, _ in variants]
 
-    pad, label_w, gap = 28, 196, 28
-    n = len(models)
-    panel_w = max(240.0, (960 - 2 * pad - label_w - gap * (n - 1)) / n)
-    width = int(2 * pad + label_w + gap * (n - 1) + panel_w * n)
-    bar_h, bar_gap = 12, 4
-    row_h = len(engines) * bar_h + (len(engines) - 1) * bar_gap + 16
-    value_room = 70 if any(c and c.hatched for _k, c in present) else 52
+    any_hatch = any(c.hatched for c in present)
+    cols = min(len(models), 3 if any_hatch else 4)
+    panel_w = (WIDTH - 2 * PAD - LABEL_W - COL_GAP * (cols - 1)) / cols
+    value_room = 92 if any_hatch else 54
+    block = len(series) * BAR_H + (len(series) - 1) * BAR_GAP
+    row_h = max(block + 16, 40)
+    has_sub = any(sub for _d, sub, _t in rows)
 
-    values = [c.value for _k, c in present if c.value is not None]
+    values = [c.value for c in present if c.value is not None]
     if ctx_axis:
         step, top = nice_top(max(values), unit=32768)
         tick_text = fmt_ctx
@@ -477,80 +550,111 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
         tick_text = fmt_tick
     scale = (panel_w - value_room) / top
 
-    el, y = header(title, subtitle, pad, width)
-    any_gap = any(c.value is None for _k, c in present) or any(grid[(r[0], r[1], m, e)] is None
-                                                                for r in rows for m in models for e in engines)
-    any_hatch = any(c.hatched for _k, c in present)
+    # vertical layout of one band: optional device header rows, then the data rows
+    layout, offset = [], 0
+    for r, (device, sub, tag) in enumerate(rows):
+        first = r == 0 or rows[r - 1][0] != device
+        if has_sub and first:
+            layout.append(("header", r, offset, 22))
+            offset += 22
+        layout.append(("row", r, offset, row_h))
+        offset += row_h
+    band_h = offset
+
+    el, y = header(title, subtitle, PAD, WIDTH)
     items = [("swatch", engine_color(e, theme), engine_name(e)) for e in engines]
-    if any_gap:
+    if len(variants) > 1:
+        items.append(("swatch", t["muted"], f"Solid bar: {variants[0][1]}"))
+        items.append(("faint", t["muted"], f"Lighter bar: {variants[1][1]}"))
+    if any(c is None or c.value is None for k, c in grid.items()
+           if any(k[0] == r[0] and k[1] == r[1] for r in rows)):
         items.append(("gap", "", "No bar: does not fit, skipped, failed or not measured"))
     if any_hatch:
         items.append(("hatch", t["muted"], "Hatched: requests were served one after another, not in parallel"))
     y += 26
-    leg, y = legend_items(items, pad, y, width - pad, t)
+    leg, y = legend_items(items, PAD, y, WIDTH - PAD, t)
     el += leg
 
-    y += 34
-    for m, model in enumerate(models):
-        px = pad + label_w + m * (panel_w + gap)
-        el.append(f'<text x="{px}" y="{y}" class="panel">Class {esc(model)}</text>')
-    body_top = y + 12
-    body_bottom = body_top + row_h * len(rows)
-
-    for m, model in enumerate(models):
-        px = pad + label_w + m * (panel_w + gap)
-        tick = 0.0
-        while tick <= top + 1e-9:
-            gx = px + tick * scale
-            if tick > 0:
-                el.append(f'<line x1="{gx:.1f}" y1="{body_top}" x2="{gx:.1f}" y2="{body_bottom}" class="grid"/>')
-            el.append(f'<text x="{gx:.1f}" y="{body_bottom + 16}" class="tick" '
-                      f'text-anchor="{"start" if tick == 0 else "middle"}">{tick_text(tick)}</text>')
-            tick += step
-        el.append(f'<line x1="{px}" y1="{body_top}" x2="{px}" y2="{body_bottom}" class="base"/>')
-        el.append(f'<text x="{px + top * scale + value_room - 6:.1f}" y="{body_bottom + 30}" class="tick" '
-                  f'text-anchor="end">{esc(unit)}</text>')
-
-        for r, (device, sub, _tag) in enumerate(rows):
-            ry = body_top + r * row_h + 8
-            cells = [(e, grid[(device, sub, model, e)]) for e in engines]
-            labels = {c.label if c else "not measured" for _e, c in cells if c is None or c.value is None}
-            if len(labels) == 1 and all(c is None or c.value is None for _e, c in cells):
-                el.append(f'<text x="{px + 8}" y="{ry + row_h / 2 - 4:.1f}" class="note">{esc(labels.pop())}</text>')
-                continue
-            for b, (engine, cell) in enumerate(cells):
-                by = ry + b * (bar_h + bar_gap)
-                if cell is None or cell.value is None:
-                    label = cell.label if cell else "not measured"
-                    el.append(f'<text x="{px + 8}" y="{by + bar_h - 1}" class="note">{esc(label)}</text>')
+    for band in chunks(models, cols):
+        y += 34
+        for m, model in enumerate(band):
+            px = PAD + LABEL_W + m * (panel_w + COL_GAP)
+            el.append(f'<text x="{px:.1f}" y="{y}" class="panel">Class {esc(model)}</text>')
+        body_top = y + 12
+        body_bottom = body_top + band_h
+        for m, model in enumerate(band):
+            px = PAD + LABEL_W + m * (panel_w + COL_GAP)
+            tick = 0.0
+            while tick <= top + 1e-9:
+                gx = px + tick * scale
+                if tick > 0:
+                    el.append(f'<line x1="{gx:.1f}" y1="{body_top}" x2="{gx:.1f}" y2="{body_bottom}" class="grid"/>')
+                el.append(f'<text x="{gx:.1f}" y="{body_bottom + 16}" class="tick" '
+                          f'text-anchor="{"start" if tick == 0 else "middle"}">{tick_text(tick)}</text>')
+                tick += step
+            el.append(f'<line x1="{px:.1f}" y1="{body_top}" x2="{px:.1f}" y2="{body_bottom}" class="base"/>')
+            el.append(f'<text x="{px + panel_w:.1f}" y="{body_bottom + 30}" class="tick" '
+                      f'text-anchor="end">{esc(unit)}</text>')
+            for kind, r, off, height in layout:
+                if kind != "row":
                     continue
-                w = cell.value * scale
-                tip = f"{device}{', ' + sub if sub else ''}, class {model}, {engine_name(engine)}: {fmt(cell.value)}{cell.suffix} {unit}"
-                if cell.hatched:
-                    tip += " (serialized)"
-                path = bar_path(px, by, w, bar_h)
-                color = engine_color(engine, theme)
-                el.append(f'<path d="{path}" fill="{color}"><title>{esc(tip)}</title></path>')
-                if cell.hatched:
-                    el.append(f'<path d="{path}" fill="url(#hatch)"/>')
-                text = fmt(cell.value) + cell.suffix + (" serialized" if cell.hatched else "")
-                el.append(f'<text x="{px + w + 6:.1f}" y="{by + bar_h - 1}" class="value">{esc(text)}</text>')
-
-    shown_devices = set()
-    for r, (device, sub, _tag) in enumerate(rows):
-        top_y = body_top + r * row_h
-        if r and rows[r - 1][0] != device:
-            el.append(f'<line x1="{pad}" y1="{top_y}" x2="{width - pad}" y2="{top_y}" class="row"/>')
-        if device not in shown_devices:
-            shown_devices.add(device)
-            el.append(f'<text x="{pad}" y="{top_y + (16 if sub else 20):.1f}" class="device">{esc(device)}</text>')
-        if sub:
+                device, sub, _tag = rows[r]
+                ry = body_top + off + (height - block) / 2
+                # a missing second bar (no cache step) is simply absent, not a gap worth a label
+                cells = [((e, v), grid[(device, sub, model, e, v)]) for e, v in series
+                         if v == "" or grid[(device, sub, model, e, v)] is not None]
+                if all(c is None or c.value is None for _s, c in cells):
+                    label = {c.label if c else "not measured" for _s, c in cells}
+                    if len(label) == 1:
+                        el.append(f'<text x="{px + 8:.1f}" y="{ry + block / 2 + 4:.1f}" class="note">{esc(label.pop())}</text>')
+                        continue
+                for (engine, variant), cell in cells:
+                    b = series.index((engine, variant))
+                    by = ry + b * (BAR_H + BAR_GAP)
+                    if cell is None or cell.value is None:
+                        label = cell.label if cell else "not measured"
+                        el.append(f'<text x="{px + 8:.1f}" y="{by + BAR_H - 1}" class="note">{esc(label)}</text>')
+                        continue
+                    w = cell.value * scale
+                    what = dict(variants).get(variant, "")
+                    tip = (f"{device}{', ' + sub if sub else ''}, class {model}, {engine_name(engine)}"
+                           f"{', ' + what if variant else ''}: {fmt(cell.value)}{cell.suffix} {unit}")
+                    if cell.hatched:
+                        tip += " (serialized)"
+                    path = bar_path(px, by, w, BAR_H)
+                    opacity = (f' fill-opacity="{FAINT}" stroke="{engine_color(engine, theme)}" stroke-width="1.5"'
+                               if variant else "")
+                    el.append(f'<path d="{path}" fill="{engine_color(engine, theme)}"{opacity}>'
+                              f'<title>{esc(tip)}</title></path>')
+                    if cell.hatched:
+                        el.append(f'<path d="{path}" fill="url(#hatch)"/>')
+                    text = fmt(cell.value) + cell.suffix + (" serialized" if cell.hatched else "")
+                    el.append(f'<text x="{px + w + 6:.1f}" y="{by + BAR_H - 1}" class="value">{esc(text)}</text>')
+        # row labels and separators of this band
+        for kind, r, off, height in layout:
+            device, sub, _tag = rows[r]
+            top_y = body_top + off
             first = r == 0 or rows[r - 1][0] != device
-            el.append(f'<text x="{pad + 12}" y="{top_y + (38 if first else 28):.1f}" class="note">{esc(sub)}</text>')
-    y = body_bottom + 30
-    foot, y = footer(notes, y, pad, width)
+            if first and r and kind == ("header" if has_sub else "row"):
+                el.append(f'<line x1="{PAD}" y1="{top_y}" x2="{WIDTH - PAD}" y2="{top_y}" class="row"/>')
+            if kind == "header":
+                el.append(f'<text x="{PAD}" y="{top_y + 15}" class="device">{esc(device)}</text>')
+            elif has_sub:
+                el.append(f'<text x="{PAD + 12}" y="{top_y + height / 2 + 4:.1f}" class="note">{esc(sub)}</text>')
+            elif first:
+                lines = wrap(clean(device), 13, LABEL_W - 4)[:2]
+                base = top_y + height / 2 + 4 - 8 * (len(lines) - 1)
+                for i, line in enumerate(lines):
+                    el.append(f'<text x="{PAD}" y="{base + 16 * i:.1f}" class="device">{esc(line)}</text>')
+        y = body_bottom + 30
+
+    shown = []
+    for suffix, text in (suffix_notes or {}).items():
+        if any(c.suffix == suffix for c in present):
+            shown.append(text)
+    foot, y = footer(list(notes) + shown, y, PAD, WIDTH)
     el += foot
-    return svg_document(width, int(y + pad - 6), theme, aria, el, any_hatch)
+    return svg_document(WIDTH, int(y + PAD - 6), theme, aria, el, any_hatch)
 
 
 # --------------------------------------------------------------------- the seven charts
@@ -588,17 +692,20 @@ def chart_prompt_processing(runs: list[dict], theme: str) -> str:
 def chart_ttft(runs: list[dict], theme: str) -> str:
     return bar_chart(runs, theme, title="Time to first token",
                      subtitle="Seconds from sending the prompt to the first token. Lower is better.",
-                     unit="s", cell_fn=speed_cell("ttft_s"), fmt=fmt_sec,
-                     notes=["Warm run, model already loaded, 8,192 token prompt, median of 3 repeats."],
+                     unit="s", cell_fn=ttft_cell, fmt=fmt_sec,
+                     variants=(("", "warm run, prompt read in full"),
+                               ("cache", "second request, prompt cache hit")),
+                     notes=["8,192 token prompt, model already loaded, median of 3 repeats. The second "
+                            "request repeats the same prompt and shows what the prompt cache saves."],
                      aria="Time to first token in seconds per device, model class and engine")
 
 
 def chart_max_context(runs: list[dict], theme: str) -> str:
     return bar_chart(runs, theme, title="Largest context that fits",
                      subtitle="Highest context size in tokens that loaded and answered on this device.",
-                     unit="tokens", cell_fn=context_cell, fmt=fmt_ctx, ctx_axis=True,
-                     notes=["A plus sign means the context ladder ended before a limit was found, so the real "
-                            "limit is higher."],
+                     unit="tokens", cell_fn=context_cell, fmt=fmt_ctx, ctx_axis=True, notes=[],
+                     suffix_notes={"+": "+ The context ladder ended on a working size, so the real limit is higher.",
+                                   "*": "* The ladder stopped on an error or abort above this size, so the limit is unknown."},
                      aria="Largest context size that fits per device, model class and engine")
 
 
@@ -606,7 +713,7 @@ def _concurrency_rows(facts: Facts, device: str):
     return [(device, f"{n} at once", n) for n in concurrency_levels(facts, device)]
 
 
-def _concurrency_cell(facts: Facts, device, model, engine, level):
+def _concurrency_cell(facts: Facts, device, model, engine, variant, level):
     entry = facts.get(device, engine, model, "concurrency", f"p{level}")
     if entry is None:
         return None
@@ -627,44 +734,66 @@ def chart_concurrency(runs: list[dict], theme: str) -> str:
 
 
 def memory_series(facts: Facts, device: str) -> list[dict]:
+    """Per engine and model: points (ctx, GB, model_GB or None), rungs that did not fit, rungs without a figure."""
     series = []
     for (d, engine, model) in facts.combos():
         if d != device:
             continue
-        ok, nofit = [], []
+        ok, nofit, nofigure = [], [], []
         for step, entry in facts.steps(d, engine, model, "memory").items():
             if not (step.startswith("ctx-") and step[4:].isdigit()):
                 continue
             n = int(step[4:])
-            used = number((entry.get("values") or {}).get("vram_used_mb"))
-            if entry.get("status") == "ok" and used is not None:
-                ok.append((n, used / GIB_MB))
+            values = entry.get("values") or {}
+            used = number(values.get("vram_used_mb"))
+            if entry.get("status") == "ok":
+                if used is None:
+                    nofigure.append(n)
+                    continue
+                base = number(values.get("vram_baseline_mb"))
+                net = (used - base) / GIB_MB if base is not None and used - base > 0 else None
+                ok.append((n, used / GIB_MB, net))
             elif entry.get("status") == "does_not_fit":
                 nofit.append(n)
-        if ok:
-            series.append({"engine": engine, "model": model, "points": sorted(ok), "nofit": sorted(nofit)})
+        if ok or nofit or nofigure:
+            series.append({"engine": engine, "model": model, "points": sorted(ok),
+                           "nofit": sorted(nofit), "nofigure": sorted(nofigure)})
     return series
 
 
 def chart_memory(runs: list[dict], theme: str) -> str:
     facts = Facts(runs)
     t = THEMES[theme]
-    panels = [(d, memory_series(facts, d)) for d in facts.devices()]
-    panels = [(d, s) for d, s in panels if s]
+    panels = []
+    for d in facts.devices():
+        series = memory_series(facts, d)
+        if any(s["points"] for s in series):
+            points = [p for s in series for p in s["points"]]
+            net = all(p[2] is not None for p in points)
+            panels.append((d, series, net))
     if not panels:
         return ""
-    all_ctx = sorted({n for _d, s in panels for ser in s for n, _g in ser["points"]} |
-                     {n for _d, s in panels for ser in s for n in ser["nofit"]})
-    peak = max(g for _d, s in panels for ser in s for _n, g in ser["points"])
+    value = lambda p, net: p[2] if net else p[1]  # noqa: E731
+    all_ctx = sorted({n for _d, s, _n in panels for ser in s for n in
+                      [p[0] for p in ser["points"]] + ser["nofit"] + ser["nofigure"]})
+    peak = max(value(p, net) for _d, s, net in panels for ser in s for p in ser["points"])
     top = max(float(MEMORY_LIMITS_GB[-1]), math.ceil(peak / 4) * 4.0)
     lo, hi = math.log2(all_ctx[0]), math.log2(all_ctx[-1])
     span = (hi - lo) or 1.0
 
-    pad, width = 28, 960
-    plot_l, plot_r = pad + 44, width - pad - 130
-    plot_h, panel_gap = 220, 64
-    engines = sorted({ser["engine"] for _d, s in panels for ser in s}, key=engine_rank)
-    models = sorted({ser["model"] for _d, s in panels for ser in s}, key=model_rank)
+    plot_l, plot_r, lim_r = PAD + 44, WIDTH - PAD - 190, WIDTH - PAD - 48
+    plot_h, panel_gap = 220, 36
+    engines = sorted({ser["engine"] for _d, s, _n in panels for ser in s}, key=engine_rank)
+    models = sorted({ser["model"] for _d, s, _n in panels for ser in s}, key=model_rank)
+    nets = {net for _d, _s, net in panels}
+    if nets == {True}:
+        what = ("GPU memory used by the model: in use after loading it minus in use before loading it, "
+                "in GB (1024 MiB).")
+    elif nets == {False}:
+        what = "Total GPU memory in use after loading the model, in GB (1024 MiB). It includes the desktop and other programs."
+    else:
+        what = ("GPU memory in GB (1024 MiB). Each chart says whether it shows the model alone (in use after "
+                "loading minus in use before) or the total card usage, which includes the desktop and other programs.")
 
     def px(ctx):
         return plot_l + (math.log2(ctx) - lo) / span * (plot_r - plot_l)
@@ -672,15 +801,13 @@ def chart_memory(runs: list[dict], theme: str) -> str:
     def py(gb, y0):
         return y0 + plot_h - gb / top * plot_h
 
-    el, y = header("GPU memory by context size",
-                   "GPU memory in use after loading the model with this context, in GB (1024 MiB). One chart "
-                   "per device; the dotted lines mark common card sizes.", pad, width)
-    items = [("swatch", engine_color(e, theme), engine_name(e)) for e in engines]
+    el, y = header("GPU memory by context size", what + " One chart per device; dotted lines mark common card sizes.",
+                   PAD, WIDTH)
     y += 26
-    leg, y = legend_items(items, pad, y, width - pad, t)
+    leg, y = legend_items([("swatch", engine_color(e, theme), engine_name(e)) for e in engines],
+                          PAD, y, WIDTH - PAD, t)
     el += leg
-    # line style per model class, drawn as short samples
-    lx = pad
+    lx = PAD
     y += 22
     for model in models:
         dash = DASHES.get(model, "")
@@ -689,12 +816,19 @@ def chart_memory(runs: list[dict], theme: str) -> str:
                   f'stroke-width="2"{attr}/>')
         el.append(f'<text x="{lx + 34}" y="{y}" class="legend">Class {esc(model)}</text>')
         lx += 34 + text_width(f"Class {model}", 12) + 22
-    if any(ser["nofit"] for _d, s in panels for ser in s):
-        el.append(f'<text x="{lx}" y="{y}" class="legend" fill="{t["primary"]}">x  did not fit at this context</text>')
+    if any(ser["nofit"] for _d, s, _n in panels for ser in s):
+        el.append(f'<text x="{lx + 4}" y="{y}" class="legend" style="fill:{t["primary"]}">x</text>')
+        el.append(f'<text x="{lx + 16}" y="{y}" class="legend">did not fit</text>')
+        lx += 16 + text_width("did not fit", 12) + 22
+    if any(ser["nofigure"] for _d, s, _n in panels for ser in s):
+        el.append(f'<circle cx="{lx + 5}" cy="{y - 4}" r="4" fill="none" stroke="{t["primary"]}" stroke-width="1.5"/>')
+        el.append(f'<text x="{lx + 16}" y="{y}" class="legend">ran, no memory figure</text>')
 
     y += 34
-    for device, series in panels:
-        el.append(f'<text x="{pad}" y="{y}" class="panel panel-title">{esc(device)}</text>')
+    for device, series, net in panels:
+        mode = "model memory" if net else "total card usage"
+        el.append(f'<text x="{PAD}" y="{y}" class="panel panel-title">{esc(device)}</text>')
+        el.append(f'<text x="{PAD + text_width(clean(device), 13) + 14:.0f}" y="{y}" class="sub">{mode}</text>')
         y0 = y + 14
         for gb in range(0, int(top) + 1, 4):
             gy = py(gb, y0)
@@ -703,46 +837,64 @@ def chart_memory(runs: list[dict], theme: str) -> str:
             el.append(f'<text x="{plot_l - 8}" y="{gy + 3:.1f}" class="tick" text-anchor="end">{gb}</text>')
         el.append(f'<line x1="{plot_l}" y1="{y0}" x2="{plot_l}" y2="{y0 + plot_h}" class="base"/>')
         el.append(f'<line x1="{plot_l}" y1="{y0 + plot_h}" x2="{plot_r}" y2="{y0 + plot_h}" class="base"/>')
-        el.append(f'<text x="{pad}" y="{y0 + plot_h / 2:.1f}" class="tick" text-anchor="middle" '
-                  f'transform="rotate(-90 {pad + 4} {y0 + plot_h / 2:.1f})">GB</text>')
+        el.append(f'<text x="{PAD}" y="{y0 + plot_h / 2:.1f}" class="tick" text-anchor="middle" '
+                  f'transform="rotate(-90 {PAD + 4} {y0 + plot_h / 2:.1f})">GB</text>')
         for ctx in all_ctx:
             el.append(f'<text x="{px(ctx):.1f}" y="{y0 + plot_h + 16}" class="tick" text-anchor="middle">{fmt_ctx(ctx)}</text>')
         for gb in MEMORY_LIMITS_GB:
             gy = py(gb, y0)
-            el.append(f'<line x1="{plot_l}" y1="{gy:.1f}" x2="{plot_r}" y2="{gy:.1f}" class="limit"/>')
-            el.append(f'<text x="{plot_l + 8}" y="{gy - 4:.1f}" class="limitlabel">{gb} GB</text>')
+            el.append(f'<line x1="{plot_l}" y1="{gy:.1f}" x2="{lim_r}" y2="{gy:.1f}" class="limit"/>')
+            el.append(f'<text x="{lim_r + 6}" y="{gy + 3:.1f}" class="limitlabel">{gb} GB</text>')
         ends = []
-        for index, ser in enumerate(series):
+        for ser in series:
+            if not ser["points"]:
+                continue
             color = engine_color(ser["engine"], theme)
             dash = DASHES.get(ser["model"], "")
             attr = f' stroke-dasharray="{dash}"' if dash else ""
-            pts = " ".join(f"{px(n):.1f},{py(g, y0):.1f}" for n, g in ser["points"])
             name = f"{engine_name(ser['engine'])}, class {ser['model']}"
+            pts = " ".join(f"{px(p[0]):.1f},{py(value(p, net), y0):.1f}" for p in ser["points"])
             el.append(f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2"{attr}>'
                       f'<title>{esc(device + ", " + name)}</title></polyline>')
-            for n, g in ser["points"]:
-                el.append(f'<circle cx="{px(n):.1f}" cy="{py(g, y0):.1f}" r="4" fill="{color}" '
-                          f'stroke="{t["surface"]}" stroke-width="2"><title>{esc(name)}: {fmt_ctx(n)}, {g:.1f} GB</title></circle>')
-            for n in ser["nofit"]:
-                cx, cy = px(n), y0 + 10 + index * 11
-                el.append(f'<text x="{cx:.1f}" y="{cy + 4:.1f}" class="legend" text-anchor="middle" '
-                          f'fill="{color}" style="fill:{color}">x<title>{esc(name)}: does not fit at {fmt_ctx(n)}</title></text>')
-            last_n, last_g = ser["points"][-1]
-            ends.append([py(last_g, y0), f"{engine_name(ser['engine'])} {ser['model']}", color, px(last_n)])
-        # direct labels at the line ends, pushed apart so they never overlap
+            for p in ser["points"]:
+                el.append(f'<circle cx="{px(p[0]):.1f}" cy="{py(value(p, net), y0):.1f}" r="4" fill="{color}" '
+                          f'stroke="{t["surface"]}" stroke-width="2"><title>{esc(name)}: {fmt_ctx(p[0])}, '
+                          f'{value(p, net):.1f} GB</title></circle>')
+            last = ser["points"][-1]
+            ends.append([py(value(last, net), y0), f"{engine_name(ser['engine'])} {ser['model']}", px(last[0])])
         ends.sort(key=lambda e: (e[0], e[1]))
         for i in range(1, len(ends)):
             ends[i][0] = max(ends[i][0], ends[i - 1][0] + 12)
-        for ey, text, _color, ex in ends:
+        for ey, text, ex in ends:
             el.append(f'<text x="{ex + 9:.1f}" y="{ey + 3:.1f}" class="note">{esc(text)}</text>')
-        y = y0 + plot_h + panel_gap - 14
-    foot, y = footer(["Measured with the context ladder, f16 KV cache, whole model on the GPU."], y - 30, pad, width)
+        # strip below the axis: rungs that did not fit (x) or ran without a memory figure (hollow circle)
+        sy = y0 + plot_h + 32
+        for ser in series:
+            if not (ser["nofit"] or ser["nofigure"]):
+                continue
+            color = engine_color(ser["engine"], theme)
+            name = f"{engine_name(ser['engine'])}, class {ser['model']}"
+            for n in ser["nofit"]:
+                el.append(f'<text x="{px(n):.1f}" y="{sy + 4}" class="nofit" text-anchor="middle" '
+                          f'style="fill:{color};font-size:13px;font-weight:700">x'
+                          f'<title>{esc(name)}: does not fit at {fmt_ctx(n)}</title></text>')
+            for n in ser["nofigure"]:
+                el.append(f'<circle cx="{px(n):.1f}" cy="{sy}" r="4" fill="{t["surface"]}" stroke="{color}" '
+                          f'stroke-width="1.5" class="nofigure"><title>{esc(name)}: ran at {fmt_ctx(n)}, '
+                          f'no memory figure</title></circle>')
+            el.append(f'<text x="{plot_r + 14}" y="{sy + 4}" class="note">{esc(engine_name(ser["engine"]))} {esc(ser["model"])}</text>')
+            sy += 14
+        y = sy + panel_gap - 14
+    notes = ["Measured with the context ladder, f16 KV cache, whole model on the GPU."]
+    if not all(net for _d, _s, net in panels):
+        notes.append("Total card usage includes the desktop and other programs.")
+    foot, y = footer(notes, y - 24, PAD, WIDTH)
     el += foot
-    return svg_document(width, int(y + pad - 6), theme, "GPU memory by context size per device", el, False)
+    return svg_document(WIDTH, int(y + PAD - 6), theme, "GPU memory by context size per device", el, False)
 
 
 def smoke_table(runs: list[dict]) -> dict:
-    """(device, engine, model) -> {category: (passed, judged)} from the newest result of every task."""
+    """(device, engine, model) -> {category: (passed, judged)} from the newest run that has smoke results."""
     facts = Facts(runs)
     table: dict = {}
     for (device, engine, model, suite, _task), entry in sorted(facts.entries.items()):
@@ -750,14 +902,17 @@ def smoke_table(runs: list[dict]) -> dict:
             continue
         values = entry.get("values") or {}
         passed = values.get("passed")
-        if not isinstance(passed, bool):
-            continue
         category = values.get("category")
-        if not isinstance(category, str):
+        if not isinstance(passed, bool) or not isinstance(category, str):
             continue
         done, total = table.setdefault((device, engine, model), {}).get(category, (0, 0))
         table[(device, engine, model)][category] = (done + (1 if passed else 0), total + 1)
     return table
+
+
+def ramp_step(done: int, total: int) -> int:
+    """Five bins of pass rate: 0-19, 20-39, 40-59, 60-79, 80-100 percent."""
+    return min(4, int(done / total * 5))
 
 
 def chart_smoke(runs: list[dict], theme: str) -> str:
@@ -771,20 +926,22 @@ def chart_smoke(runs: list[dict], theme: str) -> str:
     cats = [c for c in CATEGORY_ORDER if any(c in table[k] for k in keys)]
     cats += sorted({c for k in keys for c in table[k]} - set(cats))
 
-    pad, label_w, cw, ch, cg = 28, 170, 76, 28, 3
-    width = max(960, 2 * pad + label_w + len(cats) * (cw + cg))
+    cg, label_w = 3, 170
+    cw = min(76, (WIDTH - 2 * PAD - label_w) // len(cats) - cg)
+    ch = 28
     el, y = header("Smoke tests passed",
-                   "Passed tasks out of judged tasks per category. Only the newest result per device, engine "
-                   "and model counts.", pad, width)
+                   "Passed tasks out of judged tasks per category. All results of a device, engine and model "
+                   "come from its newest run.", PAD, WIDTH)
     items = [("swatch", RAMP[theme][i], label) for i, label in enumerate(["0-19%", "20-39%", "40-59%", "60-79%", "80-100%"])]
     items.append(("gap", "", "No judged task in this category"))
     y += 26
-    leg, y = legend_items(items, pad, y, width - pad, t)
+    leg, y = legend_items(items, PAD, y, WIDTH - PAD, t)
     el += leg
     y += 30
     for c, cat in enumerate(cats):
-        cx = pad + label_w + c * (cw + cg) + cw / 2
-        el.append(f'<text x="{cx:.1f}" y="{y}" class="panel" text-anchor="middle">{esc(cat.replace("_", " "))}</text>')
+        cx = PAD + label_w + c * (cw + cg) + cw / 2
+        el.append(f'<text x="{cx:.1f}" y="{y}" class="panel" text-anchor="middle" style="font-size:12px">'
+                  f'{esc(cat.replace("_", " "))}</text>')
     y += 10
     device = None
     for key in keys:
@@ -792,29 +949,28 @@ def chart_smoke(runs: list[dict], theme: str) -> str:
         if d != device:
             device = d
             y += 10
-            el.append(f'<text x="{pad}" y="{y + 16}" class="device">{esc(d)}</text>')
+            el.append(f'<text x="{PAD}" y="{y + 16}" class="device">{esc(d)}</text>')
             y += 24
-        el.append(f'<text x="{pad + 14}" y="{y + ch / 2 + 4:.1f}" class="note">{esc(engine_name(engine))}, class {esc(model)}</text>')
+        el.append(f'<text x="{PAD + 14}" y="{y + ch / 2 + 4:.1f}" class="note">{esc(engine_name(engine))}, class {esc(model)}</text>')
         for c, cat in enumerate(cats):
-            cx = pad + label_w + c * (cw + cg)
+            cx = PAD + label_w + c * (cw + cg)
             if cat not in table[key]:
                 el.append(f'<rect x="{cx}" y="{y}" width="{cw}" height="{ch}" rx="4" class="gapbox"/>')
                 el.append(f'<text x="{cx + cw / 2}" y="{y + ch / 2 + 4:.1f}" class="note" text-anchor="middle">-</text>')
                 continue
             done, total = table[key][cat]
-            ratio = done / total
-            step = min(4, int(ratio * 5))
-            ink = t["primary"] if RAMP_DARK_INK[theme][step] and theme == "light" else (
-                "#0d1117" if RAMP_DARK_INK[theme][step] else "#ffffff")
+            step = ramp_step(done, total)
+            dark_ink = RAMP_DARK_INK[theme][step]
+            ink = (t["primary"] if theme == "light" else "#0d1117") if dark_ink else "#ffffff"
             el.append(f'<rect x="{cx}" y="{y}" width="{cw}" height="{ch}" rx="4" fill="{RAMP[theme][step]}">'
                       f'<title>{esc(d)}, {esc(engine_name(engine))}, class {esc(model)}, {esc(cat)}: {done} of {total} passed</title></rect>')
             el.append(f'<text x="{cx + cw / 2}" y="{y + ch / 2 + 4:.1f}" class="cell" text-anchor="middle" '
                       f'style="fill:{ink}">{done}/{total}</text>')
         y += ch + cg
     foot, y = footer(["Tasks the checker cannot judge, and tasks that were skipped or failed to run, are not counted."],
-                     y + 6, pad, width)
+                     y + 6, PAD, WIDTH)
     el += foot
-    return svg_document(width, int(y + pad - 6), theme, "Smoke tests passed per device, engine, model class and category", el, False)
+    return svg_document(WIDTH, int(y + PAD - 6), theme, "Smoke tests passed per device, engine, model class and category", el, False)
 
 
 # name, heading, description sentence, renderer
@@ -942,5 +1098,12 @@ def run(root: Path = ROOT, check: bool = False) -> int:
     return 0
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Build the README charts and run list from runs/*/results.json.")
+    parser.add_argument("--check", action="store_true", help="exit 1 if a generated file is out of date")
+    args = parser.parse_args(argv)
+    return run(ROOT, check=args.check)
+
+
 if __name__ == "__main__":
-    sys.exit(run(ROOT, check="--check" in sys.argv))
+    sys.exit(main())

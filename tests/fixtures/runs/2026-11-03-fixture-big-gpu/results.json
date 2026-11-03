@@ -26,7 +26,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 9420
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 11264
       }
     },
     "llamacpp/M/memory/ctx-32768": {
@@ -40,7 +41,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 12492
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 14336
       }
     },
     "llamacpp/M/memory/ctx-8192": {
@@ -54,7 +56,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 10035
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 11878
       }
     },
     "llamacpp/M/smoke/code-1": {
@@ -178,6 +181,18 @@
         "reason": ""
       }
     },
+    "llamacpp/M/speed/cache": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8100,
+        "first_ttft_s": 2.8,
+        "ttft_s": 0.22399999999999998
+      }
+    },
     "llamacpp/M/speed/cold": {
       "finished_at": "2026-11-03T10:05:00Z",
       "meta": {},
@@ -256,7 +271,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 9420
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 11264
       }
     },
     "llamacpp/S/memory/ctx-2048": {
@@ -270,7 +286,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 2969
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 4812
       }
     },
     "llamacpp/S/memory/ctx-32768": {
@@ -284,7 +301,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 4505
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 6348
       }
     },
     "llamacpp/S/memory/ctx-8192": {
@@ -298,7 +316,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 3276
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 5120
       }
     },
     "llamacpp/S/smoke/code-1": {
@@ -422,6 +441,18 @@
         "reason": "wrong answer"
       }
     },
+    "llamacpp/S/speed/cache": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8100,
+        "first_ttft_s": 1.0,
+        "ttft_s": 0.08
+      }
+    },
     "llamacpp/S/speed/cold": {
       "finished_at": "2026-11-03T10:05:00Z",
       "meta": {},
@@ -476,7 +507,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 10342
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 12185
       }
     },
     "ollama/M/memory/ctx-32768": {
@@ -490,7 +522,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 13414
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 15257
       }
     },
     "ollama/M/memory/ctx-8192": {
@@ -504,7 +537,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 10956
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 12800
       }
     },
     "ollama/M/smoke/code-1": {
@@ -628,6 +662,18 @@
         "reason": ""
       }
     },
+    "ollama/M/speed/cache": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8100,
+        "first_ttft_s": 3.1111111111111107,
+        "ttft_s": 0.24888888888888885
+      }
+    },
     "ollama/M/speed/cold": {
       "finished_at": "2026-11-03T10:05:00Z",
       "meta": {},
@@ -706,7 +752,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 10342
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 12185
       }
     },
     "ollama/S/memory/ctx-2048": {
@@ -720,7 +767,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 3891
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 5734
       }
     },
     "ollama/S/memory/ctx-32768": {
@@ -734,7 +782,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 5427
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 7270
       }
     },
     "ollama/S/memory/ctx-8192": {
@@ -748,7 +797,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 4198
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 6041
       }
     },
     "ollama/S/smoke/code-1": {
@@ -870,6 +920,18 @@
         "category": "tool_calls",
         "passed": false,
         "reason": "wrong answer"
+      }
+    },
+    "ollama/S/speed/cache": {
+      "finished_at": "2026-11-03T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8100,
+        "first_ttft_s": 1.1111111111111112,
+        "ttft_s": 0.08888888888888889
       }
     },
     "ollama/S/speed/cold": {

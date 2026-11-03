@@ -53,7 +53,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 2969
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 4812
       }
     },
     "llamacpp/S/memory/ctx-32768": {
@@ -67,7 +68,8 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 4505
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 6348
       }
     },
     "llamacpp/S/memory/ctx-8192": {
@@ -81,7 +83,20 @@
         "load_s": 4.0,
         "prompt_tps": 3000.0,
         "ttft_s": 2.0,
-        "vram_used_mb": 3276
+        "vram_baseline_mb": 1843,
+        "vram_used_mb": 5120
+      }
+    },
+    "llamacpp/S/speed/cache": {
+      "finished_at": "2026-11-02T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-02T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8100,
+        "first_ttft_s": 4.0,
+        "ttft_s": 0.32
       }
     },
     "llamacpp/S/speed/cold": {

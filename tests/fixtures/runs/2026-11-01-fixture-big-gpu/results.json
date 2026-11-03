@@ -127,6 +127,18 @@
         "reason": ""
       }
     },
+    "llamacpp/S/speed/cache": {
+      "finished_at": "2026-11-01T10:05:00Z",
+      "meta": {},
+      "started_at": "2026-11-01T10:00:00Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8100,
+        "first_ttft_s": 2.0,
+        "ttft_s": 0.16
+      }
+    },
     "llamacpp/S/speed/cold": {
       "finished_at": "2026-11-01T10:05:00Z",
       "meta": {},

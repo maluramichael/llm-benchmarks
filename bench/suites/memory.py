@@ -129,6 +129,9 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
         try:
             engine.unload(ctx.model)
             before = take_reading(guard.gpu_index)
+            # Used VRAM with this model unloaded (desktop, other programs): the chart subtracts it.
+            if before.vram_free_mb is not None and guard.vram_total_mb:
+                values["vram_baseline_mb"] = guard.vram_total_mb - before.vram_free_mb
             allowed, why = guard.before_step(int(estimates.get(n, 0) // MIB), before)
             if not allowed:
                 store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)

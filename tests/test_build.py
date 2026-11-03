@@ -29,10 +29,13 @@ old
 """
 
 
-def make_root(extra=None):
+def make_root(extra=None, fixtures=True):
     """A temporary repo root with the fixture runs and a README with markers."""
     tmp = Path(tempfile.mkdtemp())
-    shutil.copytree(FIXTURES, tmp / "runs")
+    if fixtures:
+        shutil.copytree(FIXTURES, tmp / "runs")
+    else:
+        (tmp / "runs").mkdir()
     (tmp / "README.md").write_text(README_TEMPLATE, encoding="utf-8")
     for name, data in (extra or {}).items():
         (tmp / "runs" / name).mkdir()
