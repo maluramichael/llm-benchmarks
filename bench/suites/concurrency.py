@@ -52,7 +52,7 @@ from threading import Event
 from bench.engines.base import EngineError, Sampling
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, median,
-                          model_missing, now, prepare_counting, reset_state, step_meta)
+                          model_missing, now, offload_fields, prepare_counting, reset_state, step_meta)
 
 MIB = 1024 * 1024
 DEFAULT_LEVELS = [1, 2, 4, 8]
@@ -177,6 +177,7 @@ def _level(ctx: RunContext, n: int, base_slot: int, meta: dict) -> str:
             prepare_counting(ctx, SLOT_CTX * n)
             prompts = [make_prompt(ctx, PROMPT_TOKENS, slot) for slot in slots]
             values.update(_measure(ctx, prompts))
+            values.update(offload_fields(ctx))
             values.update(_effective(engine, n))  # a serialised level is real: stays ok
             after = take_reading(guard.gpu_index, _gpu_fraction(engine, ctx.model))
             allowed, why = guard.after_step(before, after)

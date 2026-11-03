@@ -266,6 +266,20 @@ class ConcurrencyTest(unittest.TestCase):
         self.assertEqual(self.entry(ctx, 4)["status"], "does_not_fit")
         self.assertEqual(self.entry(ctx, 8)["status"], "skipped")
 
+    def test_partial_offload_is_recorded_per_level(self):
+        engine = ConcurrencyEngine()
+        engine.fraction = 0.5
+        ctx = self.run_levels(engine, [1])
+        values = self.entry(ctx, 1)["values"]
+        self.assertEqual(self.entry(ctx, 1)["status"], "ok")
+        self.assertTrue(values["partial_offload"])
+        self.assertEqual(values["gpu_fraction"], 0.5)
+
+    def test_full_offload_has_no_partial_flag(self):
+        values = self.entry(self.run_levels(ConcurrencyEngine(), [1]), 1)["values"]
+        self.assertEqual(values["gpu_fraction"], 1.0)
+        self.assertNotIn("partial_offload", values)
+
     def test_missing_model_is_error_not_does_not_fit(self):
         class Missing(ConcurrencyEngine):
             def load(self, model, ctx, parallel=1):

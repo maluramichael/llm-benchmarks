@@ -190,6 +190,16 @@ class RenderTest(unittest.TestCase):
     def test_deterministic(self):
         self.assertEqual(self.text, report.render_run_readme(sample_results()))
 
+    def test_partial_offload_is_visible(self):
+        data = sample_results()
+        data["tests"]["llamacpp/S/speed/warm"]["values"].update(
+            partial_offload=True, gpu_fraction=0.62)
+        data["tests"]["llamacpp/S/smoke/math-1"]["values"].update(
+            partial_offload=True, gpu_fraction=0.62)
+        text = report.render_run_readme(data)
+        self.assertGreaterEqual(text.count("partial offload: 62 % on the GPU"), 2)
+        self.assertNotIn("partial offload", self.text)
+
     def test_unsafe_raw_links_are_not_linked(self):
         data = sample_results()
         data["tests"]["llamacpp/S/smoke/math-1"]["values"]["raw"] = "../../etc/passwd"

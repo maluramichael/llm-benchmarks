@@ -181,6 +181,74 @@ def median(values) -> float | int | None:
     return statistics.median(present) if present else None
 
 
+PARTIAL = 0.999  # below this share on the GPU a model is partly offloaded to the CPU
+
+
+def offload_fields(ctx: RunContext) -> dict:
+    """gpu_fraction of the loaded model and, when known and below 100 %, partial_offload
+    True. The step result is real, but not "whole model on the GPU": charts and README mark
+    it. Call it while the model is still loaded; an unknown fraction gives {}."""
+    try:
+        fraction = ctx.engine.gpu_fraction(ctx.model)
+    except Exception:
+        return {}
+    if not isinstance(fraction, (int, float)):
+        return {}
+    fields: dict = {"gpu_fraction": fraction}
+    if fraction < PARTIAL:
+        fields["partial_offload"] = True
+    return fields
+
+
+def stored_no_fit(ctx: RunContext, n_ctx: int) -> str | None:
+    """Why the model cannot be loaded with `n_ctx` tokens when the memory suite already
+    found out: `memory/fit` or a rung of the same or a smaller context is `does_not_fit`."""
+    if (ctx.store.get(key(ctx, "memory", "fit")) or {}).get("status") == "does_not_fit":
+        return "does not fit (guard): memory/fit is does_not_fit"
+    prefix = key(ctx, "memory", "ctx-")
+    for test_key, entry in ctx.store.data["tests"].items():
+        rest = test_key[len(prefix):]
+        if (test_key.startswith(prefix) and rest.isdigit() and int(rest) <= n_ctx
+                and entry.get("status") == "does_not_fit"):
+            return f"does not fit (guard): memory/ctx-{rest} is does_not_fit"
+    return None
+
+
+def memory_estimate_mb(ctx: RunContext, n_ctx: int, parallel: int = 1) -> int | None:
+    """Weights plus KV cache for `n_ctx` tokens per slot, from memory/computed; None if
+    that step is missing or has no figures."""
+    values = (ctx.store.get(key(ctx, "memory", "computed")) or {}).get("values") or {}
+    weights, per_token = values.get("weights_bytes"), values.get("kv_bytes_per_token")
+    if not weights or per_token is None:
+        return None
+    return int((weights + per_token * n_ctx * parallel) // (1024 * 1024))
+
+
+def guard_refusal(ctx: RunContext, n_ctx: int, read_vram, parallel: int = 1) -> str | None:
+    """None when the model may be loaded with `n_ctx` tokens, else the reason ("does not
+    fit (guard): ..."). `read_vram(gpu_index)` takes the VRAM reading (the suite's own
+    take_reading). Without an estimate nothing is checked. The model is unloaded first so
+    the reading shows what is free without it."""
+    stored = stored_no_fit(ctx, n_ctx)
+    if stored:
+        return stored
+    estimate = memory_estimate_mb(ctx, n_ctx, parallel)
+    if estimate is None:
+        return None
+    try:
+        ctx.engine.unload(ctx.model)
+    except Exception:
+        pass
+    allowed, why = ctx.guard.before_step(estimate, read_vram(ctx.guard.gpu_index))
+    return None if allowed else f"does not fit (guard): {why}"
+
+
+def skip_for_guard(ctx: RunContext, test_keys: list[str], reason: str, meta: dict,
+                   extra: dict | None = None) -> None:
+    for test_key in test_keys:
+        ctx.store.save(test_key, "skipped", {**(extra or {}), "reason": reason}, meta)
+
+
 def scope_skip(ctx: RunContext, test_key: str, extra: dict | None = None, meta=None) -> None:
     """Store a step that the chosen --scope leaves out (no memory ladder, so the context size
     it needs will never exist). The entry is `skipped` with `scope_skipped` True: unlike a

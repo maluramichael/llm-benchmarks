@@ -71,6 +71,10 @@ def _note(entry: dict) -> str:
     for name in ("reason", "error"):
         if values.get(name):
             parts.append(str(values[name]))
+    if values.get("partial_offload"):
+        share = values.get("gpu_fraction")
+        parts.append("partial offload" + (f": {share * 100:.0f} % on the GPU"
+                                          if isinstance(share, (int, float)) else ""))
     if values.get("serialized_note"):
         parts.append(str(values["serialized_note"]))
     if values.get("cache_contaminated"):

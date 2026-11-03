@@ -12,6 +12,11 @@ engine call failed (retried next run), `aborted` after a driver reset (never rep
 automatically, only with --force / --force-test), `skipped` for code tasks under
 --no-code-exec (the engine is not even asked) and for long context when no context step fits.
 
+Before the first load the guard is asked for the memory estimate at 8,192 tokens: refused
+(or a smaller memory rung is does_not_fit) means every task still to run is stored `skipped`
+with "does not fit (guard): <reason>". Each judged task records gpu_fraction and, below
+100 %, partial_offload.
+
 Thinking is off unless `--thinking on`: Ollama `think=false`, llama.cpp
 `chat_template_kwargs.enable_thinking=false` (both done by the engine adapters). The state is
 stored in `meta.thinking`. Only the adapter's content field is judged, never thinking text.
@@ -41,9 +46,10 @@ from bench.checkers import check, to_store
 from bench.corpus import needle_text
 from bench.engines.base import Sampling
 from bench.privacy import local_secrets, scrub
+from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, exact_counts,
-                          forced, key, now, reset_state, retry_truncated, scope_skip, step_meta,
-                          wants_run)
+                          forced, guard_refusal, key, now, offload_fields, reset_state,
+                          retry_truncated, scope_skip, skip_for_guard, step_meta, wants_run)
 
 TASKS_DIR = Path(__file__).resolve().parent.parent / "data" / "tasks"
 CATEGORY_COUNTS = {"math": 8, "code": 6, "json": 5, "tool_calls": 5, "long_context": 3,
@@ -130,6 +136,21 @@ def run_smoke(ctx: RunContext) -> None:
     tasks = load_tasks(",".join(cfg.tasks) or None)
     meta = {**step_meta(ctx), "thinking": bool(cfg.thinking)}
     state = {"ctx": None}
+    pending = []
+    for task in tasks:
+        test_key = key(ctx, "smoke", task["id"])
+        entry = ctx.store.get(test_key)
+        if (wants_run(ctx, test_key) and not (task["check"]["type"] == "code" and cfg.no_code_exec)
+                and not (entry and entry["status"] == "aborted" and not forced(ctx, test_key))):
+            pending.append(task)
+    if pending:  # the guard applies to every suite, not only to memory
+        refusal = guard_refusal(ctx, SMOKE_CTX, take_reading)
+        if refusal:
+            for task in pending:
+                skip_for_guard(ctx, [key(ctx, "smoke", task["id"])], refusal, meta,
+                               {"category": task["category"]})
+            pending_ids = {t["id"] for t in pending}
+            tasks = [t for t in tasks if t["id"] not in pending_ids]
     for task in tasks:
         test_key = key(ctx, "smoke", task["id"])
         if not wants_run(ctx, test_key):
@@ -198,6 +219,7 @@ def _run_task(ctx: RunContext, task: dict, test_key: str, length: int | None, st
     values = {"passed": passed, "reason": _clean(reason), "category": task["category"],
               "raw": _write_raw(ctx, task["id"], result), "gen_tokens": result.timing.gen_tokens,
               "driver_reset_check": check_state}
+    values.update(offload_fields(ctx))
     if length is not None:
         values["context_tokens"] = length
     ctx.store.save(test_key, status, values, meta)

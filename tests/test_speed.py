@@ -37,6 +37,18 @@ def make_ctx(tmp, engine, cfg=None, guard=None):
                       Path(tmp) / "raw")
 
 
+class RefusingGuard(Guard):
+    """Refuses every load and remembers what it was asked for."""
+
+    def __init__(self):
+        super().__init__()
+        self.required = []
+
+    def before_step(self, required_mb, reading):
+        self.required.append(required_mb)
+        return False, "only 300 MB would stay free"
+
+
 class SpeedTest(unittest.TestCase):
     def setUp(self):
         patcher = mock.patch.object(speed, "take_reading",
@@ -275,6 +287,76 @@ class SpeedTest(unittest.TestCase):
             speed.run_speed(ctx)
         self.assertEqual(ctx.store.get(key(ctx, "speed", "llama-bench-deep"))["status"], "ok")
 
+    def refusing_ctx(self, engine=None):
+        ctx = make_ctx(self.tmp.name, engine or FakeEngine(), guard=RefusingGuard())
+        ctx.store.save(key(ctx, "memory", "computed"), "ok",
+                       {"weights_bytes": 20 * 1024**3, "kv_bytes_per_token": 131072})
+        return ctx
+
+    def test_guard_refusal_skips_every_step_without_loading(self):
+        engine = FakeEngine(name="llamacpp")
+        ctx = self.refusing_ctx(engine)
+        ctx.cfg.llama_bench = self.BENCH
+        speed.run_speed(ctx)
+        for step in ("cold", "warm", "cache", "llama-bench", "llama-bench-deep"):
+            entry = ctx.store.get(key(ctx, "speed", step))
+            self.assertEqual(entry["status"], "skipped", step)
+            self.assertEqual(entry["values"]["reason"],
+                             "does not fit (guard): only 300 MB would stay free")
+        self.assertFalse([c for c in engine.calls if c.startswith("load") or c == "complete"])
+        self.assertEqual(ctx.guard.required, [(20 * 1024 + 1280)])  # weights + KV at 10240
+
+    def test_guard_estimate_includes_the_kv_cache_of_the_speed_context(self):
+        ctx = self.refusing_ctx()
+        speed.run_speed(ctx)
+        self.assertEqual(ctx.guard.required, [20 * 1024 + 1280])
+
+    def test_stored_memory_does_not_fit_skips_without_asking_the_guard(self):
+        ctx = make_ctx(self.tmp.name, FakeEngine())
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {"reason": "VRAM"})
+        speed.run_speed(ctx)
+        entry = ctx.store.get(key(ctx, "speed", "warm"))
+        self.assertEqual(entry["status"], "skipped")
+        self.assertIn("memory/ctx-8192", entry["values"]["reason"])
+        self.assertFalse([c for c in ctx.engine.calls if c == "complete"])
+
+    def test_a_larger_failed_rung_does_not_block_a_smaller_context(self):
+        ctx = make_ctx(self.tmp.name, FakeEngine())
+        ctx.store.save(key(ctx, "memory", "ctx-16384"), "does_not_fit", {"reason": "VRAM"})
+        speed.run_speed(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "speed", "warm"))["status"], "ok")
+
+    def test_final_steps_do_not_ask_the_guard_again(self):
+        ctx = self.refusing_ctx()
+        speed.run_speed(ctx)
+        ctx.guard.required.clear()
+        speed.run_speed(ctx)
+        self.assertEqual(ctx.guard.required, [])
+
+    def test_partial_offload_is_recorded_and_the_step_stays_ok(self):
+        engine = FakeEngine()
+        engine.fraction = 0.6
+        ctx = self.run_speed(engine)
+        for step in ("cold", "warm", "cache"):
+            entry = ctx.store.get(key(ctx, "speed", step))
+            self.assertEqual(entry["status"], "ok")
+            self.assertTrue(entry["values"]["partial_offload"], step)
+            self.assertEqual(entry["values"]["gpu_fraction"], 0.6)
+
+    def test_full_offload_records_the_fraction_only(self):
+        ctx = self.run_speed(FakeEngine())
+        values = ctx.store.get(key(ctx, "speed", "warm"))["values"]
+        self.assertEqual(values["gpu_fraction"], 1.0)
+        self.assertNotIn("partial_offload", values)
+
+    def test_unknown_fraction_records_nothing(self):
+        engine = FakeEngine()
+        engine.gpu_fraction = lambda model: None
+        ctx = self.run_speed(engine)
+        values = ctx.store.get(key(ctx, "speed", "warm"))["values"]
+        self.assertNotIn("partial_offload", values)
+        self.assertNotIn("gpu_fraction", values)
+
     def test_deep_pending_when_ladder_has_error(self):
         ctx = self.bench_ctx()
         ctx.store.save(key(ctx, "memory", "ctx-8192"), "error", {"error": "x"})
@@ -284,13 +366,20 @@ class SpeedTest(unittest.TestCase):
 
     def test_deep_skipped_when_no_step_fits(self):
         ctx = self.bench_ctx()
-        ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {})
-        ctx.store.save(key(ctx, "memory", "ctx-16384"), "skipped", {})
+        ctx.store.save(key(ctx, "memory", "ctx-16384"), "does_not_fit", {})
+        ctx.store.save(key(ctx, "memory", "ctx-32768"), "skipped", {})
         with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench([])):
             speed.run_speed(ctx)
         deep = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))
         self.assertEqual(deep["status"], "skipped")
         self.assertEqual(deep["values"]["reason"], "no context step fits")
+        # a rung at or below the speed context that did not fit skips the whole suite instead
+        (Path(self.tmp.name) / "results.json").unlink()
+        ctx2 = self.bench_ctx()
+        ctx2.store.save(key(ctx2, "memory", "ctx-8192"), "does_not_fit", {})
+        speed.run_speed(ctx2)
+        self.assertTrue(ctx2.store.get(key(ctx2, "speed", "llama-bench-deep"))["values"]
+                        ["reason"].startswith("does not fit (guard)"))
 
     def test_deep_refused_by_guard(self):
         guard = Guard()

@@ -41,8 +41,79 @@ class Guard:
     def __init__(self, reset=False):
         self.reset = reset
 
+    def before_step(self, required_mb, reading):
+        return True, "ok"
+
     def driver_reset_since(self, ts):
         return self.reset
+
+
+class RefusingGuard(Guard):
+    def __init__(self):
+        super().__init__()
+        self.required = []
+
+    def before_step(self, required_mb, reading):
+        self.required.append(required_mb)
+        return False, "only 300 MB would stay free"
+
+
+class SmokeGuardTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def ctx(self, engine=None, guard=None, cfg=None, computed=True):
+        model = ModelRef("m1", "S", "q4", None, None, "sha-1", 4 * 1024**3)
+        store = ResultStore(Path(self.tmp.name) / "results.json")
+        ctx = RunContext(cfg or Config(no_code_exec=True), engine or ChatEngine(),
+                         model, store, guard or RefusingGuard(), CORPUS,
+                         Path(self.tmp.name) / "raw")
+        if computed:
+            store.save(key(ctx, "memory", "computed"), "ok",
+                       {"weights_bytes": 20 * 1024**3, "kv_bytes_per_token": 131072})
+        return ctx
+
+    def test_guard_refusal_skips_every_task_without_loading(self):
+        engine = ChatEngine()
+        ctx = self.ctx(engine)
+        smoke.run_smoke(ctx)
+        tasks = {k: v for k, v in ctx.store.data["tests"].items() if "/smoke/" in k}
+        self.assertEqual(len(tasks), 31)
+        for name, entry in tasks.items():
+            self.assertEqual(entry["status"], "skipped")
+            if "/code-" not in name:  # code tasks keep their own reason under --no-code-exec
+                self.assertEqual(entry["values"]["reason"],
+                                 "does not fit (guard): only 300 MB would stay free")
+        self.assertEqual(engine.chats, [])
+        self.assertEqual([c for c in engine.calls if c.startswith("load")], [])
+        self.assertEqual(ctx.guard.required, [20 * 1024 + 1024])  # weights + KV at 8192
+
+    def test_code_tasks_keep_their_own_skip_reason(self):
+        ctx = self.ctx()
+        smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "code-1"))
+        self.assertIn("--no-code-exec", entry["values"]["reason"])
+
+    def test_stored_does_not_fit_rung_skips_without_asking_the_guard(self):
+        ctx = self.ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {"reason": "VRAM"})
+        smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "math-1"))
+        self.assertEqual(entry["status"], "skipped")
+        self.assertIn("memory/ctx-8192", entry["values"]["reason"])
+        self.assertEqual(ctx.guard.required, [])
+
+    def test_partial_offload_is_recorded_per_task(self):
+        engine = ChatEngine()
+        engine.fraction = 0.5
+        ctx = self.ctx(engine, guard=Guard())
+        ctx.cfg.tasks = ["math-1"]
+        smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "math-1"))
+        self.assertEqual(entry["status"], "ok")
+        self.assertTrue(entry["values"]["partial_offload"])
+        self.assertEqual(entry["values"]["gpu_fraction"], 0.5)
 
 
 class SmokeTest(unittest.TestCase):
@@ -189,7 +260,7 @@ class SmokeTest(unittest.TestCase):
 
     def test_long_context_pending_while_a_rung_is_retryable(self):
         ctx = self.ctx(ChatEngine(), Config(tasks=["needle-*"]),
-                       rungs=[(8192, "does_not_fit"), (16384, "error")])
+                       rungs=[(16384, "error"), (32768, "does_not_fit")])
         smoke.run_smoke(ctx)
         self.assertIsNone(ctx.store.get(key(ctx, "smoke", "needle-10")))
 

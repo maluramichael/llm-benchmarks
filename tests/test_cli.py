@@ -21,7 +21,7 @@ COMMANDS = ["system", "doctor", "plan", "run", "report"]
 
 class CliTest(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(bench.VERSION, "1.1.0")
+        self.assertEqual(bench.VERSION, "1.1.1")
 
     def test_help_lists_all_commands(self):
         out = io.StringIO()

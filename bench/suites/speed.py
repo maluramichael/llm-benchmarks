@@ -21,6 +21,10 @@ fits"), when no VRAM figure exists for the depth ("no memory figure for depth N"
 from the rung, else from memory/computed), or when the guard refuses.
 With --scope no-context or warm-only the deep step is stored `skipped` ("not in scope
 <scope>", flag `scope_skipped`); a later --scope full run measures it.
+Before anything is loaded the guard is asked for the memory estimate at 10,240 tokens (the
+same helper as the concurrency suite): refused (or memory/ctx-<n> of the same or a smaller
+context is does_not_fit) means every step to run is stored `skipped` with "does not fit
+(guard): <reason>". A loaded step records gpu_fraction, and partial_offload when below 100 %.
 A step stored `aborted` (driver reset, or a crash recovered as aborted) is not repeated
 automatically; only --force / --force-test run it again.
 Every run_speed call uses a fresh prompt nonce, so a rerun against a warm server stays cold.
@@ -40,7 +44,8 @@ from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
                           make_prompt, median, now, prepare_counting, reset_state, retry_truncated,
-                          fresh_prompt, scope_skip, step_meta, wants_run)
+                          fresh_prompt, guard_refusal, offload_fields, scope_skip, skip_for_guard,
+                          step_meta, wants_run)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -111,6 +116,7 @@ def _cold(ctx: RunContext, state: dict) -> dict:
     values["load_s"] = median(r["load_s"] for r in runs)
     values["ttft_incl_load_s"] = median(r["ttft_incl_load_s"] for r in runs)
     values["cache_contaminated"] = _contaminated(runs)
+    values.update(offload_fields(ctx))
     return values
 
 
@@ -120,6 +126,7 @@ def _warm(ctx: RunContext, state: dict) -> dict:
             for i in range(ctx.cfg.reps)]
     values = _summary(runs)
     values["cache_contaminated"] = _contaminated(runs)
+    values.update(offload_fields(ctx))
     return values
 
 
@@ -139,6 +146,7 @@ def _cache(ctx: RunContext, state: dict) -> dict:
     values = _summary(runs, exclude=("prompt_tps",))
     values["first_ttft_s"] = median(firsts)
     values["cache_hit"] = (values["cached_tokens"] or 0) > 0
+    values.update(offload_fields(ctx))
     return values
 
 
@@ -229,6 +237,18 @@ def run_speed(ctx: RunContext) -> None:
     ctx.prompts.clear()
     ctx.nonce = secrets.token_hex(3)  # fresh prompts even if this is a rerun on a warm server
     meta = step_meta(ctx)
+    todo = []
+    for step in steps:
+        test_key = key(ctx, "speed", step)
+        entry = ctx.store.get(test_key)
+        if wants_run(ctx, test_key) and not (
+                entry and entry["status"] == "aborted" and not forced(ctx, test_key)):
+            todo.append(test_key)
+    if todo:  # the guard applies to every suite, not only to memory
+        refusal = guard_refusal(ctx, SPEED_CTX, take_reading)
+        if refusal:
+            skip_for_guard(ctx, todo, refusal, meta)
+            return
     for step in steps:
         test_key = key(ctx, "speed", step)
         if not wants_run(ctx, test_key):
