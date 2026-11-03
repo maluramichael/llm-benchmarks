@@ -160,7 +160,7 @@ class CliTest(unittest.TestCase):
         ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
         for name in ("BENCH_CWD", "UV_INSTALL_DIR", "UV_NO_MODIFY_PATH"):
             self.assertIn(name, ps.split("finally", 1)[0].split("foreach", 1)[1])
-        finally_block = ps.split("} finally {", 1)[1]
+        finally_block = ps.split("} finally {")[-1]
         self.assertIn("Set-Item", finally_block)
         self.assertIn("Pop-Location", finally_block)
         self.assertIn("Push-Location", ps)
@@ -186,9 +186,37 @@ class CliTest(unittest.TestCase):
         self.assertNotIn("bench.py @args", ps)
 
     def test_powershell_launcher_removes_variables_that_did_not_exist(self):
-        finally_block = (ROOT / "bench.ps1").read_text(encoding="utf-8").split("} finally {")[1]
+        finally_block = (ROOT / "bench.ps1").read_text(encoding="utf-8").split("} finally {")[-1]
         self.assertIn("Remove-Item", finally_block)
         self.assertIn("UV_", (ROOT / "bench.ps1").read_text(encoding="utf-8"))
+
+    def test_native_calls_run_with_continue_not_stop(self):
+        ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
+        call = ps.index("& $uv run")
+        before = ps[:call]
+        self.assertLess(before.rindex("$ErrorActionPreference = 'Continue'"), call)
+        after = ps[call:]
+        self.assertLess(after.index("$ErrorActionPreference = 'Stop'"), after.index("Pop-Location"))
+        self.assertIn("$exitCode = $LASTEXITCODE", ps)
+        self.assertTrue(ps.rstrip().endswith("exit $exitCode"))
+        installer = ps.index("Invoke-Expression")
+        self.assertIn("'Continue'", ps[installer - 300:installer])
+
+    @unittest.skipUnless(shutil.which("pwsh") and os.name != "nt", "needs pwsh on macOS/Linux")
+    def test_stderr_of_the_native_command_does_not_end_the_script(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_uv = Path(tmp) / "uv"
+            fake_uv.write_text('#!/bin/sh\necho progress >&2\necho out\nexit 7\n',
+                               encoding="utf-8")
+            fake_uv.chmod(0o755)
+            log = Path(tmp) / "log.txt"
+            script = (f"$env:PATH = '{tmp}' + [IO.Path]::PathSeparator + $env:PATH; "
+                      f"& '{ROOT / 'bench.ps1'}' run *>> '{log}'; "
+                      f"'after:' + $LASTEXITCODE | Out-File -Append '{log}'")
+            subprocess.run(["pwsh", "-NoProfile", "-Command", script], cwd=tmp, check=False)
+            text = log.read_text(encoding="utf-8")
+        self.assertIn("progress", text)
+        self.assertIn("after:7", text)
 
     @unittest.skipUnless(shutil.which("pwsh") and os.name != "nt", "needs pwsh on macOS/Linux")
     def test_powershell_launcher_for_real(self):

@@ -37,12 +37,25 @@ try {
         New-Item -ItemType Directory -Force -Path (Split-Path $localUv) | Out-Null
         $env:UV_INSTALL_DIR = Split-Path $localUv
         $env:UV_NO_MODIFY_PATH = '1'
-        Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
+        # Windows PowerShell 5.1 turns every stderr line of a native program into an error
+        # record when the output is redirected; with 'Stop' that would end the script.
+        $ErrorActionPreference = 'Continue'
+        try {
+            Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
+        } finally {
+            $ErrorActionPreference = 'Stop'
+        }
         $uv = $localUv
     }
 
-    & $uv run --no-project --python 3.12 bench.py @forward
-    $exitCode = $LASTEXITCODE
+    # Same reason as above: uv prints progress to stderr. Success is the exit code only.
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $uv run --no-project --python 3.12 bench.py @forward
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = 'Stop'
+    }
 } finally {
     # Put back what was there, remove what was not (also anything new named UV_*).
     foreach ($item in @(Get-ChildItem Env: | Where-Object { $_.Name -like 'UV_*' })) {
