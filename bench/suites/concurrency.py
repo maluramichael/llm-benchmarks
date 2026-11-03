@@ -8,6 +8,9 @@ build n distinct 8,192 token prompts, send them all at once from n threads, meas
                    whole batch (first send to last answer).
 * decode_tps_total sum over requests of gen_tokens / (wall_s - ttft_s): aggregate decode speed
                    without the prefill and queue wait that total_tps includes.
+* effective_parallel / effective_ctx / serialized  what the engine reports it really got
+                   (meta of the adapter). Fewer slots than requested keeps the level `ok`, sets
+                   `serialized` and `serialized_note`; the ladder goes on.
 * per_request_tps  median of the per-request generation speeds the engine reports.
 * ttft_p50_s       median time to first token. Under load a request may wait for a slot.
 * requests         the raw numbers of every request.
@@ -97,6 +100,20 @@ def _decode_tps_total(requests: list[dict]) -> float | None:
     return sum(rates) if rates else None
 
 
+def _effective(engine, n: int) -> dict:
+    """What the engine says it really ran with (meta effective_parallel / effective_ctx)."""
+    try:
+        meta = dict(getattr(engine, "meta", None) or {})
+    except Exception:
+        meta = {}
+    parallel = meta.get("effective_parallel")
+    info = {"effective_parallel": parallel, "effective_ctx": meta.get("effective_ctx"),
+            "serialized": None if parallel is None else parallel < n}
+    if info["serialized"]:
+        info["serialized_note"] = f"engine ran {n} requests with parallel {parallel}"
+    return info
+
+
 def _foreign_ollama(engine) -> bool:
     """An Ollama server given by URL: its NUM_PARALLEL is not ours to set."""
     return getattr(engine, "name", "") == "ollama" and getattr(engine, "parallel", 0) is None
@@ -160,6 +177,7 @@ def _level(ctx: RunContext, n: int, base_slot: int, meta: dict) -> str:
             prepare_counting(ctx, SLOT_CTX * n)
             prompts = [make_prompt(ctx, PROMPT_TOKENS, slot) for slot in slots]
             values.update(_measure(ctx, prompts))
+            values.update(_effective(engine, n))  # a serialised level is real: stays ok
             after = take_reading(guard.gpu_index, _gpu_fraction(engine, ctx.model))
             allowed, why = guard.after_step(before, after)
             if not allowed:

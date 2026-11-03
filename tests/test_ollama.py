@@ -217,6 +217,47 @@ class ProcessOwnershipTest(ProcessOwnershipTestBase):
             engine.load(MODEL, 4096, parallel=4)
         self.assertEqual(engine.meta["num_parallel"], 4)
 
+    RUNNER_LINE = ('time=2026-11-03T10:00:00.000+01:00 level=INFO source=llama_server.go:467 '
+                   'msg="starting llama-server" cmd="/opt/ollama/llama-server --model /m/blob '
+                   '-c {c} -np {np} --n-gpu-layers 99"\n')
+
+    def test_parse_runner_start_takes_the_newest_line(self):
+        from bench.engines import ollama as ol
+        text = self.RUNNER_LINE.format(c=4096, np=1) + "x\n" + self.RUNNER_LINE.format(c=16384, np=4)
+        self.assertEqual(ol.parse_runner_start(text), (4, 16384))
+        self.assertEqual(ol.parse_runner_start(self.RUNNER_LINE.format(c=10240, np=1)),
+                         (1, 10240))
+        self.assertIsNone(ol.parse_runner_start('msg="starting llama-server" cmd="x --model y"'))
+        self.assertIsNone(ol.parse_runner_start("nothing"))
+
+    def test_meta_reports_the_effective_parallel_of_our_own_log(self):
+        engine, _ = self.start_with_pollution()
+        engine._log_path.write_text(self.RUNNER_LINE.format(c=10240, np=1), encoding="utf-8")
+        engine._log_mark = 0
+        meta = engine.meta
+        self.assertEqual(meta["effective_parallel"], 1)
+        self.assertEqual(meta["effective_ctx"], 10240)
+
+    def test_effective_parallel_only_counts_the_latest_load(self):
+        engine, _ = self.start_with_pollution()
+        log = engine._log_path
+        log.write_text(self.RUNNER_LINE.format(c=16384, np=4), encoding="utf-8")
+        engine._log_mark = log.stat().st_size
+        self.assertIsNone(engine.meta["effective_parallel"])
+        with log.open("a", encoding="utf-8") as handle:
+            handle.write(self.RUNNER_LINE.format(c=10240, np=1))
+        self.assertEqual(engine.meta["effective_parallel"], 1)
+
+    def test_effective_parallel_unknown_for_foreign_server(self):
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            engine = self.engine_for(server)
+            engine._log_path = self.dir / "other.log"
+            (self.dir / "other.log").write_text(self.RUNNER_LINE.format(c=1, np=1),
+                                                encoding="utf-8")
+            meta = engine.meta
+        self.assertIsNone(meta["effective_parallel"])
+        self.assertIsNone(meta["effective_ctx"])
+
     def test_foreign_server_settings_are_unknown(self):
         with FakeServer({"/api/version": fixture("version.json")}) as server:
             engine = self.engine_for(server)

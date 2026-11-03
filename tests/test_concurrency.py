@@ -186,6 +186,36 @@ class ConcurrencyTest(unittest.TestCase):
         ctx = self.run_levels(engine, [1, 2])
         self.assertEqual(self.entry(ctx, 2)["status"], "ok")
 
+    def test_serialized_level_stays_ok_and_is_flagged(self):
+        engine = ConcurrencyEngine()
+        engine.meta = {"effective_parallel": 1, "effective_ctx": 10240}
+        ctx = self.run_levels(engine, [1, 2, 4])
+        self.assertEqual(self.entry(ctx, 1)["values"]["serialized"], False)
+        for n in (2, 4):
+            entry = self.entry(ctx, n)
+            self.assertEqual(entry["status"], "ok")
+            values = entry["values"]
+            self.assertIs(values["serialized"], True)
+            self.assertEqual(values["effective_parallel"], 1)
+            self.assertEqual(values["effective_ctx"], 10240)
+            self.assertEqual(values["serialized_note"],
+                             f"engine ran {n} requests with parallel 1")
+        self.assertEqual(engine.parallels, [1, 2, 4])  # the ladder is not stopped
+
+    def test_effective_parallel_as_requested_is_not_serialized(self):
+        engine = ConcurrencyEngine()
+        engine.meta = {"effective_parallel": 2}
+        ctx = self.run_levels(engine, [2])
+        values = self.entry(ctx, 2)["values"]
+        self.assertIs(values["serialized"], False)
+        self.assertNotIn("serialized_note", values)
+
+    def test_unknown_effective_parallel_is_not_judged(self):
+        ctx = self.run_levels(ConcurrencyEngine(), [2])
+        values = self.entry(ctx, 2)["values"]
+        self.assertIsNone(values["effective_parallel"])
+        self.assertIsNone(values["serialized"])
+
     def test_guard_stops_levels(self):
         engine = ConcurrencyEngine()
         guard = Guard(refuse_at=2)

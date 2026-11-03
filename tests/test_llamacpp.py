@@ -89,6 +89,11 @@ class ParserTest(unittest.TestCase):
         self.assertIs(llamacpp.parse_kv_unified("llama_context: kv_unified = false"), False)
         self.assertIsNone(llamacpp.parse_kv_unified("nothing"))
 
+    def test_n_slots(self):
+        self.assertEqual(llamacpp.parse_n_slots("llama_context: n_slots = 4, kv_unified = 'true'"), 4)
+        self.assertEqual(llamacpp.parse_n_slots("srv init: n_slots = 1\nsrv init: n_slots = 2"), 2)
+        self.assertIsNone(llamacpp.parse_n_slots("nothing"))
+
     def test_flash_attention_failure_detection(self):
         failing = ("llama_init_from_model: flash_attn requested but not supported by the "
                    "backend\n")
@@ -434,6 +439,27 @@ class ServerProcessTest(ServerCase):
         self.assertIs(engine.meta["kv_unified"], False)
         self.assertEqual(engine.meta["ctx"], 4096)
         self.assertEqual(engine.meta["ctx_arg"], 8192)  # the -c given to llama-server
+
+    def test_meta_reports_effective_parallel_and_ctx(self):
+        engine = self.engine()
+        engine.load(self.model, 4096, parallel=2)
+        self.assertEqual(engine.meta["effective_ctx"], 8192)  # the -c we passed
+        # the fake server's log says n_slots = 1: that wins over the -np we passed
+        self.assertEqual(engine.meta["effective_parallel"], 1)
+
+    def test_effective_parallel_falls_back_to_the_value_we_passed(self):
+        engine = self.engine()
+        with mock.patch.object(engine, "_log_text", lambda: "no slot line\n"):
+            engine._meta = {"parallel": 2, "ctx_arg": 8192}
+            engine._note_effective()
+        self.assertEqual(engine.meta["effective_parallel"], 2)
+
+    def test_effective_parallel_prefers_n_slots_from_the_log(self):
+        engine = self.engine()
+        with mock.patch.object(engine, "_log_text", lambda: "srv  init: n_slots = 1\n"):
+            engine._meta = {"parallel": 4, "ctx_arg": 16384}
+            engine._note_effective()
+        self.assertEqual(engine.meta["effective_parallel"], 1)
 
     def test_version_is_not_stale_across_engines(self):
         version_file = self.dir / "version.txt"

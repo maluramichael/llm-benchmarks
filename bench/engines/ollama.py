@@ -81,6 +81,9 @@ BACKENDS = {"cuda", "rocm", "metal", "vulkan", "cpu"}
 LIBRARY_RE = re.compile(r"\blibrary=(\w+)")
 CONFIG_LINE_RE = re.compile(r'msg="server config" env="map\[(.*?)\]"')
 CONFIG_VALUE_RE = r"(?<![A-Z_]){}:(\S*)"
+RUNNER_START_RE = re.compile(r'msg="starting llama-server"[^\n]*')
+RUNNER_NP_RE = re.compile(r"(?:^|\s)(?:-np|--parallel)[ =](\d+)")
+RUNNER_CTX_RE = re.compile(r"(?:^|\s)(?:-c|--ctx-size)[ =](\d+)")
 TRUNCATION_RE = re.compile(r'msg="truncating input prompt"[^\n]*?\bprompt=(\d+)')
 TRUNCATION_FLOOR = 0.9  # fewer evaluated tokens than this share of the estimate = truncated
 FLASH_ON = {"1", "true", "on", "yes"}
@@ -98,6 +101,22 @@ def pick_port() -> int:
         if port != DEFAULT_PORT:
             return port
     raise EngineError("no free port found")
+
+
+def parse_runner_start(log_text: str) -> tuple[int, int] | None:
+    """(slots, total context) of the newest `starting llama-server` line: its `-np` and `-c`.
+
+    Ollama decides these itself; a hybrid recurrent model starts with `-np 1` whatever
+    OLLAMA_NUM_PARALLEL says. `-c` is the context over all slots. None if the line or one
+    of the two options is missing.
+    """
+    lines = RUNNER_START_RE.findall(log_text)
+    if not lines:
+        return None
+    np_found, ctx_found = RUNNER_NP_RE.search(lines[-1]), RUNNER_CTX_RE.search(lines[-1])
+    if np_found is None or ctx_found is None:
+        return None
+    return int(np_found.group(1)), int(ctx_found.group(1))
 
 
 class OllamaEngine:
@@ -138,10 +157,14 @@ class OllamaEngine:
         if self.cfg.ollama_url:
             return {"kv_cache_type": "unknown", "flash_attn": "unknown",
                     "max_loaded_models": "unknown", "num_parallel": "unknown",
+                    "effective_parallel": None, "effective_ctx": None,
                     "settings_source": "foreign server"}
         meta = {"kv_cache_type": PINNED_ENV["OLLAMA_KV_CACHE_TYPE"], "flash_attn": "on",
                 "max_loaded_models": int(PINNED_ENV["OLLAMA_MAX_LOADED_MODELS"]),
                 "num_parallel": self._parallel, "settings_source": "pinned"}
+        started = parse_runner_start(self._log_text_from(self._log_mark))
+        meta["effective_parallel"] = started[0] if started else None
+        meta["effective_ctx"] = started[1] if started else None
         logged = self._logged_settings()
         if logged:
             meta.update(logged)

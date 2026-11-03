@@ -81,6 +81,7 @@ KV_RE = re.compile(r"\bKV buffer size\s*=\s*([\d.]+)\s*MiB")
 RS_RE = re.compile(r"\bRS buffer size\s*=\s*([\d.]+)\s*MiB")
 OFFLOAD_RE = re.compile(r"offloaded\s+(\d+)/(\d+)\s+layers to GPU")
 DEVICE_RE = re.compile(r"using device\s+([A-Za-z_]+)")
+N_SLOTS_RE = re.compile(r"\bn_slots\s*=\s*(\d+)")
 KV_UNIFIED_RE = re.compile(r"kv_unified\s*=\s*'?(true|false)'?")
 VERSION_LINE_RE = re.compile(r"^version:\s*(.+)$", re.MULTILINE)
 BUILD_RE = re.compile(r"build\s+(\d+).*?commit\s+(\w+)")
@@ -116,6 +117,12 @@ def parse_offloaded_layers(log_text: str) -> tuple[int, int] | None:
     """(layers on the GPU, layers in total) from the last `offloaded N/M layers` line."""
     found = OFFLOAD_RE.findall(log_text)
     return (int(found[-1][0]), int(found[-1][1])) if found else None
+
+
+def parse_n_slots(log_text: str) -> int | None:
+    """Slots the server really started with: the last `n_slots = N` in its log."""
+    found = N_SLOTS_RE.findall(log_text)
+    return int(found[-1]) if found else None
 
 
 def parse_backend(log_text: str) -> str | None:
@@ -371,7 +378,16 @@ class LlamaCppEngine:
                 raise EngineError(str(again)) from None  # once only: no loop
         self._model_id = model.id
         self._meta["kv_unified"] = parse_kv_unified(self._log_text())
+        self._note_effective()
         return seconds
+
+    def _note_effective(self) -> None:
+        """Record the slots and total context the server got: n_slots from its log when it
+        says so, else the -np we passed; -c is what we passed."""
+        logged = parse_n_slots(self._log_text())
+        self._meta["effective_parallel"] = logged if logged is not None \
+            else self._meta.get("parallel")
+        self._meta["effective_ctx"] = self._meta.get("ctx_arg")
 
     @staticmethod
     def _sanitize(line: str, gguf: Path) -> str:
