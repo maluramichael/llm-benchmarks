@@ -488,6 +488,26 @@ class ServerProcessTest(ServerCase):
         self.assertNotIn(str(private), message)
         self.assertIn("<model>", message)
 
+    def test_missing_gguf_message_does_not_contain_the_path(self):
+        engine = self.engine()
+        missing = self.dir / "private" / "secret-model.gguf"
+        with self.assertRaises(EngineError) as ctx:
+            engine.load(ModelRef("S1", "S", "Q4", None, missing, None, None), 2048)
+        self.assertNotIn("secret-model", str(ctx.exception))
+        self.assertNotIn(str(self.dir), str(ctx.exception))
+        self.assertIn("S1", str(ctx.exception))
+
+    def test_failed_spawn_does_not_report_the_previous_start(self):
+        engine = self.engine()
+        engine.load(self.model, 8192)
+        self.assertEqual(engine.kv_buffer_mb(), 256.0)
+        with mock.patch.object(proc.Owned, "start",
+                               side_effect=proc.ProcError("spawn failed")):
+            with self.assertRaises(EngineError):
+                engine.load(self.model, 8192)
+        self.assertIsNone(engine.kv_buffer_mb())
+        self.assertIsNone(engine.rs_buffer_mb())
+
     def test_health_503_while_loading_is_waited_out(self):
         health = self.dir / "health-hits"
         self.setenv(FAKE_MODE="slow_health", FAKE_HEALTH=str(health))

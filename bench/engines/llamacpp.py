@@ -331,7 +331,7 @@ class LlamaCppEngine:
             raise EngineError(f"model {model.id} has no GGUF file for llama.cpp")
         gguf = Path(model.gguf_path)
         if not gguf.is_file():
-            raise EngineError(f"GGUF file not found: {gguf}")
+            raise EngineError(f"GGUF file not found for model {model.id}")
         user_args = _user_args(self.cfg.llama_args)
         user_fa = _sets_flash_attn(user_args)
         self._release()
@@ -376,10 +376,12 @@ class LlamaCppEngine:
         # Owned from here on: whatever happens next (Ctrl-C included), only stop() ends it.
         # stop() does nothing if the process was never spawned.
         self._owned = owned
+        # Point at the new log before spawning: after a failed spawn the probes must not
+        # read the previous start's KV or backend lines.
+        self._log_path = log_path
         started = time.perf_counter()
         try:
             owned.start()
-            self._log_path = log_path
             self.base_url = f"http://127.0.0.1:{port}"
             owned.wait_until(self._healthy, self.start_timeout)
             if not owned.running:

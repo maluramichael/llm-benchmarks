@@ -344,9 +344,26 @@ class DownloadTest(TempDirCase):
                 server.routes["/dl/a.zip"] = (302, target)
                 entry = {"name": "a.zip", "size": 7, "browser_download_url":
                          server.url + "/dl/a.zip"}
-                with self.assertRaises(ReleaseError):
+                # The message tells our refusal apart from a DNS or connect error.
+                # urllib itself already stops file:// before our handler (HTTP 302).
+                expected = "HTTP 302" if target.startswith("file:") else "only https"
+                with self.assertRaisesRegex(ReleaseError, expected):
                     release.download_asset(entry, self.dir / "a.zip", opener)
                 self.assertFalse((self.dir / "a.zip").exists())
+
+    def test_redirect_handler_refuses_before_any_connection_and_closes_the_reply(self):
+        handler = release.CheckedRedirectHandler()
+        request = urllib.request.Request("https://github.com/x/a.zip")
+        for target in ("http://example.com/a.zip", "ftp://example.com/a.zip",
+                       "file:///etc/passwd"):
+            with self.subTest(target=target):
+                reply = io.BytesIO(b"moved")
+                with self.assertRaisesRegex(ReleaseError, "only https is allowed"):
+                    handler.redirect_request(request, reply, 302, "Found", {}, target)
+                self.assertTrue(reply.closed)
+        followed = handler.redirect_request(request, io.BytesIO(), 302, "Found", {},
+                                            "https://objects.example.com/a.zip")
+        self.assertEqual(followed.full_url, "https://objects.example.com/a.zip")
 
     def test_redirect_to_an_allowed_url_is_followed(self):
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
@@ -493,13 +510,20 @@ class EnsureTest(TempDirCase):
         for folder in (old, young, other):
             (folder / "out").mkdir(parents=True)
             (folder / "out" / "x").write_bytes(b"x")
+        busy = tag_dir / ".partial-busy"  # old folder, but a file inside is being written
+        (busy / "out").mkdir(parents=True)
+        (busy / "out" / "x").write_bytes(b"x")
         stale = time.time() - 2 * 3600
-        os.utime(old, (stale, stale))
-        os.utime(other, (stale, stale))
+        for folder in (old, other):
+            for path in (folder, folder / "out", folder / "out" / "x"):
+                os.utime(path, (stale, stale))
+        os.utime(busy, (stale, stale))
+        os.utime(busy / "out", (stale, stale))
         server = self.serve({f"llama-{TAG}-bin-ubuntu-x64.tar.gz": LINUX_TAR})
         self.ensure(server)
         self.assertFalse(old.exists())
         self.assertTrue(young.exists())  # maybe another run is working in it
+        self.assertTrue(busy.exists())  # a download is still writing into it
         self.assertTrue(other.exists())  # other tags are not touched
 
     def test_windows_cuda_gets_the_runtime_in_the_same_folder(self):

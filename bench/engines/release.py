@@ -171,7 +171,11 @@ class CheckedRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Applies the URL rules to every redirect target, so https cannot be downgraded."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        _check_url(newurl)
+        try:
+            _check_url(newurl)
+        except ReleaseError:
+            fp.close()  # urllib only closes the 3xx response when we follow it
+            raise
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -379,12 +383,24 @@ def find_binaries(folder: Path) -> tuple[Path, Path] | None:
 
 # -- ensure --------------------------------------------------------------------------------
 
+def _newest_mtime(folder: Path) -> float:
+    """Latest change anywhere in `folder`: writing into a file does not touch the folder."""
+    newest = folder.stat().st_mtime
+    for path in folder.rglob("*"):
+        try:
+            newest = max(newest, path.lstat().st_mtime)
+        except OSError:
+            pass
+    return newest
+
+
 def _remove_stale_partials(tag_dir: Path) -> None:
-    """Delete scratch folders of hard-killed runs (older than an hour), this tag only."""
+    """Delete scratch folders of hard-killed runs (untouched for an hour), this tag only."""
     cutoff = time.time() - PARTIAL_MAX_AGE_S
     for folder in tag_dir.glob(".partial-*"):
         try:
-            if folder.is_dir() and not folder.is_symlink() and folder.stat().st_mtime < cutoff:
+            if folder.is_dir() and not folder.is_symlink() \
+                    and _newest_mtime(folder) < cutoff:
                 shutil.rmtree(folder, ignore_errors=True)
         except OSError:
             pass
