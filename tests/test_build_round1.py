@@ -286,3 +286,97 @@ class RunnerProducedTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FinalReviewTest(unittest.TestCase):
+    def tmp_root(self, extra):
+        root = make_root(extra, fixtures=False)
+        self.addCleanup(shutil.rmtree, root, True)
+        return root
+
+    def good(self):
+        return run_doc("Dev", {"llamacpp/S/speed/warm": ent("ok", {"gen_tps": 5.0, "prompt_tps": 6.0, "ttft_s": 1.0})})
+
+    def test_scan_results_json(self):
+        doc = self.good()
+        doc["tests"]["llamacpp/S/speed/warm"]["values"]["error"] = "connect to 192.168.1.23 failed"
+        root = self.tmp_root({"2026-12-01-leak": doc})
+        with self.assertRaises(SystemExit) as ctx:
+            build.load_runs(root)
+        msg = str(ctx.exception)
+        self.assertIn("2026-12-01-leak/results.json", msg)
+        self.assertIn("ip", msg)
+        self.assertNotIn("192.168.1.23", msg)
+
+    def test_scan_run_readme_and_raw(self):
+        root = self.tmp_root({"2026-12-01-ok": self.good()})
+        run = root / "runs" / "2026-12-01-ok"
+        (run / "README.md").write_text("opened C:\\Users\\alice\\models\\x.gguf\n", encoding="utf-8")
+        with self.assertRaises(SystemExit) as ctx:
+            build.load_runs(root)
+        self.assertIn("2026-12-01-ok/README.md", str(ctx.exception))
+        self.assertNotIn("alice", str(ctx.exception))
+        (run / "README.md").write_text("fine\n", encoding="utf-8")
+        (run / "raw").mkdir()
+        (run / "raw" / "a.txt").write_text("host 10.0.0.7 answered", encoding="utf-8")
+        with self.assertRaises(SystemExit) as ctx:
+            build.load_runs(root)
+        self.assertIn("raw/a.txt", str(ctx.exception))
+        self.assertNotIn("10.0.0.7", str(ctx.exception))
+
+    def test_clean_run_files_load(self):
+        root = self.tmp_root({"2026-12-01-ok": self.good()})
+        (root / "runs" / "2026-12-01-ok" / "README.md").write_text("all fine\n", encoding="utf-8")
+        self.assertEqual(len(build.load_runs(root)), 1)
+
+    def cell(self, rungs):
+        tests = {f"llamacpp/S/memory/ctx-{n}": ent(st, vals) for n, (st, vals) in rungs.items()}
+        root = self.tmp_root({"2026-12-01-a": run_doc("Dev", tests)})
+        return build.context_cell(build.Facts(build.load_runs(root)), "Dev", "S", "llamacpp", "", None)
+
+    def test_crash_converted_rung_is_starred(self):
+        c = self.cell({2048: ("ok", {}), 8192: ("does_not_fit", {"previous_status": "aborted"}),
+                       32768: ("skipped", {"reason": "lower step 8192 did not fit or crashed"})})
+        self.assertEqual((c.value, c.suffix), (2048.0, "*"))
+        c = self.cell({2048: ("ok", {}), 8192: ("does_not_fit", {"previous_status": "running"})})
+        self.assertEqual(c.suffix, "*")
+
+    def test_driver_reset_unavailable_skip_is_starred(self):
+        c = self.cell({2048: ("ok", {}), 8192: ("skipped", {"reason": "driver reset check unavailable after step 2048"})})
+        self.assertEqual(c.suffix, "*")
+
+    def test_real_limit_stays_plain(self):
+        c = self.cell({2048: ("ok", {}), 8192: ("does_not_fit", {"reason": "only 900 MB would stay free"})})
+        self.assertEqual(c.suffix, "")
+
+    def test_has_data_name(self):
+        self.assertTrue(hasattr(build, "HAS_DATA"))
+        self.assertFalse(hasattr(build, "FINAL_STATUSES"))
+
+    def test_one_bad_rung_does_not_flip_panel_to_total(self):
+        tests = {"llamacpp/S/memory/ctx-2048": ent("ok", {"vram_used_mb": 4096, "vram_baseline_mb": 1024}),
+                 "llamacpp/S/memory/ctx-8192": ent("ok", {"vram_used_mb": 1000, "vram_baseline_mb": 1024})}
+        root = self.tmp_root({"2026-12-01-a": run_doc("Dev", tests)})
+        runs = build.load_runs(root)
+        ser = build.memory_series(build.Facts(runs), "Dev")[0]
+        self.assertEqual([p[0] for p in ser["points"]], [2048])
+        self.assertEqual(ser["nofigure"], [8192])
+        svg = build.chart_memory(runs, "light")
+        self.assertIn("model memory", svg)
+        self.assertIn('class="nofigure"', svg)
+
+    def test_units_are_gib(self):
+        tests = {"llamacpp/S/memory/ctx-2048": ent("ok", {"vram_used_mb": 4096, "vram_baseline_mb": 1024})}
+        root = self.tmp_root({"2026-12-01-a": run_doc("Dev", tests)})
+        svg = build.chart_memory(build.load_runs(root), "light")
+        self.assertIn("GiB", svg)
+        self.assertNotIn("(1024 MiB)", svg)
+        self.assertIn("3.0 GiB", svg)
+
+    def test_long_device_name_wraps_in_memory_title(self):
+        name = "Fixture Workstation With A Very Long Device Name And Dual Cards Inside Plus Extra Words To Force A Wrap 48 GB"
+        tests = {"llamacpp/S/memory/ctx-2048": ent("ok", {"vram_used_mb": 4096, "vram_baseline_mb": 1024})}
+        root = self.tmp_root({"2026-12-01-a": run_doc(name, tests)})
+        svg = build.chart_memory(build.load_runs(root), "light")
+        ET.fromstring(svg)
+        self.assertGreaterEqual(svg.count("panel-title"), 2)

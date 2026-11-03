@@ -187,6 +187,27 @@ def _gpu_names(data: dict) -> tuple:
     return tuple(sorted(names))
 
 
+def scan_run_files(folder: Path, root: Path) -> None:
+    """Fail on personal data in a contributed run: results.json, README.md and raw/*.
+
+    The secret list is empty on purpose: a CI machine has its own host and user names, which
+    would match ordinary words. Only the generic findings (user paths, IPs, MACs) count.
+    The message names file, count and kind, never the finding itself.
+    """
+    files = [folder / "results.json", folder / "README.md"]
+    raw = folder / "raw"
+    if raw.is_dir():
+        files += sorted(p for p in raw.rglob("*") if p.is_file())
+    for path in files:
+        if not path.is_file():
+            continue
+        leaks = find_leaks(path.read_text(encoding="utf-8", errors="replace"), [])
+        if leaks:
+            kinds = sorted({leak.split(":", 1)[0] for leak in leaks})
+            raise SystemExit(f"{path.relative_to(root).as_posix()}: {len(leaks)} finding(s) of kind "
+                             f"{', '.join(kinds)}; remove personal data from the run before building")
+
+
 def load_runs(root: Path = ROOT) -> list[dict]:
     """Every runs/*/results.json as a normalized dict, oldest first.
 
@@ -196,6 +217,7 @@ def load_runs(root: Path = ROOT) -> list[dict]:
     runs = []
     for path in sorted((root / "runs").glob("*/results.json")):
         name = path.parent.name
+        scan_run_files(path.parent, root)
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -230,7 +252,7 @@ def old_reports(root: Path) -> list[dict]:
 
 # --------------------------------------------------------------------- facts
 
-FINAL_STATUSES = {"ok", "does_not_fit", "skipped", "error"}
+HAS_DATA = {"ok", "does_not_fit", "skipped", "error"}
 
 
 def device_labels(runs: list[dict]) -> dict[tuple, str]:
@@ -275,7 +297,7 @@ class Facts:
         for (label, engine, model, suite), candidates in groups.items():
             chosen = candidates[-1]
             for steps in reversed(candidates):
-                if any(e.get("status") in FINAL_STATUSES for e in steps.values()):
+                if any(e.get("status") in HAS_DATA for e in steps.values()):
                     chosen = steps
                     break
             for step, entry in chosen.items():
@@ -354,7 +376,12 @@ def context_cell(facts: Facts, device, model, engine, variant="", tag=None):
         return Cell(label=gap_label(rungs[min(rungs)]))
     top = max(ok)
     above = {e.get("status") for n, e in rungs.items() if n > top}
-    if above & {"error", "aborted", "running"}:
+    # A rung that ladder_start turned into does_not_fit after a crash, or a rung skipped because the
+    # driver reset check was unavailable, is not a measured limit.
+    unsure = any(n > top and ((e.get("values") or {}).get("previous_status") in ("aborted", "running")
+                              or "driver reset check unavailable" in str((e.get("values") or {}).get("reason", "")))
+                 for n, e in rungs.items())
+    if unsure or above & {"error", "aborted", "running"}:
         suffix = "*"  # the ladder stopped by accident: the real limit is unknown
     elif above:
         suffix = ""  # a rung above did not fit or was skipped: this is the limit
@@ -734,7 +761,7 @@ def chart_concurrency(runs: list[dict], theme: str) -> str:
 
 
 def memory_series(facts: Facts, device: str) -> list[dict]:
-    """Per engine and model: points (ctx, GB, model_GB or None), rungs that did not fit, rungs without a figure."""
+    """Per engine and model: points (ctx, total GiB, model GiB or None), rungs that did not fit, rungs without a figure."""
     series = []
     for (d, engine, model) in facts.combos():
         if d != device:
@@ -751,7 +778,10 @@ def memory_series(facts: Facts, device: str) -> list[dict]:
                     nofigure.append(n)
                     continue
                 base = number(values.get("vram_baseline_mb"))
-                net = (used - base) / GIB_MB if base is not None and used - base > 0 else None
+                if base is not None and used - base <= 0:
+                    nofigure.append(n)  # the baseline is not below the reading: no usable figure
+                    continue
+                net = (used - base) / GIB_MB if base is not None else None
                 ok.append((n, used / GIB_MB, net))
             elif entry.get("status") == "does_not_fit":
                 nofit.append(n)
@@ -788,11 +818,11 @@ def chart_memory(runs: list[dict], theme: str) -> str:
     nets = {net for _d, _s, net in panels}
     if nets == {True}:
         what = ("GPU memory used by the model: in use after loading it minus in use before loading it, "
-                "in GB (1024 MiB).")
+                "in GiB.")
     elif nets == {False}:
-        what = "Total GPU memory in use after loading the model, in GB (1024 MiB). It includes the desktop and other programs."
+        what = "Total GPU memory in use after loading the model, in GiB. It includes the desktop and other programs."
     else:
-        what = ("GPU memory in GB (1024 MiB). Each chart says whether it shows the model alone (in use after "
+        what = ("GPU memory in GiB. Each chart says whether it shows the model alone (in use after "
                 "loading minus in use before) or the total card usage, which includes the desktop and other programs.")
 
     def px(ctx):
@@ -801,7 +831,7 @@ def chart_memory(runs: list[dict], theme: str) -> str:
     def py(gb, y0):
         return y0 + plot_h - gb / top * plot_h
 
-    el, y = header("GPU memory by context size", what + " One chart per device; dotted lines mark common card sizes.",
+    el, y = header("GPU memory by context size", what + " One chart per device; dotted lines mark common card sizes (a 24 GB card has 24 GiB).",
                    PAD, WIDTH)
     y += 26
     leg, y = legend_items([("swatch", engine_color(e, theme), engine_name(e)) for e in engines],
@@ -827,8 +857,11 @@ def chart_memory(runs: list[dict], theme: str) -> str:
     y += 34
     for device, series, net in panels:
         mode = "model memory" if net else "total card usage"
-        el.append(f'<text x="{PAD}" y="{y}" class="panel panel-title">{esc(device)}</text>')
-        el.append(f'<text x="{PAD + text_width(clean(device), 13) + 14:.0f}" y="{y}" class="sub">{mode}</text>')
+        lines = wrap(clean(device), 13, plot_r - PAD - 130) or [""]
+        for i, line in enumerate(lines):
+            el.append(f'<text x="{PAD}" y="{y + 16 * i}" class="panel panel-title">{esc(line)}</text>')
+        y += 16 * (len(lines) - 1)
+        el.append(f'<text x="{PAD + text_width(lines[-1], 13) + 14:.0f}" y="{y}" class="sub">{mode}</text>')
         y0 = y + 14
         for gb in range(0, int(top) + 1, 4):
             gy = py(gb, y0)
@@ -838,7 +871,7 @@ def chart_memory(runs: list[dict], theme: str) -> str:
         el.append(f'<line x1="{plot_l}" y1="{y0}" x2="{plot_l}" y2="{y0 + plot_h}" class="base"/>')
         el.append(f'<line x1="{plot_l}" y1="{y0 + plot_h}" x2="{plot_r}" y2="{y0 + plot_h}" class="base"/>')
         el.append(f'<text x="{PAD}" y="{y0 + plot_h / 2:.1f}" class="tick" text-anchor="middle" '
-                  f'transform="rotate(-90 {PAD + 4} {y0 + plot_h / 2:.1f})">GB</text>')
+                  f'transform="rotate(-90 {PAD + 4} {y0 + plot_h / 2:.1f})">GiB</text>')
         for ctx in all_ctx:
             el.append(f'<text x="{px(ctx):.1f}" y="{y0 + plot_h + 16}" class="tick" text-anchor="middle">{fmt_ctx(ctx)}</text>')
         for gb in MEMORY_LIMITS_GB:
@@ -859,7 +892,7 @@ def chart_memory(runs: list[dict], theme: str) -> str:
             for p in ser["points"]:
                 el.append(f'<circle cx="{px(p[0]):.1f}" cy="{py(value(p, net), y0):.1f}" r="4" fill="{color}" '
                           f'stroke="{t["surface"]}" stroke-width="2"><title>{esc(name)}: {fmt_ctx(p[0])}, '
-                          f'{value(p, net):.1f} GB</title></circle>')
+                          f'{value(p, net):.1f} GiB</title></circle>')
             last = ser["points"][-1]
             ends.append([py(value(last, net), y0), f"{engine_name(ser['engine'])} {ser['model']}", px(last[0])])
         ends.sort(key=lambda e: (e[0], e[1]))
