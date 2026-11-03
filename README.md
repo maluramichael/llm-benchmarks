@@ -77,7 +77,6 @@ Each run has its own folder with a report and the raw results:
 
 <!-- generated:runs -->
 - [2026-10-26: MacBook Pro M5 Max 128 GB](runs/2026-10-26-macbook-pro-m5-max-128gb/), old prompt
-- [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb/), old prompt
 - [2026-11-02: PC RTX 4090 24 GB](runs/2026-11-02-pc-rtx-4090-24gb/), old prompt
 - [2026-11-03: PC GTX 1080 Ti 11 GB](runs/2026-11-03-pc-gtx-1080-ti-11gb/), llama.cpp and Ollama; classes S, M, L; speed, memory, smoke, concurrency
 - [2026-11-03: PC Radeon RX 560 4 GB](runs/2026-11-03-pc-radeon-rx-560-4gb/), llama.cpp and Ollama; classes S, M, L; speed, memory, smoke, concurrency
