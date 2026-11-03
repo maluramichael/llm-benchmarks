@@ -342,6 +342,20 @@ class RoundTwoTest(Base):
         self.assertEqual((models.FILE_TYPES[40], models.FILE_TYPES[41]), ("Q1_0", "Q2_0"))
 
 
+class ResolveOllamaTest(Base):
+    def test_gguf_path_is_the_store_blob(self):
+        digest = make_model(self.store, "qwen3.5:4b", b"gguf-bytes")
+        ref = models.resolve("S", "ollama", self.cfg())
+        self.assertEqual(ref.gguf_path, models.ollama_blob_for("qwen3.5:4b", self.store))
+        self.assertEqual(ref.gguf_path.read_bytes(), b"gguf-bytes")
+        self.assertEqual(ref.digest, digest)
+        self.assertEqual(ref.ollama_tag, "qwen3.5:4b")
+
+    def test_model_not_in_the_store_has_no_gguf_path(self):
+        ref = models.resolve("S", "ollama", self.cfg(yes=True))
+        self.assertIsNone(ref.gguf_path)
+
+
 class ResolveLlamacppTest(Base):
     def test_resolve_order(self):
         explicit = self.tmp / "my.gguf"

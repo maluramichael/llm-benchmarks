@@ -31,10 +31,20 @@ def free_port() -> int:
         return sock.getsockname()[1]
 
 
+def dropped(name: str, patterns: Sequence[str]) -> bool:
+    """True if the environment variable `name` matches a pattern: an exact name, or a
+    prefix when the pattern ends with `*`. Case-insensitive on Windows, like the OS."""
+    if IS_WINDOWS:
+        name, patterns = name.upper(), [p.upper() for p in patterns]
+    return any(name.startswith(p[:-1]) if p.endswith("*") else name == p for p in patterns)
+
+
 class Owned:
     """A child process of this program: `with Owned(argv, env=..., log_path=...) as p:`.
 
-    `env` entries are added to a copy of the current environment for the child only.
+    The child gets a copy of the current environment without the variables matching
+    `drop_env` (exact names, or prefixes ending in `*`), plus the `env` entries. Only the
+    child's copy changes, never the environment of this program.
     stdout and stderr go to `log_path` (parent directories are created). With
     `stdout_path`, stdout goes to that file instead and `log_path` keeps only stderr,
     for programs whose stdout is data (for example JSON) and must not be mixed with logs.
@@ -42,9 +52,10 @@ class Owned:
 
     def __init__(self, argv: Sequence[str | os.PathLike], *, log_path: Path,
                  env: dict[str, str] | None = None, cwd: Path | None = None,
-                 stdout_path: Path | None = None):
+                 stdout_path: Path | None = None, drop_env: Sequence[str] = ()):
         self.argv = [str(a) for a in argv]
         self.env = dict(env or {})
+        self.drop_env = tuple(drop_env)
         self.log_path = Path(log_path)
         self.stdout_path = Path(stdout_path) if stdout_path else None
         self.cwd = cwd
@@ -55,7 +66,8 @@ class Owned:
     def start(self) -> "Owned":
         if self._proc is not None:
             raise ProcError("process already started")
-        child_env = {**os.environ, **self.env}
+        child_env = {k: v for k, v in os.environ.items() if not dropped(k, self.drop_env)}
+        child_env.update(self.env)
         options: dict = {}
         if IS_WINDOWS:
             options["creationflags"] = (subprocess.CREATE_NEW_PROCESS_GROUP

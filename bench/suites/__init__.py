@@ -90,7 +90,9 @@ def make_prompt(ctx: RunContext, n_tokens: int, slot: int) -> str:
     while len(body) < need:
         body += "\n\n" + text
     tag = f"{ctx.nonce}-{slot}" if ctx.nonce else str(slot)
-    header = f"Document {tag}.\n\n"
+    # The unique tag comes first: the very first tokens differ between prompts, so a
+    # prompt cache has no shared prefix to reuse even between neighbouring slots.
+    header = f"{tag} Document.\n\n"
     count = lambda t: ctx.engine.count_tokens(ctx.model, t)  # noqa: E731
     prompt = cut_to_tokens(header + body[:need], n_tokens, count)
     used = count(prompt)
@@ -98,6 +100,14 @@ def make_prompt(ctx: RunContext, n_tokens: int, slot: int) -> str:
         raise ValueError(f"could only build a prompt of {used} tokens (wanted {n_tokens})")
     ctx.prompts[memo] = prompt
     return prompt
+
+
+def prepare_counting(ctx: RunContext, n_ctx: int) -> None:
+    """Tell an engine that counts by calibration (Ollama) which context the prompts that
+    are built next will run with, so it loads an unloaded model once at that size."""
+    prepare = getattr(ctx.engine, "prepare_counting", None)
+    if prepare is not None:
+        prepare(ctx.model, n_ctx)
 
 
 def reset_state(ctx: RunContext, since: datetime) -> str:

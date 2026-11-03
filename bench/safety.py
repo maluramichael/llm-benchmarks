@@ -105,8 +105,18 @@ class Guard:
             return False, f"model only {now.gpu_fraction * 100:.0f} % on the GPU (partial offload)"
         if prev.shared_mb is not None and now.shared_mb is not None:
             grown = now.shared_mb - prev.shared_mb
+            # Shared usage also counts pinned host buffers that are not a spill (Ollama
+            # allocates about 550 MiB of them). It is a spill only when dedicated VRAM is
+            # actually short, or when we cannot tell.
             if grown > MAX_SHARED_GROWTH_MB:
-                return False, f"shared GPU memory grew by {grown} MB (limit {MAX_SHARED_GROWTH_MB} MB)"
+                reserve = self.reserve_mb()
+                if now.vram_free_mb is None:
+                    return False, (f"shared GPU memory grew by {grown} MB (limit "
+                                   f"{MAX_SHARED_GROWTH_MB} MB) and free VRAM is unknown")
+                if now.vram_free_mb < reserve:
+                    return False, (f"shared GPU memory grew by {grown} MB (limit "
+                                   f"{MAX_SHARED_GROWTH_MB} MB) and only {now.vram_free_mb} MB "
+                                   f"VRAM are free (reserve {reserve} MB): spill into system memory")
         if prev.swap_mb is not None and now.swap_mb is not None:
             grown = now.swap_mb - prev.swap_mb
             if grown > MAX_SWAP_GROWTH_MB:

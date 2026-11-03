@@ -3,19 +3,29 @@
 Process ownership: with `--ollama-url` the adapter only connects and never stops or
 signals anything. Without it, it starts its own `ollama serve` on a free port (never
 assuming 11434 is free: other servers may already own it) and stops only that process
-tree. The environment for the server (OLLAMA_HOST, OLLAMA_NUM_PARALLEL, OLLAMA_MODELS,
-OLLAMA_KEEP_ALIVE) is given to the child only.
+tree. The environment of that server is pinned (see `PINNED_ENV`): the user's global
+OLLAMA_* variables (KV cache type, flash attention, context length, GPU overhead, ...)
+change what Ollama measures, so every OLLAMA_* variable except an allow-list is removed
+from the child's copy and ours are set. Only OLLAMA_MODELS (the user's model store) is
+kept unless the config names a store. The effective values are reported in `meta`; for a
+server we did not start they are "unknown".
 
 Field names were checked against Ollama 0.40.13. All durations are nanoseconds.
 Speed tests use /api/generate with raw=true (no chat template) and streaming, so the
 time to first token can be measured here.
 
-Token counting: Ollama has no tokenizer endpoint, so `count_tokens` sends the text
-with raw=true and num_predict=1 and reads `prompt_eval_count`. That number is the full
-prompt length and includes tokens answered from the prompt cache (verified on 0.40.13:
-the same 601-token prompt gives 601 with 597 cached); `prompt_eval_cached_count` says
-how many of them were cached and `prompt_eval_duration` covers only the rest. Results
-are cached per (model, text hash).
+Token counting: Ollama 0.40.13 has no tokenizer endpoint (/api/tokenize is 404), and
+evaluating a text on the server puts exactly that text into the prompt cache, so a prompt
+that was counted and then measured would be answered from the cache. `count_tokens`
+therefore never evaluates the text it is asked about (except short texts, see
+MIN_CALIBRATION_CHARS). It calibrates a chars-per-token ratio once per model and loaded
+context: a sample of the text, preceded by a line with a unique nonce, is evaluated with
+raw=true and num_predict=1, and `prompt_eval_count` (which includes cached tokens, verified
+on 0.40.13) gives the ratio. The nonce line makes the first token differ from every
+measured prompt, so nothing of it can be reused. All later counts are len(text) / ratio,
+an estimate; the real figure is `Timing.prompt_tokens` from the measured response.
+`prepare_counting(model, ctx)` loads an unloaded model at the context the caller needs;
+a loaded model is never reloaded at another context.
 
 Timeouts: quick calls (version, ps, show, unload, the readiness probe) use a short
 timeout so a server that accepts connections but never answers cannot hang the harness;
@@ -24,10 +34,11 @@ only inference requests use the long one.
 
 from __future__ import annotations
 
-import hashlib
 import http.client
 import json
+import os
 import re
+import secrets
 import shutil
 import time
 import urllib.error
@@ -45,11 +56,26 @@ START_TIMEOUT_S = 90
 REQUEST_TIMEOUT_S = 1800
 QUICK_TIMEOUT_S = 5
 MIN_COUNT_CTX = 2048
+CALIBRATION_CHARS = 12000  # sample size for the chars-per-token ratio
+MIN_CALIBRATION_CHARS = 1000  # shorter texts are counted exactly (they are never measured)
 KEEP_ALIVE = "30m"
+# Pinned environment of the `ollama serve` we start. NUM_PARALLEL is added per start.
+PINNED_ENV = {"OLLAMA_KV_CACHE_TYPE": "f16",  # what the llama.cpp runs use
+              "OLLAMA_FLASH_ATTENTION": "1",  # llama.cpp runs with -fa on
+              "OLLAMA_MAX_LOADED_MODELS": "1",
+              "OLLAMA_KEEP_ALIVE": KEEP_ALIVE}
+# Every other OLLAMA_* variable of the user is removed from the child, except these.
+KEPT_ENV = ("OLLAMA_MODELS", "OLLAMA_DEBUG", "OLLAMA_NOPRUNE", "OLLAMA_NOHISTORY",
+            "OLLAMA_TMPDIR")
+DROPPED_ENV = ("OLLAMA_*",)
 DEFAULT_LOG_DIR = Path(".bench") / "logs"
 BACKENDS = {"cuda", "rocm", "metal", "vulkan", "cpu"}
 
 LIBRARY_RE = re.compile(r"\blibrary=(\w+)")
+CONFIG_LINE_RE = re.compile(r'msg="server config" env="map\[(.*?)\]"')
+CONFIG_VALUE_RE = r"(?<![A-Z_]){}:(\S*)"
+FLASH_ON = {"1", "true", "on", "yes"}
+FLASH_OFF = {"0", "false", "off", "no"}
 KV_RES = (
     re.compile(r"KV buffer size\s*=\s*([\d.]+)\s*MiB"),  # llama.cpp runner
     re.compile(r'msg="kv cache" device=\S+ size="([\d.]+) MiB"'),  # Ollama engine runner
@@ -83,7 +109,7 @@ class OllamaEngine:
         self._log_path: Path | None = None
         self._parallel = 1
         self._ctx: dict[str, int] = {}
-        self._counts: dict[tuple[str, str], int] = {}
+        self._ratios: dict[tuple[str, int], float] = {}  # (model id, ctx) -> chars per token
         self._log_mark = 0
 
     # -- lifecycle ---------------------------------------------------------------------
@@ -92,6 +118,41 @@ class OllamaEngine:
     def parallel(self) -> int | None:
         """OLLAMA_NUM_PARALLEL of the server we started; None for a foreign server."""
         return self._parallel if self._owned is not None else None
+
+    @property
+    def meta(self) -> dict:
+        """Effective server settings. A server we started has them pinned (PINNED_ENV);
+        they are read back from its own log when that has a config line. A server given
+        by URL is "unknown": we neither set nor see its environment."""
+        if self.cfg.ollama_url:
+            return {"kv_cache_type": "unknown", "flash_attn": "unknown",
+                    "max_loaded_models": "unknown", "num_parallel": "unknown",
+                    "settings_source": "foreign server"}
+        meta = {"kv_cache_type": PINNED_ENV["OLLAMA_KV_CACHE_TYPE"], "flash_attn": "on",
+                "max_loaded_models": int(PINNED_ENV["OLLAMA_MAX_LOADED_MODELS"]),
+                "num_parallel": self._parallel, "settings_source": "pinned"}
+        logged = self._logged_settings()
+        if logged:
+            meta.update(logged)
+            meta["settings_source"] = "server log"
+        return meta
+
+    def _logged_settings(self) -> dict:
+        """KV cache type and flash attention from the last `server config` log line."""
+        lines = CONFIG_LINE_RE.findall(self._log_text(whole=True))
+        if not lines:
+            return {}
+        found = {}
+        for name, field in (("OLLAMA_KV_CACHE_TYPE", "kv_cache_type"),
+                            ("OLLAMA_FLASH_ATTENTION", "flash_attn")):
+            match = re.search(CONFIG_VALUE_RE.format(name), lines[-1])
+            if match is None:
+                continue
+            value = match.group(1).lower()
+            if field == "flash_attn":
+                value = "on" if value in FLASH_ON else "off" if value in FLASH_OFF else value
+            found[field] = value or "default"
+        return found
 
     def start(self) -> None:
         """Connect to the given server or start our own. A second call while we own a
@@ -125,13 +186,18 @@ class OllamaEngine:
     def _start_own(self, parallel: int) -> None:
         binary = self._binary()
         port = pick_port()
-        env = {"OLLAMA_HOST": f"127.0.0.1:{port}",
-               "OLLAMA_NUM_PARALLEL": str(parallel),
-               "OLLAMA_KEEP_ALIVE": KEEP_ALIVE}
+        env = {**PINNED_ENV, "OLLAMA_HOST": f"127.0.0.1:{port}",
+               "OLLAMA_NUM_PARALLEL": str(parallel)}
         if self.cfg.ollama_models_dir:
             env["OLLAMA_MODELS"] = str(self.cfg.ollama_models_dir)
+        # Everything OLLAMA_* of the user goes (also differently cased names on Windows);
+        # the values above are then set on the clean copy. The user's model store stays
+        # unless the config names one.
+        kept = tuple(n for n in KEPT_ENV if n != "OLLAMA_MODELS" or not self.cfg.ollama_models_dir)
+        drop = [name for name in os.environ
+                if proc.dropped(name, DROPPED_ENV) and not proc.dropped(name, kept)]
         log_path = self.log_dir / f"ollama-{port}.log"
-        owned = proc.Owned([binary, "serve"], env=env, log_path=log_path)
+        owned = proc.Owned([binary, "serve"], env=env, log_path=log_path, drop_env=drop)
         # Owned from here on: whatever happens next (Ctrl-C included), the child is in its
         # own process group and only stop() can end it. stop() does nothing if the
         # process was never spawned, so assigning before start() is safe.
@@ -355,13 +421,42 @@ class OllamaEngine:
             gen_tps=gen_tokens / (gen_ns / NS) if gen_tokens and gen_ns > 0 else None,
             cached_tokens=cached)
 
+    def prepare_counting(self, model: ModelRef, ctx: int) -> None:
+        """Make sure the model is loaded before texts are counted. An unloaded model is
+        loaded at `ctx`, the context the caller will measure with; a loaded model is left
+        alone, whatever its context is."""
+        if model.id not in self._ctx:
+            self.load(model, ctx)
+
     def count_tokens(self, model: ModelRef, text: str) -> int:
-        key = (model.id, hashlib.sha256(text.encode("utf-8")).hexdigest())
-        if key in self._counts:
-            return self._counts[key]
-        # Never sends fewer context tokens than the model was loaded with, so this does
-        # not make Ollama reload it; unloaded models get a context that fits the text.
-        ctx = self._ctx.get(model.id) or max(MIN_COUNT_CTX, len(text) // 2 + 64)
+        """Token count of `text`: an estimate from a calibrated chars-per-token ratio.
+
+        Never evaluates `text` itself on the server, so counting cannot fill the prompt
+        cache with a prompt that is measured later. Texts shorter than
+        MIN_CALIBRATION_CHARS are counted exactly instead: no measured prompt is that short.
+        """
+        loaded = self._ctx.get(model.id)
+        if len(text) < MIN_CALIBRATION_CHARS:
+            return self._evaluate(model, text, loaded or MIN_COUNT_CTX)
+        if loaded is None:
+            # Nothing loaded and nobody said which context is needed (see
+            # prepare_counting): load one that holds the calibration sample.
+            self.load(model, max(MIN_COUNT_CTX, min(len(text), CALIBRATION_CHARS) // 2 + 64))
+            loaded = self._ctx[model.id]
+        ratio = self._ratios.get((model.id, loaded))
+        if ratio is None:
+            ratio = self._calibrate(model, text, loaded)
+            self._ratios[(model.id, loaded)] = ratio
+        return max(1, round(len(text) / ratio))
+
+    def _calibrate(self, model: ModelRef, text: str, ctx: int) -> float:
+        """Characters per token of `text`, measured on the server with a nonce first line."""
+        sample = text[:min(CALIBRATION_CHARS, ctx * 2)]  # 2 chars per token always fits
+        calibration = f"Calibration {secrets.token_hex(6)}\n\n{sample}"
+        return len(calibration) / self._evaluate(model, calibration, ctx)
+
+    def _evaluate(self, model: ModelRef, text: str, ctx: int) -> int:
+        """Exact token count by evaluating `text` on the server (fills the prompt cache)."""
         reply = self._post("/api/generate", {
             "model": self._tag(model), "prompt": text, "raw": True, "stream": False,
             "keep_alive": KEEP_ALIVE,
@@ -370,7 +465,8 @@ class OllamaEngine:
         if count >= ctx:
             raise EngineError(f"text of {count} tokens does not fit the context of {ctx}; "
                               "the count would be wrong")
-        self._counts[key] = count
+        if count <= 0:
+            raise EngineError("ollama /api/generate: no prompt_eval_count in the reply")
         return count
 
     def gpu_fraction(self, model: ModelRef) -> float | None:

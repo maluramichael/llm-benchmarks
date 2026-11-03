@@ -37,7 +37,7 @@ from bench.engines.base import Sampling
 from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
-                          make_prompt, median, now, reset_state, step_meta)
+                          make_prompt, median, now, prepare_counting, reset_state, step_meta)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -60,8 +60,9 @@ def _run_fields(timing) -> dict:
             "gen_tokens": timing.gen_tokens, "cached_tokens": timing.cached_tokens}
 
 
-def _summary(runs: list[dict]) -> dict:
-    fields = ("ttft_s", "prompt_tps", "gen_tps", "prompt_tokens", "gen_tokens", "cached_tokens")
+def _summary(runs: list[dict], exclude: tuple[str, ...] = ()) -> dict:
+    fields = tuple(f for f in ("ttft_s", "prompt_tps", "gen_tps", "prompt_tokens", "gen_tokens",
+                               "cached_tokens") if f not in exclude)
     values = {name: median(run.get(name) for run in runs) for name in fields}
     values["runs"] = runs
     return values
@@ -81,6 +82,7 @@ def _cold(ctx: RunContext, state: dict) -> dict:
     # Prompts first (the tokenizer may need the model); then every repetition starts
     # with an unload. Unloading an engine that holds nothing is a no-op.
     reps = ctx.cfg.reps
+    prepare_counting(ctx, SPEED_CTX)
     prompts = [make_prompt(ctx, COLD_TOKENS, COLD_SLOT + i) for i in range(reps)]
     runs = []
     for prompt in prompts:
@@ -117,8 +119,12 @@ def _cache(ctx: RunContext, state: dict) -> dict:
         first = ctx.engine.complete(ctx.model, prompt, _sampling()).timing
         second = ctx.engine.complete(ctx.model, prompt, _sampling()).timing
         firsts.append(first.ttft_s)
-        runs.append(_run_fields(second))
-    values = _summary(runs)
+        run = _run_fields(second)
+        # Only the few uncached tail tokens are evaluated: the figure would not be
+        # comparable with the cold and warm prompt_tps.
+        del run["prompt_tps"]
+        runs.append(run)
+    values = _summary(runs, exclude=("prompt_tps",))
     values["first_ttft_s"] = median(firsts)
     values["cache_hit"] = (values["cached_tokens"] or 0) > 0
     return values

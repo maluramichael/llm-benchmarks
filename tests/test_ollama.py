@@ -130,6 +130,105 @@ class ProcessOwnershipTest(ProcessOwnershipTestBase):
         with socket.create_connection(("127.0.0.1", 11434), timeout=1):
             pass
 
+    POLLUTION = {
+        "OLLAMA_KV_CACHE_TYPE": "q8_0", "OLLAMA_FLASH_ATTENTION": "true",
+        "OLLAMA_KEEP_ALIVE": "-1", "OLLAMA_MAX_LOADED_MODELS": "3",
+        "OLLAMA_NUM_PARALLEL": "8", "OLLAMA_CONTEXT_LENGTH": "4096",
+        "OLLAMA_GPU_OVERHEAD": "2147483648", "OLLAMA_LLM_LIBRARY": "cpu",
+        "OLLAMA_SCHED_SPREAD": "1", "OLLAMA_NUM_GPU": "1",
+        "OLLAMA_MODELS": "/user/store", "OLLAMA_HOST": "0.0.0.0:11434"}
+
+    def start_with_pollution(self, **cfg):
+        out = self.dir / "env.json"
+        patcher = mock.patch.dict(os.environ, {**self.POLLUTION, "FAKE_OUT": str(out)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        engine = OllamaEngine(config(ollama_bin=self.fake_binary(), **cfg),
+                              log_dir=self.dir / "logs")
+        engine.start()
+        self.addCleanup(engine.stop)
+        return engine, json.loads(out.read_text(encoding="utf-8"))["env"]
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_polluted_parent_environment_does_not_reach_the_server(self):
+        engine, env = self.start_with_pollution()
+        port = engine.base_url.rsplit(":", 1)[1]
+        self.assertEqual(env["OLLAMA_KV_CACHE_TYPE"], "f16")
+        self.assertEqual(env["OLLAMA_FLASH_ATTENTION"], "1")
+        self.assertEqual(env["OLLAMA_MAX_LOADED_MODELS"], "1")
+        self.assertEqual(env["OLLAMA_NUM_PARALLEL"], "1")
+        self.assertEqual(env["OLLAMA_KEEP_ALIVE"], "30m")
+        self.assertEqual(env["OLLAMA_HOST"], f"127.0.0.1:{port}")
+        for name in ("OLLAMA_CONTEXT_LENGTH", "OLLAMA_GPU_OVERHEAD", "OLLAMA_LLM_LIBRARY",
+                     "OLLAMA_SCHED_SPREAD", "OLLAMA_NUM_GPU"):
+            self.assertNotIn(name, env)
+        self.assertEqual(os.environ["OLLAMA_KV_CACHE_TYPE"], "q8_0")  # parent untouched
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_models_dir_from_the_user_environment_is_kept_unless_configured(self):
+        _, env = self.start_with_pollution()
+        self.assertEqual(env["OLLAMA_MODELS"], "/user/store")
+        _, env = self.start_with_pollution(ollama_models_dir=self.dir / "mine")
+        self.assertEqual(env["OLLAMA_MODELS"], str(self.dir / "mine"))
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_proxies_are_passed_through(self):
+        with mock.patch.dict(os.environ, {"HTTPS_PROXY": "http://proxy:3128",
+                                          "NO_PROXY": "localhost"}):
+            _, env = self.start_with_pollution()
+        # the fake only reports OLLAMA_*; the proxy variables must simply not be dropped
+        self.assertEqual(env["OLLAMA_KV_CACHE_TYPE"], "f16")
+        self.assertFalse(any(n.startswith("OLLAMA_") and "PROXY" in n for n in env))
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_meta_shows_the_pinned_settings(self):
+        engine, _ = self.start_with_pollution()
+        meta = engine.meta
+        self.assertEqual(meta["kv_cache_type"], "f16")
+        self.assertEqual(meta["flash_attn"], "on")
+        self.assertEqual(meta["max_loaded_models"], 1)
+        self.assertEqual(meta["num_parallel"], 1)
+        self.assertEqual(meta["settings_source"], "pinned")
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_meta_follows_the_server_config_line_of_our_own_log(self):
+        engine, _ = self.start_with_pollution()
+        log = engine._log_path
+        log.write_text('time=x level=INFO msg="server config" env="map[CUDA_VISIBLE_DEVICES: '
+                       'OLLAMA_FLASH_ATTENTION:false OLLAMA_KV_CACHE_TYPE:q4_0 '
+                       'OLLAMA_NUM_PARALLEL:1]"\n', encoding="utf-8")
+        meta = engine.meta
+        self.assertEqual(meta["kv_cache_type"], "q4_0")
+        self.assertEqual(meta["flash_attn"], "off")
+        self.assertEqual(meta["settings_source"], "server log")
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_parallel_is_pinned_to_the_requested_value(self):
+        engine, _ = self.start_with_pollution()
+        real_post = engine._post
+
+        def post(path, payload, timeout=None):
+            if path == "/api/generate":
+                return {"load_duration": 1_000_000_000}
+            return real_post(path, payload, timeout)
+
+        with mock.patch.object(engine, "_post", post):
+            engine.load(MODEL, 4096, parallel=4)
+        self.assertEqual(engine.meta["num_parallel"], 4)
+
+    def test_foreign_server_settings_are_unknown(self):
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            engine = self.engine_for(server)
+            meta = engine.meta
+            # even when a log of ours exists, a foreign server did not write it
+            engine._log_path = self.dir / "other.log"
+            (self.dir / "other.log").write_text(
+                'msg="server config" env="map[OLLAMA_KV_CACHE_TYPE:q8_0]"', encoding="utf-8")
+            self.assertEqual(engine.meta, meta)
+        self.assertEqual(meta["kv_cache_type"], "unknown")
+        self.assertEqual(meta["flash_attn"], "unknown")
+        self.assertEqual(meta["settings_source"], "foreign server")
+
     @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
     def test_parallel_change_restarts_own_server_with_new_env(self):
         out = self.dir / "env.json"
@@ -461,58 +560,147 @@ class MetricsTest(EngineTestCase):
 
 
 class CountTokensTest(EngineTestCase):
+    """Ollama has no tokenizer endpoint. Counting a text on the server would put exactly
+    that text into the prompt cache, so counts come from a chars-per-token ratio that is
+    calibrated once with a text that starts with a unique nonce line."""
+
+    TEXT = "The Rhine flows north through many cities. " * 100  # 4300 chars
+
     def reply(self, count, cached=0):
         return {"done": True, "response": "x", "prompt_eval_count": count,
                 "prompt_eval_cached_count": cached}
 
-    def test_count_tokens_request_and_cache(self):
+    def generates(self, server):
+        return [b for _, p, b in server.requests if p == "/api/generate"]
+
+    def test_calibration_request_starts_with_a_nonce_line(self):
         with FakeServer({"/api/version": fixture("version.json"),
-                         "/api/generate": self.reply(10)}) as server:
+                         "/api/generate": self.reply(1000)}) as server:
             engine = self.engine_for(server)
-            self.assertEqual(engine.count_tokens(MODEL, "The Rhine flows"), 10)
-            self.assertEqual(engine.count_tokens(MODEL, "The Rhine flows"), 10)
-            self.assertEqual(len([r for r in server.requests if r[1] == "/api/generate"]), 1)
-            body = [b for _, p, b in server.requests if p == "/api/generate"][0]
-            server.routes["/api/generate"] = self.reply(3)
-            self.assertEqual(engine.count_tokens(MODEL, "Other text"), 3)
-        self.assertEqual(body["prompt"], "The Rhine flows")
+            engine.load(MODEL, 9000)
+            engine.count_tokens(MODEL, self.TEXT)
+            engine.count_tokens(MODEL, self.TEXT)
+            bodies = self.generates(server)[1:]  # the first request is the load
+        self.assertEqual(len(bodies), 1)  # calibrated once
+        body = bodies[0]
+        first_line = body["prompt"].split("\n", 1)[0]
+        self.assertRegex(first_line, r"^Calibration [0-9a-f]{8,}$")
+        self.assertNotIn(self.TEXT, [b["prompt"] for b in bodies])
         self.assertIs(body["raw"], True)
         self.assertIs(body["stream"], False)
         self.assertEqual(body["options"]["num_predict"], 1)
-        self.assertGreaterEqual(body["options"]["num_ctx"], 2048)
+        self.assertEqual(body["options"]["num_ctx"], 9000)  # the loaded context
 
-    def test_count_tokens_is_prompt_eval_count_alone(self):
-        # prompt_eval_count already includes the cached tokens (verified on 0.40.13).
+    def test_nonce_differs_between_calibrations(self):
         with FakeServer({"/api/version": fixture("version.json"),
-                         "/api/generate": self.reply(601, cached=597)}) as server:
-            engine = self.engine_for(server)
-            self.assertEqual(engine.count_tokens(MODEL, "same prompt again"), 601)
-
-    def test_count_tokens_against_cache_probe(self):
-        replies = iter(fixture("cache-probe.json")["replies"])
-        with FakeServer({"/api/version": fixture("version.json"),
-                         "/api/generate": lambda body: next(replies) | {"done": True}}) as server:
-            engine = self.engine_for(server)
-            counts = [engine.count_tokens(MODEL, text) for text in "abcd"]
-        self.assertEqual(counts, [601, 601, 601, 606])
-
-    def test_count_tokens_uses_loaded_ctx(self):
-        with FakeServer({"/api/version": fixture("version.json"),
-                         "/api/generate": self.reply(5)}) as server:
+                         "/api/generate": self.reply(1000)}) as server:
             engine = self.engine_for(server)
             engine.load(MODEL, 9000)
-            engine.count_tokens(MODEL, "abc")
-            body = [b for _, p, b in server.requests if p == "/api/generate"][-1]
-        self.assertEqual(body["options"]["num_ctx"], 9000)
+            engine.count_tokens(MODEL, self.TEXT)
+            engine.unload(MODEL)
+            engine.load(MODEL, 10000)
+            engine.count_tokens(MODEL, self.TEXT)
+            lines = [b["prompt"].split("\n", 1)[0] for b in self.generates(server)
+                     if b.get("prompt", "").startswith("Calibration")]
+        self.assertEqual(len(lines), 2)
+        self.assertNotEqual(lines[0], lines[1])
 
-    def test_count_tokens_detects_truncation(self):
+    def test_count_scales_with_the_calibrated_ratio(self):
+        # 1000 tokens for the calibration text: the ratio is len(text) / 1000.
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(1000)}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 9000)
+            calibration_chars = None
+
+            def spy(body):
+                nonlocal calibration_chars
+                calibration_chars = len(body["prompt"])
+                return self.reply(1000)
+
+            server.routes["/api/generate"] = spy
+            small = engine.count_tokens(MODEL, self.TEXT)
+            double = engine.count_tokens(MODEL, self.TEXT + self.TEXT[:len(self.TEXT) // 2])
+        ratio = calibration_chars / 1000
+        self.assertAlmostEqual(small, len(self.TEXT) / ratio, delta=2)
+        self.assertAlmostEqual(double, 1.5 * len(self.TEXT) / ratio, delta=2)
+
+    def test_ratio_is_kept_per_model_and_context(self):
+        other = ModelRef(id="S2", cls="S", quant="Q8_0", ollama_tag="other:1b",
+                         gguf_path=None, digest=None, size_bytes=None)
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(1000)}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 9000)
+            engine.count_tokens(MODEL, self.TEXT)
+            engine.load(other, 9000)
+            engine.count_tokens(other, self.TEXT)
+            engine.unload(MODEL)
+            engine.load(MODEL, 12000)
+            engine.count_tokens(MODEL, self.TEXT)
+            calibrations = [b for b in self.generates(server)
+                            if b.get("prompt", "").startswith("Calibration")]
+        self.assertEqual([c["model"] for c in calibrations],
+                         ["qwen3.5:0.8b", "other:1b", "qwen3.5:0.8b"])
+
+    def test_calibration_does_not_reload_a_loaded_model(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(1000)}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 20000)
+            engine.count_tokens(MODEL, self.TEXT * 20)
+            ctxs = {b["options"]["num_ctx"] for b in self.generates(server)}
+        self.assertEqual(ctxs, {20000})
+
+    def test_unloaded_model_is_loaded_at_the_context_the_caller_needs(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(1000)}) as server:
+            engine = self.engine_for(server)
+            engine.prepare_counting(MODEL, 10240)
+            engine.count_tokens(MODEL, self.TEXT)
+            ctxs = [b["options"]["num_ctx"] for b in self.generates(server)]
+            engine.prepare_counting(MODEL, 4096)  # loaded already: no second load
+            after = len(self.generates(server))
+        self.assertEqual(ctxs, [10240, 10240])
+        self.assertEqual(after, 2)
+
+    def test_unloaded_model_without_a_hint_is_not_forced_to_2048(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(1000)}) as server:
+            engine = self.engine_for(server)
+            engine.count_tokens(MODEL, self.TEXT * 20)  # 86000 chars
+            ctxs = {b["options"]["num_ctx"] for b in self.generates(server)}
+        self.assertEqual(len(ctxs), 1)
+        self.assertNotIn(2048, ctxs)
+
+    def test_calibration_sample_is_limited_to_the_context(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(1000)}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 2048)
+            engine.count_tokens(MODEL, "word " * 50000)
+            calibration = [b for b in self.generates(server)
+                           if b["prompt"].startswith("Calibration")][0]
+        self.assertLessEqual(len(calibration["prompt"]), 2 * 2048 + 100)
+
+    def test_short_text_is_counted_exactly(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": self.reply(4)}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 9000)
+            self.assertEqual(engine.count_tokens(MODEL, "The Rhine flows"), 4)
+            body = self.generates(server)[-1]
+        self.assertEqual(body["prompt"], "The Rhine flows")
+
+    def test_count_detects_truncation(self):
         with FakeServer({"/api/version": fixture("version.json"),
                          "/api/generate": self.reply(2048)}) as server:
             engine = self.engine_for(server)
+            engine.load(MODEL, 2048)
             with self.assertRaises(EngineError):
-                engine.count_tokens(MODEL, "long text")
+                engine.count_tokens(MODEL, self.TEXT * 5)
 
-    def test_count_tokens_real_fixture(self):
+    def test_count_real_fixture(self):
         with FakeServer({"/api/version": fixture("version.json"),
                          "/api/generate": fixture("generate-raw.json")}) as server:
             engine = self.engine_for(server)

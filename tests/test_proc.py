@@ -92,6 +92,25 @@ class OwnedTest(ProcTestCase):
             self.assertNotIn("BENCH_LEAK", os.environ)
         self.assertNotIn("BENCH_LEAK", os.environ)
 
+    def test_drop_env_removes_names_and_prefixes_from_the_child_only(self):
+        script = ("import os; print(sorted(k for k in os.environ "
+                  "if k.startswith(('BENCH_DROP', 'BENCH_KEEP'))))")
+        polluted = {"BENCH_DROP_A": "1", "BENCH_DROP_B": "2", "BENCH_KEEP": "3",
+                    "BENCH_KEEP_SET": "old"}
+        with mock.patch.dict(os.environ, polluted):
+            owned = proc.Owned([PY, "-c", script], log_path=self.log,
+                               env={"BENCH_KEEP_SET": "new"},
+                               drop_env=("BENCH_DROP_*", "BENCH_KEEP"))
+            owned.start()
+            owned.wait(10)
+            owned.stop()
+            self.assertEqual(os.environ["BENCH_DROP_A"], "1")  # the parent is untouched
+        self.assertEqual(self.log.read_text(encoding="utf-8").strip(), "['BENCH_KEEP_SET']")
+
+    @unittest.skipUnless(os.name == "nt", "environment names are case-insensitive on Windows")
+    def test_drop_env_ignores_case_on_windows(self):
+        self.assertTrue(proc.dropped("llama_arg_ctx_size", ("LLAMA_ARG_*",)))
+
     def test_context_manager_stops(self):
         with proc.Owned(SLEEP, log_path=self.log) as owned:
             pid = owned.pid

@@ -172,6 +172,19 @@ class SpeedTest(unittest.TestCase):
         self.assertGreater(values["cached_tokens"], 0)
         self.assertTrue(values["cache_hit"])
 
+    def test_cache_step_stores_no_prompt_tps(self):
+        # Only the uncached tail is evaluated on the second request: the figure would
+        # sit next to cold and warm prompt_tps and mean something else.
+        ctx = self.run_speed(FakeEngine())
+        values = ctx.store.get(key(ctx, "speed", "cache"))["values"]
+        self.assertNotIn("prompt_tps", values)
+        for run in values["runs"]:
+            self.assertNotIn("prompt_tps", run)
+        for name in ("ttft_s", "cached_tokens", "first_ttft_s", "gen_tps"):
+            self.assertIn(name, values)
+        warm = ctx.store.get(key(ctx, "speed", "warm"))["values"]
+        self.assertIn("prompt_tps", warm)
+
     def test_prompt_sizes(self):
         engine = FakeEngine()
         self.run_speed(engine)

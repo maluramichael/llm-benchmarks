@@ -33,12 +33,18 @@ from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make
 MIB = 1024 * 1024
 OUTPUT_TOKENS = 128
 FILL_MARGIN = 256  # tokens kept free for output and chat template
+MAX_FILL = 0.97  # the prompt never targets more than this share of the rung (estimates err)
 MEMORY_SLOT = 1000
 CACHE_TYPE_BYTES = 2.0  # f16 KV cache
 FINAL_STATUSES = ("ok", "does_not_fit", "skipped")
 NOTE_PLAIN = "weights plus f16 KV cache; compute buffers and other overhead are not included"
 NOTE_FLAGGED = ("upper bound: sliding-window attention keeps a smaller cache, and recurrent "
                 "state of hybrid models is not included; " + NOTE_PLAIN)
+
+
+def _fill_tokens(n: int) -> int:
+    """Prompt length that fills rung `n`: leaves room for output and template, at most 97 %."""
+    return max(1, min(n - OUTPUT_TOKENS - FILL_MARGIN, int(n * MAX_FILL)))
 
 
 def _steps(ctx: RunContext) -> list[int]:
@@ -122,7 +128,7 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
                 store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
                 return "does_not_fit"
             values["load_s"] = engine.load(ctx.model, n)
-            prompt = make_prompt(ctx, max(1, n - OUTPUT_TOKENS - FILL_MARGIN), MEMORY_SLOT + index)
+            prompt = make_prompt(ctx, _fill_tokens(n), MEMORY_SLOT + index)
             timing = engine.complete(
                 ctx.model, prompt, Sampling(temperature=0.0, seed=42, max_tokens=OUTPUT_TOKENS)).timing
             fraction = _optional(lambda: engine.gpu_fraction(ctx.model))
@@ -169,7 +175,7 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
         store.save(test_key, status, values, meta)
         return "ok" if check == "none" else "stop"
     finally:
-        ctx.prompts.pop((MEMORY_SLOT + index, max(1, n - OUTPUT_TOKENS - FILL_MARGIN)), None)
+        ctx.prompts.pop((MEMORY_SLOT + index, _fill_tokens(n)), None)
 
 
 def _skip_above(ctx: RunContext, n: int, steps: list[int], reason: str) -> None:

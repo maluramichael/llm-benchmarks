@@ -86,6 +86,10 @@ VERSION_LINE_RE = re.compile(r"^version:\s*(.+)$", re.MULTILINE)
 BUILD_RE = re.compile(r"build\s+(\d+).*?commit\s+(\w+)")
 OLD_BUILD_RE = re.compile(r"^(\d+)\s*\((\w+)\)")
 FA_FLAGS = ("-fa", "--flash-attn")
+# llama-server reads LLAMA_ARG_* variables as if they were command line options (cache
+# types, context size, fit mode, ...). A user environment must not change what we measure,
+# so the children never see them; the removed names are recorded in `meta`.
+LLAMA_ARG_ENV = ("LLAMA_ARG_*",)
 # Words that, in a line that also says "flash", mean flash attention is the problem.
 # The wording of llama.cpp's messages is not verified on a failing GPU (see the report).
 FA_PROBLEM_WORDS = ("not supported", "unsupported", "missing support", "requested but",
@@ -140,6 +144,11 @@ def parse_version(text: str) -> str | None:
         if found:
             return f"b{found.group(1)} ({found.group(2)})"
     return line
+
+
+def removed_llama_arg_env() -> list[str]:
+    """Names of the LLAMA_ARG_* variables in our environment (not passed to children)."""
+    return sorted(name for name in os.environ if proc.dropped(name, LLAMA_ARG_ENV))
 
 
 def parse_kv_unified(log_text: str) -> bool | None:
@@ -203,7 +212,7 @@ def run_llama_bench(bench_bin: Path, model: ModelRef, args: list[str], *,
     out_path = directory / f"llama-bench-{stamp}.json"
     log_path = directory / f"llama-bench-{stamp}.log"
     owned = proc.Owned([bench_bin, "-m", model.gguf_path, "-o", "json", *args],
-                       log_path=log_path, stdout_path=out_path)
+                       log_path=log_path, stdout_path=out_path, drop_env=LLAMA_ARG_ENV)
     try:
         try:
             owned.start()
@@ -292,7 +301,8 @@ class LlamaCppEngine:
 
     @property
     def meta(self) -> dict:
-        """What happened during the last load (flash attention choice and fallback)."""
+        """What happened during the last load (flash attention choice and fallback, and
+        the names of the LLAMA_ARG_* variables kept away from the server)."""
         return dict(self._meta)
 
     @property
@@ -342,7 +352,8 @@ class LlamaCppEngine:
         self._release()
         self._meta = {"flash_attn": "user" if user_fa else "on",
                       "flash_attn_fallback": False, "ctx": ctx, "parallel": parallel,
-                      "ctx_arg": ctx * parallel}
+                      "ctx_arg": ctx * parallel,
+                      "llama_arg_env_removed": removed_llama_arg_env()}
         fa = None if user_fa else "on"
         try:
             seconds = self._start_server(server_bin, gguf, ctx, parallel, fa, user_args)
@@ -377,7 +388,7 @@ class LlamaCppEngine:
                  *user_args]
         # A new file for every start: Owned appends, and old lines must never be counted.
         log_path = self.log_dir / f"llamacpp-{port}-{time.time_ns()}.log"
-        owned = proc.Owned(argv, log_path=log_path)
+        owned = proc.Owned(argv, log_path=log_path, drop_env=LLAMA_ARG_ENV)
         # Owned from here on: whatever happens next (Ctrl-C included), only stop() ends it.
         # stop() does nothing if the process was never spawned.
         self._owned = owned
@@ -478,7 +489,7 @@ class LlamaCppEngine:
         server_bin, _ = self._require_started()
         if self._version is None:
             owned = proc.Owned(
-                [server_bin, "--version"],
+                [server_bin, "--version"], drop_env=LLAMA_ARG_ENV,
                 log_path=self.log_dir / f"llamacpp-version-{os.getpid()}-{time.time_ns()}.log")
             try:
                 try:

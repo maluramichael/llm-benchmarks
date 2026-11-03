@@ -274,6 +274,8 @@ if argv == ["--version"]:
     sys.exit(0)
 with open(os.environ["FAKE_OUT"], "a", encoding="utf-8") as out:
     out.write(json.dumps(argv) + "\\n")
+with open(os.environ["FAKE_OUT"] + ".env", "a", encoding="utf-8") as out:
+    out.write(json.dumps(sorted(k for k in os.environ if k.startswith("LLAMA_ARG_"))) + "\\n")
 mode = os.environ.get("FAKE_MODE", "ok")
 fa = None
 for i, a in enumerate(argv):
@@ -640,6 +642,21 @@ class ServerProcessTest(ServerCase):
         self.assertEqual(self.opt(self.launches()[0], "-c"), "2048")
         self.assertEqual(engine.count_tokens(self.model, "one two three"), 3)
         self.assertEqual(len(self.created), 1)
+
+    def test_llama_arg_variables_do_not_reach_the_server(self):
+        self.setenv(LLAMA_ARG_CACHE_TYPE_K="q8_0", LLAMA_ARG_FIT="on", LLAMA_ARG_CTX_SIZE="512")
+        engine = self.engine()
+        engine.load(self.model, 2048)
+        seen = [json.loads(line) for line in Path(str(self.out) + ".env").read_text().splitlines()]
+        self.assertEqual(seen, [[]])
+        self.assertEqual(engine.meta["llama_arg_env_removed"],
+                         ["LLAMA_ARG_CACHE_TYPE_K", "LLAMA_ARG_CTX_SIZE", "LLAMA_ARG_FIT"])
+        self.assertEqual(os.environ["LLAMA_ARG_FIT"], "on")  # the parent keeps its own
+
+    def test_meta_lists_no_removed_variables_for_a_clean_environment(self):
+        engine = self.engine()
+        engine.load(self.model, 2048)
+        self.assertEqual(engine.meta["llama_arg_env_removed"], [])
 
     def test_the_environment_is_not_changed(self):
         before = dict(os.environ)

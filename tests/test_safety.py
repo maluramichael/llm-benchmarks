@@ -39,10 +39,36 @@ class GuardTest(unittest.TestCase):
 
     def test_after_step_shared_growth(self):
         guard = Guard(Config(), 0, 8192)
-        ok, why = guard.after_step(reading(shared_mb=100), reading(shared_mb=700))
+        # free VRAM unknown: shared growth over the limit still aborts
+        unknown = dict(vram_free_mb=None)
+        ok, why = guard.after_step(reading(shared_mb=100, **unknown),
+                                   reading(shared_mb=700, **unknown))
         self.assertFalse(ok)
         self.assertIn("shared", why.lower())
-        self.assertTrue(guard.after_step(reading(shared_mb=100), reading(shared_mb=500))[0])
+        self.assertIn("unknown", why)
+        self.assertTrue(guard.after_step(reading(shared_mb=100, **unknown),
+                                         reading(shared_mb=500, **unknown))[0])
+
+    def test_shared_growth_with_plenty_of_vram_is_pinned_host_memory(self):
+        # Ollama pins about 550 MiB of host memory, Windows shows it as shared usage.
+        guard = Guard(Config(), 0, 24576)
+        ok, _ = guard.after_step(reading(vram_free_mb=20000, shared_mb=100),
+                                 reading(vram_free_mb=18485, shared_mb=736, gpu_fraction=1.0))
+        self.assertTrue(ok)
+
+    def test_shared_growth_with_vram_below_reserve_aborts(self):
+        guard = Guard(Config(), 0, 24576)
+        ok, why = guard.after_step(reading(vram_free_mb=20000, shared_mb=100),
+                                   reading(vram_free_mb=900, shared_mb=736))
+        self.assertFalse(ok)
+        self.assertIn("shared", why.lower())
+        self.assertIn("VRAM", why)
+
+    def test_shared_growth_at_exactly_the_reserve_is_fine(self):
+        guard = Guard(Config(), 0, 24576)
+        ok, _ = guard.after_step(reading(shared_mb=100),
+                                 reading(vram_free_mb=guard.reserve_mb(), shared_mb=736))
+        self.assertTrue(ok)
 
     def test_after_step_swap(self):
         ok, why = Guard(Config(), 0, 8192).after_step(reading(swap_mb=0), reading(swap_mb=1200))

@@ -440,8 +440,10 @@ def _resolve_ollama(model_id: str, entry: dict, cfg: Config, say) -> ModelRef:
             if not cfg.dry_run:
                 import_from_mirror(Path(cfg.mirror), tag, store, say)
     try:
-        _, layer = _model_blob(tag, store)
-        return ModelRef(model_id, model_id, entry["quant"], tag, None, layer["digest"],
+        blob, layer = _model_blob(tag, store)
+        # The store blob is the GGUF file itself. The Ollama engine never loads this path;
+        # it is there so the GGUF header can be read (computed memory curve).
+        return ModelRef(model_id, model_id, entry["quant"], tag, blob, layer["digest"],
                         layer["size"])
     except ModelNotFound:
         pass
