@@ -1,6 +1,6 @@
 # 2026-11-02: PC RTX 3090 24 GB
 
-One run of the standard benchmark. Results table and prompt are in the [README](../README.md). This is an extra model outside classes S to XL and F: Ornith-1.5-122B, a Mixture of Experts model that does not fit into 24 GB. The experts stay in RAM, only the rest and a cache run on the GPU. Prompts and settings are the same as in the [run from 2026-10-26](2026-10-26-pc-rtx-3090-24gb.md), and the logic and concurrency tests are the same as in the [run from 2026-10-30](2026-10-30-pc-rtx-3090-24gb.md).
+One run of the standard benchmark. Results table and prompt are in the [README](../../README.md). This is an extra model outside classes S to XL and F: Ornith-1.5-122B, a Mixture of Experts model that does not fit into 24 GB. The experts stay in RAM, only the rest and a cache run on the GPU. Prompts and settings are the same as in the [run from 2026-10-26](../2026-10-26-pc-rtx-3090-24gb/README.md), and the logic and concurrency tests are the same as in the [run from 2026-10-30](../2026-10-30-pc-rtx-3090-24gb/README.md).
 
 ## System
 
@@ -72,7 +72,7 @@ Not measured. The import check of Strata (local version from 2026-10-19) rejects
 
 ## Logic and coding test
 
-The same 65 German questions as in the [run from 2026-10-30](2026-10-30-pc-rtx-3090-24gb.md#logic-and-coding-test), with llama.cpp and the settings above.
+The same 65 German questions as in the [run from 2026-10-30](../2026-10-30-pc-rtx-3090-24gb/README.md#logic-and-coding-test), with llama.cpp and the settings above.
 
 | Model | Thinking | Correct (of 65) | Duration (s) | Total tokens | Family | Letters | Arithmetic | Logic | Zebra | Trick | Code output | Code writing |
 |:------|:--------:|---------------:|------------:|------------:|:------:|:-------:|:----------:|:-----:|:-----:|:-----:|:----------:|:-----------:|
@@ -83,7 +83,7 @@ Without thinking, Ornith gets the best score of all models so far in that mode (
 
 ## Concurrent requests
 
-The same test as in the [run from 2026-10-30](2026-10-30-pc-rtx-3090-24gb.md#concurrent-requests), with 8 slots and the settings above. Values per cell: total generation tok/s / generation per request tok/s / seconds to first token (median).
+The same test as in the [run from 2026-10-30](../2026-10-30-pc-rtx-3090-24gb/README.md#concurrent-requests), with 8 slots and the settings above. Values per cell: total generation tok/s / generation per request tok/s / seconds to first token (median).
 
 | Model | 1 concurrent | 2 concurrent | 4 concurrent | 8 concurrent | Seconds for 8 requests | VRAM (GB) |
 |:------|:------------|:------------|:------------|:------------|----------------------:|---------:|

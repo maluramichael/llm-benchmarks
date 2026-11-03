@@ -1,6 +1,6 @@
 # 2026-10-26: MacBook Pro M5 Max 128 GB
 
-One run of the standard benchmark. Results table and prompt are in the [README](../README.md). This run is measured in stages whenever the Mac is free. Finished so far: Ollama with Qwen3.5 4B. Still to come: Ollama M, L and XL, llama.cpp, llama-bench and MLX.
+One run of the standard benchmark. Results table and prompt are in the [README](../../README.md). This run is measured in stages whenever the Mac is free. Finished so far: Ollama with Qwen3.5 4B. Still to come: Ollama M, L and XL, llama.cpp, llama-bench and MLX.
 
 ## System
 

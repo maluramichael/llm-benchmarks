@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Run the [benchmark prompt](https://github.com/maluramichael/llm-benchmarks#benchmark-prompt) on your machine, then paste the report here. The format is described in [CONTRIBUTING.md](https://github.com/maluramichael/llm-benchmarks/blob/master/CONTRIBUTING.md).
+        Run `bench run` and `bench report` on your machine (see the [README](https://github.com/maluramichael/llm-benchmarks#run-it-yourself)), then paste the report here. More in [CONTRIBUTING.md](https://github.com/maluramichael/llm-benchmarks/blob/master/CONTRIBUTING.md).
   - type: input
     id: device
     attributes:
@@ -17,8 +17,8 @@ body:
   - type: textarea
     id: results
     attributes:
-      label: results.md
-      description: Content of ~/llm-benchmark/<date>/results.md
+      label: Run report
+      description: Content of runs/<date>-<device>/README.md (and, if it is small, results.json)
       render: markdown
     validations:
       required: true
@@ -32,7 +32,7 @@ body:
     attributes:
       label: Privacy and license
       options:
-        - label: The report contains no names, host names, IP addresses, user paths or serial numbers.
+        - label: "`bench report` finished without a privacy error, and the report contains no names, host names, IP addresses, user paths or serial numbers."
           required: true
         - label: I agree that the results are published under CC BY 4.0, like the rest of this repository.
           required: true

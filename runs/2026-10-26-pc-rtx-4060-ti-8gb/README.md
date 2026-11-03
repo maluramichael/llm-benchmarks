@@ -1,6 +1,6 @@
 # 2026-10-26: PC RTX 4060 Ti 8 GB
 
-One run of the standard benchmark. Results table and prompt are in the [README](../README.md).
+One run of the standard benchmark. Results table and prompt are in the [README](../../README.md).
 
 ## System
 

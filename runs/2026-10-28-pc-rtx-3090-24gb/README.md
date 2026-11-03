@@ -1,6 +1,6 @@
 # 2026-10-28: PC RTX 3090 24 GB
 
-One run of the standard benchmark. Results table and prompt are in the [README](../README.md). This is the class F run with Flint by Recursive (40B MoE, about 2.5B active), with the same settings as the [run from 2026-10-26](2026-10-26-pc-rtx-3090-24gb.md).
+One run of the standard benchmark. Results table and prompt are in the [README](../../README.md). This is the class F run with Flint by Recursive (40B MoE, about 2.5B active), with the same settings as the [run from 2026-10-26](../2026-10-26-pc-rtx-3090-24gb/README.md).
 
 ## System
 

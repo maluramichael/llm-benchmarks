@@ -1,6 +1,6 @@
 # 2026-10-30: PC RTX 3090 24 GB
 
-One run of the standard benchmark. Results table and prompt are in the [README](../README.md). It adds three extra models outside classes S to XL and F: Qwen3.8-Flash-Next as a huge model that does not fit into 24 GB and loads experts from RAM with Strata, LFM3 1.7B by Liquid AI as a particularly small model, and Qwen3-Coder-30B-A3B as a coding model. There are also two new tests for all models on the card: logic and coding questions, and concurrent requests. Prompts and settings are the same as in the [run from 2026-10-26](2026-10-26-pc-rtx-3090-24gb.md).
+One run of the standard benchmark. Results table and prompt are in the [README](../../README.md). It adds three extra models outside classes S to XL and F: Qwen3.8-Flash-Next as a huge model that does not fit into 24 GB and loads experts from RAM with Strata, LFM3 1.7B by Liquid AI as a particularly small model, and Qwen3-Coder-30B-A3B as a coding model. There are also two new tests for all models on the card: logic and coding questions, and concurrent requests. Prompts and settings are the same as in the [run from 2026-10-26](../2026-10-26-pc-rtx-3090-24gb/README.md).
 
 ## System
 

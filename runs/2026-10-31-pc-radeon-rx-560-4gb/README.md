@@ -1,6 +1,6 @@
 # 2026-10-31: PC Radeon RX 560 4 GB
 
-One run of the standard benchmark. Results table and prompt are in the [README](../README.md).
+One run of the standard benchmark. Results table and prompt are in the [README](../../README.md).
 
 ## System
 
