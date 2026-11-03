@@ -1,0 +1,32 @@
+To find the number of positive integers smaller than 1000 that are divisible by 7 but not divisible by 11, we can follow these steps:
+
+1.  **Define the range**: We are looking for integers $n$ such that $1 \le n < 1000$. This is equivalent to finding integers in the set $\{1, 2, ..., 999\}$.
+
+2.  **Count numbers divisible by 7**:
+    The number of positive integers less than or equal to $N$ that are divisible by $k$ is given by $\lfloor \frac{N}{k} \rfloor$.
+    Here, $N = 999$ and $k = 7$.
+    $$ \text{Count}_7 = \left\lfloor \frac{999}{7} \right\rfloor $$
+    Performing the division: $999 \div 7 = 142.71...$
+    So, $\text{Count}_7 = 142$.
+
+3.  **Count numbers divisible by both 7 and 11**:
+    A number is divisible by both 7 and 11 if and only if it is divisible by their least common multiple (LCM). Since 7 and 11 are prime, $\text{LCM}(7, 11) = 7 \times 11 = 77$.
+    We need to count integers less than or equal to 999 that are divisible by 77.
+    $$ \text{Count}_{77} = \left\lfloor \frac{999}{77} \right\rfloor $$
+    Performing the division: $999 \div 77 \approx 12.97...$
+    So, $\text{Count}_{77} = 12$.
+
+4.  **Apply the Principle of Inclusion-Exclusion**:
+    The set of numbers divisible by 7 but *not* by 11 is the set of numbers divisible by 7 minus the set of numbers divisible by both 7 and 11.
+    $$ \text{Result} = \text{Count}_7 - \text{Count}_{77} $$
+    $$ \text{Result} = 142 - 12 = 130 $$
+
+Let's double-check the logic.
+- Total multiples of 7 in [1, 999]: $7, 14, ..., 7 \times 142$. (142 numbers)
+- Multiples of 77 in [1, 999]: $77, 154, ..., 77 \times 12$. (12 numbers)
+- These 12 numbers are included in the count of multiples of 7. We must exclude them because the condition is "divisible by 7 **but not** divisible by 11".
+- Calculation: $142 - 12 = 130$.
+
+The calculation holds.
+
+ANSWER: 130

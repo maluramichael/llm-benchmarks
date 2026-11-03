@@ -1,0 +1,31 @@
+### What This Code Does
+
+This code defines a function called `fib` that calculates the **nth number in the Fibonacci sequence**.
+
+The Fibonacci sequence starts with 0 and 1, and every subsequent number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+
+Here is the logic inside the function:
+1.  **Base Case**: If `n` is less than 2, it simply returns `n`.
+    *   If you ask for the 0th number, it returns 0.
+    *   If you ask for the 1st number, it returns 1.
+2.  **Recursive Step**: If `n` is 2 or greater, it calculates the answer by adding the result of the previous two numbers (`fib(n-1)` and `fib(n-2)`).
+
+### Why It Is Faster (The "Cache" Trick)
+
+To understand the speed difference, imagine trying to calculate `fib(5)` without the cache. The function looks like a tree that branches out wildly:
+
+**Without Cache (Slow):**
+When you call `fib(5)`, it needs `fib(4)` and `fib(3)`.
+*   To get `fib(4)`, it needs `fib(3)` and `fib(2)`.
+*   **Notice**: We just needed `fib(3)` again! But the computer has to re-calculate it from scratch.
+*   This happens repeatedly. For larger numbers, the same calculations are repeated thousands of times, making the process exponentially slow.
+
+**With Cache (Fast):**
+The decorator `@lru_cache(maxsize=None)` acts like a **smart notebook**.
+1.  The first time the computer calculates `fib(3)`, it writes the answer down in the notebook and remembers that it already did this work.
+2.  When `fib(5)` needs `fib(3)` again, instead of calculating it from scratch, it looks at the notebook, sees the answer is already there, and uses it immediately.
+3.  It only calculates a number once per unique input value.
+
+### Summary
+*   **Without Cache**: The computer does the same math over and over again, leading to massive redundancy and very slow performance for large numbers.
+*   **With Cache**: The computer remembers every result it has ever calculated so it never repeats work. This reduces the complexity from exponential (impossible for large `n`) to linear (very fast).

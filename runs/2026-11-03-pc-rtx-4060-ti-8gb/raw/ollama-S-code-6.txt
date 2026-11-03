@@ -1,0 +1,20 @@
+```python
+def flatten(nested):
+    """
+    Takes an arbitrarily nested list of integers and returns a flat list
+    of the integers in their original left to right order.
+    
+    Args:
+        nested (list): An arbitrarily nested list containing integers.
+        
+    Returns:
+        list: A flat list of integers.
+    """
+    result = []
+    for item in nested:
+        if isinstance(item, list):
+            result.extend(flatten(item))
+        else:
+            result.append(item)
+    return result
+```

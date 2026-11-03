@@ -1,0 +1,35 @@
+To find the sum of all integers from 1 to 100 that are divisible by 3 or by 5, we can use the Principle of Inclusion-Exclusion.
+
+Let $S$ be the set of integers $\{1, 2, \dots, 100\}$.
+Let $A$ be the set of integers in $S$ divisible by 3.
+Let $B$ be the set of integers in $S$ divisible by 5.
+We want to find the sum of elements in $A \cup B$.
+The sum of elements in $A \cup B$ is given by:
+$\text{Sum}(A \cup B) = \text{Sum}(A) + \text{Sum}(B) - \text{Sum}(A \cap B)$
+
+**Step 1: Calculate the sum of integers divisible by 3 ($A$).**
+The multiples of 3 are $3, 6, 9, \dots, 99$.
+This is an arithmetic progression with first term $a_1 = 3$, last term $a_n = 99$, and common difference $d = 3$.
+The number of terms $n$ is given by $\frac{99}{3} = 33$.
+The sum of an arithmetic progression is $\frac{n}{2}(a_1 + a_n)$.
+$\text{Sum}(A) = \frac{33}{2}(3 + 99) = \frac{33}{2}(102) = 33 \times 51 = 1683$.
+
+**Step 2: Calculate the sum of integers divisible by 5 ($B$).**
+The multiples of 5 are $5, 10, 15, \dots, 100$.
+This is an arithmetic progression with first term $a_1 = 5$, last term $a_n = 100$, and common difference $d = 5$.
+The number of terms $n$ is given by $\frac{100}{5} = 20$.
+$\text{Sum}(B) = \frac{20}{2}(5 + 100) = 10 \times 105 = 1050$.
+
+**Step 3: Calculate the sum of integers divisible by both 3 and 5 ($A \cap B$).**
+Integers divisible by both 3 and 5 are divisible by their least common multiple, which is $\text{lcm}(3, 5) = 15$.
+The multiples of 15 are $15, 30, 45, \dots, 90$. (Note: 105 is greater than 100).
+This is an arithmetic progression with first term $a_1 = 15$, last term $a_n = 90$, and common difference $d = 15$.
+The number of terms $n$ is given by $\frac{90}{15} = 6$.
+$\text{Sum}(A \cap B) = \frac{6}{2}(15 + 90) = 3 \times 105 = 315$.
+
+**Step 4: Calculate the final sum.**
+$\text{Sum}(A \cup B) = 1683 + 1050 - 315$
+$\text{Sum}(A \cup B) = 2733 - 315$
+$\text{Sum}(A \cup B) = 2418$
+
+ANSWER: 2418

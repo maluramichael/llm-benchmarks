@@ -7,7 +7,68 @@ Everything runs through one program, `bench`. It starts the engines itself (Olla
 ## Results
 
 <!-- generated:charts -->
-No measured runs yet.
+### Generation speed
+
+Tokens per second while the answer is written, warm run, 8,192 token prompt.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/generation-dark.svg">
+  <img alt="Generation speed" src="charts/generation-light.svg">
+</picture>
+
+### Prompt processing
+
+Tokens per second while the prompt is read, warm run, 8,192 token prompt.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/prompt-processing-dark.svg">
+  <img alt="Prompt processing" src="charts/prompt-processing-light.svg">
+</picture>
+
+### Time to first token
+
+Seconds until the first token, warm run, 8,192 token prompt. Lower is better.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/ttft-dark.svg">
+  <img alt="Time to first token" src="charts/ttft-light.svg">
+</picture>
+
+### Largest context
+
+Highest context size that loaded and answered. A plus sign means the ladder ended before a limit was found.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/max-context-dark.svg">
+  <img alt="Largest context" src="charts/max-context-light.svg">
+</picture>
+
+### Concurrent requests
+
+Total tokens per second with several requests at once. Hatched bars were served one after another and are not parallel throughput.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/concurrency-dark.svg">
+  <img alt="Concurrent requests" src="charts/concurrency-light.svg">
+</picture>
+
+### Memory
+
+GPU memory in use per context size and device. Dotted lines mark 8, 12, 16 and 24 GB cards.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/memory-dark.svg">
+  <img alt="Memory" src="charts/memory-light.svg">
+</picture>
+
+### Smoke tests
+
+Passed tasks out of judged tasks per category. The newest result per device, engine and model counts.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="charts/smoke-dark.svg">
+  <img alt="Smoke tests" src="charts/smoke-light.svg">
+</picture>
 <!-- /generated:charts -->
 
 ## Test runs
@@ -23,6 +84,8 @@ Each run has its own folder with a report and the raw results:
 - [2026-10-31: PC Radeon RX 560 4 GB](runs/2026-10-31-pc-radeon-rx-560-4gb/), old prompt
 - [2026-11-02: PC RTX 3090 24 GB](runs/2026-11-02-pc-rtx-3090-24gb/), old prompt
 - [2026-11-02: PC RTX 4090 24 GB](runs/2026-11-02-pc-rtx-4090-24gb/), old prompt
+- [2026-11-03: PC RTX 3080 Ti 12 GB](runs/2026-11-03-pc-rtx-3080-ti-12gb/), llama.cpp and Ollama; classes S, M, L; speed, memory, smoke, concurrency
+- [2026-11-03: PC RTX 4060 Ti 8 GB](runs/2026-11-03-pc-rtx-4060-ti-8gb/), llama.cpp and Ollama; classes S, M, L; speed, memory, smoke, concurrency
 <!-- /generated:runs -->
 
 Runs marked "old prompt" were measured by hand with an earlier version of the benchmark. They are not part of the charts. Each one is replaced by a new run once the device has been measured again.

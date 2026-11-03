@@ -1,0 +1,13 @@
+
+
+[tool_calls]
+[
+  {
+    "arguments": {
+      "body": "Hi Anna,\n\nThe meeting has been moved to 3 pm.\n\nBest regards,\n[Your Name]",
+      "subject": "Meeting moved",
+      "to": "anna@example.org"
+    },
+    "name": "send_email"
+  }
+]

@@ -1,0 +1,4149 @@
+{
+  "doctor": [
+    {
+      "check": "uptime",
+      "status": "warn",
+      "text": "up for 239 min; a fresh boot gives cleaner results (over 30 min)"
+    },
+    {
+      "check": "processes",
+      "status": "ok",
+      "text": "no process above 4096 MB"
+    },
+    {
+      "check": "monitors",
+      "status": "info",
+      "text": "1 active monitor(s); every monitor on the benchmark GPU uses some VRAM"
+    },
+    {
+      "check": "tdr",
+      "status": "info",
+      "text": "TdrDelay not set (default 2 s), TdrDdiDelay not set (default 5 s). Windows defaults reset the driver quickly under heavy load; this tool does not change them."
+    },
+    {
+      "check": "reset_detection",
+      "status": "ok",
+      "text": "driver reset detection works (event log readable)"
+    },
+    {
+      "check": "sysmem_fallback",
+      "status": "info",
+      "text": "NVIDIA 'CUDA - Sysmem Fallback Policy' can silently spill VRAM into system RAM and distort results. Set it to 'Prefer No Sysmem Fallback' in the NVIDIA control panel yourself; this tool does not change it."
+    },
+    {
+      "check": "power_supply",
+      "status": "info",
+      "text": "Make sure the power supply has enough headroom for the GPU under load and all PCIe power cables are connected; a weak supply can cause driver resets."
+    }
+  ],
+  "engines": {
+    "llamacpp": {
+      "backend": "cuda",
+      "ctx": 10240,
+      "ctx_arg": 81920,
+      "effective_ctx": 81920,
+      "effective_parallel": 8,
+      "flash_attn": "on",
+      "flash_attn_fallback": false,
+      "kv_unified": false,
+      "llama_arg_env_removed": [],
+      "parallel": 8,
+      "thinking": false,
+      "version": "b12061 (d02b4c0d6)"
+    },
+    "ollama": {
+      "backend": "cuda",
+      "backend_used": "cuda",
+      "effective_ctx": 10240,
+      "effective_parallel": 1,
+      "flash_attn": "on",
+      "gpu_env": {},
+      "kv_cache_type": "f16",
+      "max_loaded_models": 1,
+      "num_parallel": 8,
+      "ollama_vulkan": false,
+      "settings_source": "server log",
+      "thinking": false,
+      "version": "0.40.13"
+    }
+  },
+  "models": {
+    "llamacpp/M": {
+      "cls": "M",
+      "digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+      "engine": "llamacpp",
+      "id": "M",
+      "quant": "Q4_K_M",
+      "size_bytes": 9276184896,
+      "weights_source": "local store"
+    },
+    "llamacpp/S": {
+      "cls": "S",
+      "digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+      "engine": "llamacpp",
+      "id": "S",
+      "quant": "Q4_K_M",
+      "size_bytes": 2648593216,
+      "weights_source": "local store"
+    },
+    "ollama/M": {
+      "cls": "M",
+      "digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+      "engine": "ollama",
+      "id": "M",
+      "quant": "Q4_K_M",
+      "size_bytes": 9276184896,
+      "weights_source": "local store"
+    },
+    "ollama/S": {
+      "cls": "S",
+      "digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+      "engine": "ollama",
+      "id": "S",
+      "quant": "Q4_K_M",
+      "size_bytes": 2648593216,
+      "weights_source": "local store"
+    }
+  },
+  "notes": [],
+  "run": {
+    "bench_version": "1.1.1",
+    "device": "PC RTX 3080 Ti 12 GB",
+    "started_at": "2026-11-03T11:28:32Z"
+  },
+  "schema_version": 1,
+  "system": {
+    "cores": 8,
+    "cpu": "AMD Ryzen 7 3700X",
+    "disk_free_gb": 1008.6,
+    "gpus": [
+      {
+        "backend": "cuda",
+        "driver": "591.59",
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 3080 Ti",
+        "vendor": "nvidia",
+        "vram_free_mb": 10589,
+        "vram_total_mb": 12288
+      }
+    ],
+    "kernel": null,
+    "laptop": false,
+    "memory_for_models_gb": 12,
+    "model": "MS-7C92",
+    "monitors_on_gpu": 1,
+    "os": "Microsoft Windows 11 IoT Enterprise LTSC",
+    "os_version": "10.0.26100",
+    "power": "ac",
+    "ram_gb": 16,
+    "ram_speed_mts": 3600,
+    "threads": 16,
+    "uptime_min": 239
+  },
+  "system_first": {
+    "cores": 8,
+    "cpu": "AMD Ryzen 7 3700X",
+    "disk_free_gb": 1008.6,
+    "gpus": [
+      {
+        "backend": "cuda",
+        "driver": "591.59",
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 3080 Ti",
+        "vendor": "nvidia",
+        "vram_free_mb": 10589,
+        "vram_total_mb": 12288
+      }
+    ],
+    "kernel": null,
+    "laptop": false,
+    "memory_for_models_gb": 12,
+    "model": "MS-7C92",
+    "monitors_on_gpu": 1,
+    "os": "Microsoft Windows 11 IoT Enterprise LTSC",
+    "os_version": "10.0.26100",
+    "power": "ac",
+    "ram_gb": 16,
+    "ram_speed_mts": 3600,
+    "threads": 16,
+    "uptime_min": 239
+  },
+  "tests": {
+    "llamacpp/L/memory/fit": {
+      "finished_at": "2026-11-03T11:28:32Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:28:32Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "the weights alone (15.7 GiB) plus the 1.5 GiB safety reserve exceed the 12.0 GiB of the card"
+      }
+    },
+    "llamacpp/M/concurrency/p1": {
+      "finished_at": "2026-11-03T11:34:50Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "does_not_fit",
+      "values": {
+        "parallel": 1,
+        "reason": "only 143 MB would stay free (10589 MB free, 10446 MB needed), reserve is 1536 MB"
+      }
+    },
+    "llamacpp/M/concurrency/p2": {
+      "finished_at": "2026-11-03T11:34:50Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:50Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not run: level p1 did not fit"
+      }
+    },
+    "llamacpp/M/concurrency/p4": {
+      "finished_at": "2026-11-03T11:34:50Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:50Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not run: level p1 did not fit"
+      }
+    },
+    "llamacpp/M/concurrency/p8": {
+      "finished_at": "2026-11-03T11:34:50Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:50Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not run: level p1 did not fit"
+      }
+    },
+    "llamacpp/M/memory/computed": {
+      "finished_at": "2026-11-03T11:34:45Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:45Z",
+      "status": "ok",
+      "values": {
+        "attention_layers": 40,
+        "cache_type_bytes": 2.0,
+        "curve": [
+          {
+            "bytes": 10618362176,
+            "ctx": 8192
+          },
+          {
+            "bytes": 11960539456,
+            "ctx": 16384
+          },
+          {
+            "bytes": 14644894016,
+            "ctx": 32768
+          },
+          {
+            "bytes": 20013603136,
+            "ctx": 65536
+          },
+          {
+            "bytes": 30751021376,
+            "ctx": 131072
+          },
+          {
+            "bytes": 52225857856,
+            "ctx": 262144
+          }
+        ],
+        "kv_bytes_per_token": 163840,
+        "note": "weights plus f16 KV cache; compute buffers and other overhead are not included",
+        "recurrent_state_ignored": false,
+        "sliding_window": false,
+        "weights_bytes": 9276184896
+      }
+    },
+    "llamacpp/M/memory/ctx-131072": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "llamacpp/M/memory/ctx-16384": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "llamacpp/M/memory/ctx-262144": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "llamacpp/M/memory/ctx-32768": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "llamacpp/M/memory/ctx-65536": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "llamacpp/M/memory/ctx-8192": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:46Z",
+      "status": "does_not_fit",
+      "values": {
+        "ctx": 8192,
+        "reason": "only 463 MB would stay free (10589 MB free, 10126 MB needed), reserve is 1536 MB",
+        "vram_baseline_mb": 1699
+      }
+    },
+    "llamacpp/M/smoke/code-1": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/code-2": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/code-3": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/code-4": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/code-5": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/code-6": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/creative-1": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "creative",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/creative-2": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "creative",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/explain-1": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code_explain",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/explain-2": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "code_explain",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/json-1": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/json-2": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/json-3": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/json-4": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/json-5": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-1": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-2": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-3": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-4": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-5": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-6": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-7": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/math-8": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/needle-10": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "long_context",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/needle-50": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "long_context",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/needle-90": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "long_context",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/tool-1": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/tool-2": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/tool-3": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/tool-4": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/smoke/tool-5": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/speed/cache": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/speed/cold": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/speed/llama-bench": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/speed/llama-bench-deep": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/M/speed/warm": {
+      "finished_at": "2026-11-03T11:34:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:48Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "llamacpp/S/concurrency/p1": {
+      "finished_at": "2026-11-03T11:33:58Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:49Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 157.03993464185857,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 256,
+        "gpu_fraction": 1.0,
+        "load_s": 1.780235399999583,
+        "parallel": 1,
+        "per_request_tps": 157.37314710024606,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 157.37314710024606,
+            "prompt_tokens": 8173,
+            "ttft_s": 1.1599540999995952,
+            "wall_s": 2.7901127000004635
+          }
+        ],
+        "serialized": false,
+        "total_tps": 91.69035393837748,
+        "ttft_p50_s": 1.1599540999995952,
+        "wall_s": 2.79200579999997
+      }
+    },
+    "llamacpp/S/concurrency/p2": {
+      "finished_at": "2026-11-03T11:34:09Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:58Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 230.81314162678981,
+        "driver_reset_check": "none",
+        "effective_ctx": 20480,
+        "effective_parallel": 2,
+        "gen_tokens": 512,
+        "gpu_fraction": 1.0,
+        "load_s": 1.7815807000006316,
+        "parallel": 2,
+        "per_request_tps": 115.46344407620366,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 99.79775361493972,
+            "prompt_tokens": 8160,
+            "ttft_s": 1.6962141000003612,
+            "wall_s": 4.2624603000003844
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 131.1291345374676,
+            "prompt_tokens": 8168,
+            "ttft_s": 2.342885899999601,
+            "wall_s": 4.296241300000474
+          }
+        ],
+        "serialized": false,
+        "total_tps": 119.16356579562263,
+        "ttft_p50_s": 2.019549999999981,
+        "wall_s": 4.2966152999997576
+      }
+    },
+    "llamacpp/S/concurrency/p4": {
+      "finished_at": "2026-11-03T11:34:23Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:09Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 253.48253073173686,
+        "driver_reset_check": "none",
+        "effective_ctx": 40960,
+        "effective_parallel": 4,
+        "gen_tokens": 1024,
+        "gpu_fraction": 1.0,
+        "load_s": 1.8023341999996774,
+        "parallel": 4,
+        "per_request_tps": 62.246881253244304,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 86.01445311607515,
+            "prompt_tokens": 8172,
+            "ttft_s": 4.780881900000168,
+            "wall_s": 7.758107600000585
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 43.04660316059595,
+            "prompt_tokens": 8182,
+            "ttft_s": 1.6903065000005881,
+            "wall_s": 7.638506100000086
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 53.54872191123755,
+            "prompt_tokens": 8182,
+            "ttft_s": 2.903700000000754,
+            "wall_s": 7.685565999998289
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 70.94504059525106,
+            "prompt_tokens": 8173,
+            "ttft_s": 4.116326200000913,
+            "wall_s": 7.725893900000301
+          }
+        ],
+        "serialized": false,
+        "total_tps": 131.988977476754,
+        "ttft_p50_s": 3.510013100000833,
+        "wall_s": 7.7582235999998375
+      }
+    },
+    "llamacpp/S/concurrency/p8": {
+      "finished_at": "2026-11-03T11:34:44Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:23Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 269.0486687735929,
+        "driver_reset_check": "none",
+        "effective_ctx": 81920,
+        "effective_parallel": 8,
+        "gen_tokens": 2048,
+        "gpu_fraction": 1.0,
+        "load_s": 1.800022400000671,
+        "parallel": 8,
+        "per_request_tps": 30.623496826950618,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 53.585105182747185,
+            "prompt_tokens": 8174,
+            "ttft_s": 9.724401899999066,
+            "wall_s": 14.503016399999979
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 25.228532563679135,
+            "prompt_tokens": 8176,
+            "ttft_s": 4.120395700001609,
+            "wall_s": 14.268944100000226
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 38.62029013492963,
+            "prompt_tokens": 8168,
+            "ttft_s": 7.798131300000023,
+            "wall_s": 14.427948099999412
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 28.48988264171546,
+            "prompt_tokens": 8176,
+            "ttft_s": 5.341017100001409,
+            "wall_s": 14.327937599999132
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 20.586683487702633,
+            "prompt_tokens": 8163,
+            "ttft_s": 1.6910513000002538,
+            "wall_s": 14.12740809999923
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 47.169541889777676,
+            "prompt_tokens": 8162,
+            "ttft_s": 9.039849400000094,
+            "wall_s": 14.468670899999779
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 22.661916516509336,
+            "prompt_tokens": 8180,
+            "ttft_s": 2.9035776000000624,
+            "wall_s": 14.201338099999703
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 32.757111012185774,
+            "prompt_tokens": 8167,
+            "ttft_s": 6.5637071000001015,
+            "wall_s": 14.37997390000055
+          }
+        ],
+        "serialized": false,
+        "total_tps": 141.21047272025956,
+        "ttft_p50_s": 5.952362100000755,
+        "wall_s": 14.503173600000082
+      }
+    },
+    "llamacpp/S/memory/computed": {
+      "finished_at": "2026-11-03T11:29:28Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:28Z",
+      "status": "ok",
+      "values": {
+        "attention_layers": 8,
+        "cache_type_bytes": 2.0,
+        "curve": [
+          {
+            "bytes": 2917028672,
+            "ctx": 8192
+          },
+          {
+            "bytes": 3185464128,
+            "ctx": 16384
+          },
+          {
+            "bytes": 3722335040,
+            "ctx": 32768
+          },
+          {
+            "bytes": 4796076864,
+            "ctx": 65536
+          },
+          {
+            "bytes": 6943560512,
+            "ctx": 131072
+          },
+          {
+            "bytes": 11238527808,
+            "ctx": 262144
+          }
+        ],
+        "kv_bytes_per_token": 32768,
+        "note": "upper bound: sliding-window attention keeps a smaller cache, and recurrent state of hybrid models is not included; weights plus f16 KV cache; compute buffers and other overhead are not included",
+        "recurrent_state_ignored": true,
+        "sliding_window": false,
+        "weights_bytes": 2648593216
+      }
+    },
+    "llamacpp/S/memory/ctx-131072": {
+      "finished_at": "2026-11-03T11:31:03Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:30:20Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 131072,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 90.41252835103795,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 4096.0,
+        "load_s": 2.5944801999994525,
+        "prompt_tokens": 126853,
+        "prompt_tps": 3869.250901154218,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 351,
+        "swap_mb": 1470,
+        "ttft_s": 33.0027227999999,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 3420,
+        "vram_used_mb": 8868
+      }
+    },
+    "llamacpp/S/memory/ctx-16384": {
+      "finished_at": "2026-11-03T11:29:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:39Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 16384,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 153.6264237448841,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 512.0,
+        "load_s": 1.6155029999990802,
+        "prompt_tokens": 15853,
+        "prompt_tps": 7074.724405724043,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 219,
+        "swap_mb": 1470,
+        "ttft_s": 2.2853785999996035,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 7122,
+        "vram_used_mb": 5166
+      }
+    },
+    "llamacpp/S/memory/ctx-262144": {
+      "finished_at": "2026-11-03T11:31:05Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:03Z",
+      "status": "does_not_fit",
+      "values": {
+        "ctx": 262144,
+        "reason": "only -128 MB would stay free (10589 MB free, 10717 MB needed), reserve is 1536 MB",
+        "vram_baseline_mb": 1699
+      }
+    },
+    "llamacpp/S/memory/ctx-32768": {
+      "finished_at": "2026-11-03T11:30:00Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:48Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 137.28087344955733,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 1024.0,
+        "load_s": 1.5873850999996648,
+        "prompt_tokens": 31741,
+        "prompt_tps": 6358.964455029474,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 249,
+        "swap_mb": 1469,
+        "ttft_s": 5.038998600000923,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 6594,
+        "vram_used_mb": 5694
+      }
+    },
+    "llamacpp/S/memory/ctx-65536": {
+      "finished_at": "2026-11-03T11:30:20Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:30:00Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 65536,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 118.25135804294001,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 2048.0,
+        "load_s": 1.8066794000005757,
+        "prompt_tokens": 63411,
+        "prompt_tps": 5267.933016475884,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 285,
+        "swap_mb": 1468,
+        "ttft_s": 12.132104500000423,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 5532,
+        "vram_used_mb": 6756
+      }
+    },
+    "llamacpp/S/memory/ctx-8192": {
+      "finished_at": "2026-11-03T11:29:39Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:29Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 8192,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 160.80644431825604,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 256.0,
+        "load_s": 3.7894538000000466,
+        "prompt_tokens": 7796,
+        "prompt_tps": 6803.932246938405,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 211,
+        "swap_mb": 1470,
+        "ttft_s": 1.1612095000000409,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 7380,
+        "vram_used_mb": 4908
+      }
+    },
+    "llamacpp/S/smoke/code-1": {
+      "finished_at": "2026-11-03T11:33:12Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:12Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 104,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-2": {
+      "finished_at": "2026-11-03T11:33:13Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:12Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 57,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-3": {
+      "finished_at": "2026-11-03T11:33:15Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:13Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 233,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-4": {
+      "finished_at": "2026-11-03T11:33:16Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:15Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 158,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-5": {
+      "finished_at": "2026-11-03T11:33:17Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:16Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 134,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-6": {
+      "finished_at": "2026-11-03T11:33:18Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:17Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 86,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-6.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/creative-1": {
+      "finished_at": "2026-11-03T11:33:43Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:41Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 204,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-creative-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/creative-2": {
+      "finished_at": "2026-11-03T11:33:43Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:43Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 36,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-creative-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/explain-1": {
+      "finished_at": "2026-11-03T11:33:45Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:43Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 268,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-explain-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/explain-2": {
+      "finished_at": "2026-11-03T11:33:49Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:45Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 600,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-explain-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-1": {
+      "finished_at": "2026-11-03T11:33:18Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:18Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 33,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-2": {
+      "finished_at": "2026-11-03T11:33:19Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:18Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 80,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-3": {
+      "finished_at": "2026-11-03T11:33:19Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:19Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 23,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-4": {
+      "finished_at": "2026-11-03T11:33:20Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:19Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 54,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-5": {
+      "finished_at": "2026-11-03T11:33:20Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:20Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 25,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-1": {
+      "finished_at": "2026-11-03T11:32:53Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:49Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 233,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-2": {
+      "finished_at": "2026-11-03T11:32:58Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:53Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 797,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-3": {
+      "finished_at": "2026-11-03T11:32:59Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:58Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 162,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-4": {
+      "finished_at": "2026-11-03T11:33:02Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:59Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 608,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-5": {
+      "finished_at": "2026-11-03T11:33:04Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:02Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 216,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-6": {
+      "finished_at": "2026-11-03T11:33:07Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:04Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 571,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-6.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-7": {
+      "finished_at": "2026-11-03T11:33:09Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:07Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 244,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-7.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-8": {
+      "finished_at": "2026-11-03T11:33:12Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:09Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 400,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-8.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/needle-10": {
+      "finished_at": "2026-11-03T11:33:30Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:22Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 7,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-needle-10.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/needle-50": {
+      "finished_at": "2026-11-03T11:33:36Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:30Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 19,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-needle-50.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/needle-90": {
+      "finished_at": "2026-11-03T11:33:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:36Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 11,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-needle-90.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-1": {
+      "finished_at": "2026-11-03T11:33:20Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:20Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 26,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-2": {
+      "finished_at": "2026-11-03T11:33:21Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:20Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 55,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-3": {
+      "finished_at": "2026-11-03T11:33:21Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:21Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 29,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-4": {
+      "finished_at": "2026-11-03T11:33:22Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:21Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 18,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-5": {
+      "finished_at": "2026-11-03T11:33:22Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:22Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 76,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/speed/cache": {
+      "finished_at": "2026-11-03T11:31:43Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:29Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8168,
+        "driver_reset_check": "none",
+        "first_ttft_s": 1.1547981000003347,
+        "gen_tokens": 256,
+        "gen_tps": 159.11878030482433,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 8172,
+        "runs": [
+          {
+            "cached_tokens": 8187,
+            "gen_tokens": 256,
+            "gen_tps": 159.23893740354694,
+            "prompt_tokens": 8191,
+            "ttft_s": 0.04583009999987553
+          },
+          {
+            "cached_tokens": 8159,
+            "gen_tokens": 256,
+            "gen_tps": 159.11878030482433,
+            "prompt_tokens": 8163,
+            "ttft_s": 0.06847259999995003
+          },
+          {
+            "cached_tokens": 8168,
+            "gen_tokens": 256,
+            "gen_tps": 158.28038256863093,
+            "prompt_tokens": 8172,
+            "ttft_s": 0.06674080000084359
+          }
+        ],
+        "ttft_s": 0.06674080000084359
+      }
+    },
+    "llamacpp/S/speed/cold": {
+      "finished_at": "2026-11-03T11:31:21Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:07Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 167.12419090021837,
+        "gpu_fraction": 1.0,
+        "load_s": 1.6020270999997592,
+        "prompt_tokens": 512,
+        "prompt_tps": 5049.06069720428,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 167.12419090021837,
+            "load_s": 1.7726679999996122,
+            "prompt_tokens": 512,
+            "prompt_tps": 5049.06069720428,
+            "ttft_incl_load_s": 1.8905973999990238,
+            "ttft_s": 0.11792939999941154
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 167.18847757911087,
+            "load_s": 1.6017804000002798,
+            "prompt_tokens": 512,
+            "prompt_tps": 5253.976398152899,
+            "ttft_incl_load_s": 1.7145071000013559,
+            "ttft_s": 0.1127267000010761
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 163.1518905862634,
+            "load_s": 1.6020270999997592,
+            "prompt_tokens": 510,
+            "prompt_tps": 5044.011472653546,
+            "ttft_incl_load_s": 1.705317500000092,
+            "ttft_s": 0.10329040000033274
+          }
+        ],
+        "ttft_incl_load_s": 1.7145071000013559,
+        "ttft_s": 0.1127267000010761
+      }
+    },
+    "llamacpp/S/speed/llama-bench": {
+      "finished_at": "2026-11-03T11:31:55Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:43Z",
+      "status": "ok",
+      "values": {
+        "driver_reset_check": "none",
+        "pp512_tps": 7781.097276,
+        "pp8192_tps": 7416.456739,
+        "tg256_tps": 177.764231
+      }
+    },
+    "llamacpp/S/speed/llama-bench-deep": {
+      "finished_at": "2026-11-03T11:32:47Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:55Z",
+      "status": "ok",
+      "values": {
+        "depth": 131072,
+        "driver_reset_check": "none",
+        "pp512_tps": 2308.483884,
+        "pp8192_tps": null,
+        "tg256_tps": 92.479285
+      }
+    },
+    "llamacpp/S/speed/warm": {
+      "finished_at": "2026-11-03T11:31:29Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:21Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 159.16122036865715,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 8161,
+        "prompt_tps": 7253.1424059412275,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 159.41177056660922,
+            "prompt_tokens": 8173,
+            "prompt_tps": 7315.125922557941,
+            "ttft_s": 1.1310419000001275
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 159.16122036865715,
+            "prompt_tokens": 8157,
+            "prompt_tps": 7253.1424059412275,
+            "ttft_s": 1.1575590000011289
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 158.13206498239546,
+            "prompt_tokens": 8161,
+            "prompt_tps": 7249.5567297135,
+            "ttft_s": 1.1552780000001803
+          }
+        ],
+        "ttft_s": 1.1552780000001803
+      }
+    },
+    "ollama/L/memory/fit": {
+      "finished_at": "2026-11-03T11:34:50Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:34:50Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "the weights alone (15.7 GiB) plus the 1.5 GiB safety reserve exceed the 12.0 GiB of the card"
+      }
+    },
+    "ollama/M/concurrency/p1": {
+      "finished_at": "2026-11-03T11:41:43Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "does_not_fit",
+      "values": {
+        "parallel": 1,
+        "reason": "only 143 MB would stay free (10589 MB free, 10446 MB needed), reserve is 1536 MB"
+      }
+    },
+    "ollama/M/concurrency/p2": {
+      "finished_at": "2026-11-03T11:41:43Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:43Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not run: level p1 did not fit"
+      }
+    },
+    "ollama/M/concurrency/p4": {
+      "finished_at": "2026-11-03T11:41:43Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:43Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not run: level p1 did not fit"
+      }
+    },
+    "ollama/M/concurrency/p8": {
+      "finished_at": "2026-11-03T11:41:43Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:43Z",
+      "status": "skipped",
+      "values": {
+        "reason": "not run: level p1 did not fit"
+      }
+    },
+    "ollama/M/memory/computed": {
+      "finished_at": "2026-11-03T11:41:38Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:38Z",
+      "status": "ok",
+      "values": {
+        "attention_layers": 40,
+        "cache_type_bytes": 2.0,
+        "curve": [
+          {
+            "bytes": 10618362176,
+            "ctx": 8192
+          },
+          {
+            "bytes": 11960539456,
+            "ctx": 16384
+          },
+          {
+            "bytes": 14644894016,
+            "ctx": 32768
+          },
+          {
+            "bytes": 20013603136,
+            "ctx": 65536
+          },
+          {
+            "bytes": 30751021376,
+            "ctx": 131072
+          },
+          {
+            "bytes": 52225857856,
+            "ctx": 262144
+          }
+        ],
+        "kv_bytes_per_token": 163840,
+        "note": "weights plus f16 KV cache; compute buffers and other overhead are not included",
+        "recurrent_state_ignored": false,
+        "sliding_window": false,
+        "weights_bytes": 9276184896
+      }
+    },
+    "ollama/M/memory/ctx-131072": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "ollama/M/memory/ctx-16384": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "ollama/M/memory/ctx-262144": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "ollama/M/memory/ctx-32768": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "ollama/M/memory/ctx-65536": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 8192 did not fit or crashed"
+      }
+    },
+    "ollama/M/memory/ctx-8192": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:39Z",
+      "status": "does_not_fit",
+      "values": {
+        "ctx": 8192,
+        "reason": "only 463 MB would stay free (10589 MB free, 10126 MB needed), reserve is 1536 MB",
+        "vram_baseline_mb": 1699
+      }
+    },
+    "ollama/M/smoke/code-1": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/code-2": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/code-3": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/code-4": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/code-5": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/code-6": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/creative-1": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "creative",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/creative-2": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "creative",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/explain-1": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code_explain",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/explain-2": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "code_explain",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/json-1": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/json-2": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/json-3": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/json-4": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/json-5": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "json",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-1": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-2": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-3": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-4": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-5": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-6": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-7": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/math-8": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "math",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/needle-10": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "long_context",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/needle-50": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "long_context",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/needle-90": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "long_context",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/tool-1": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/tool-2": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/tool-3": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/tool-4": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/smoke/tool-5": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "category": "tool_calls",
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/speed/cache": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/speed/cold": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/M/speed/warm": {
+      "finished_at": "2026-11-03T11:41:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a8cc1361f3145dc01f6d77c6c82c9116b9ffe3c97b34716fe20418455876c40e",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:41Z",
+      "status": "skipped",
+      "values": {
+        "reason": "does not fit (guard): memory/ctx-8192 is does_not_fit"
+      }
+    },
+    "ollama/S/concurrency/p1": {
+      "finished_at": "2026-11-03T11:40:15Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:04Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 118.73176847017871,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 256,
+        "gpu_fraction": 1.0,
+        "load_s": 2.8951778000009654,
+        "parallel": 1,
+        "per_request_tps": 121.9486634235944,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 121.9486634235944,
+            "prompt_tokens": 8205,
+            "ttft_s": 1.1995391999989806,
+            "wall_s": 3.355659700000615
+          }
+        ],
+        "serialized": false,
+        "total_tps": 76.26577502445285,
+        "ttft_p50_s": 1.1995391999989806,
+        "wall_s": 3.3566825999987486
+      }
+    },
+    "ollama/S/concurrency/p2": {
+      "finished_at": "2026-11-03T11:40:32Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:15Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 242.478878699119,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 512,
+        "gpu_fraction": 1.0,
+        "load_s": 2.649774100000286,
+        "parallel": 2,
+        "per_request_tps": 122.21699724993951,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 121.22681537156019,
+            "prompt_tokens": 8121,
+            "ttft_s": 1.171721599999728,
+            "wall_s": 3.3012013000006846
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 123.20717912831883,
+            "prompt_tokens": 8108,
+            "ttft_s": 4.462788200000432,
+            "wall_s": 6.556657000000996
+          }
+        ],
+        "serialized": true,
+        "serialized_note": "engine ran 2 requests with parallel 1",
+        "total_tps": 78.08666204164061,
+        "ttft_p50_s": 2.81725490000008,
+        "wall_s": 6.556817600001523
+      }
+    },
+    "ollama/S/concurrency/p4": {
+      "finished_at": "2026-11-03T11:40:55Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:32Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 482.944791433265,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 1024,
+        "gpu_fraction": 1.0,
+        "load_s": 2.6295671000007133,
+        "parallel": 4,
+        "per_request_tps": 121.88481411732192,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 119.64495360019144,
+            "prompt_tokens": 8175,
+            "ttft_s": 7.795323599999392,
+            "wall_s": 9.952539899999465
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 120.9471484583727,
+            "prompt_tokens": 8214,
+            "ttft_s": 1.2095538000012311,
+            "wall_s": 3.3443720000013855
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 123.59620540337505,
+            "prompt_tokens": 8282,
+            "ttft_s": 11.156975500000044,
+            "wall_s": 13.245536599999468
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 122.82247977627117,
+            "prompt_tokens": 8309,
+            "ttft_s": 4.529629999999088,
+            "wall_s": 6.6317059000011795
+          }
+        ],
+        "serialized": true,
+        "serialized_note": "engine ran 4 requests with parallel 1",
+        "total_tps": 77.30775326478803,
+        "ttft_p50_s": 6.16247679999924,
+        "wall_s": 13.245760699999664
+      }
+    },
+    "ollama/S/concurrency/p8": {
+      "finished_at": "2026-11-03T11:41:38Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:55Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 962.2010578143647,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 2048,
+        "gpu_fraction": 1.0,
+        "load_s": 2.635295500000211,
+        "parallel": 8,
+        "per_request_tps": 121.47519249884962,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 123.26377436566104,
+            "prompt_tokens": 8206,
+            "ttft_s": 4.518062699999064,
+            "wall_s": 6.612749500000064
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 120.63766436087138,
+            "prompt_tokens": 8215,
+            "ttft_s": 7.796528499999113,
+            "wall_s": 9.93609970000034
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 122.25738713995558,
+            "prompt_tokens": 8198,
+            "ttft_s": 20.979391799999576,
+            "wall_s": 23.091318500000853
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 119.76120738009729,
+            "prompt_tokens": 8226,
+            "ttft_s": 11.137906300000395,
+            "wall_s": 13.293234900000243
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 120.98493075975702,
+            "prompt_tokens": 8216,
+            "ttft_s": 27.594990300000063,
+            "wall_s": 29.729302399999142
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 122.1404930563607,
+            "prompt_tokens": 8217,
+            "ttft_s": 24.271344099999624,
+            "wall_s": 26.386823100001493
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 119.48948124738126,
+            "prompt_tokens": 8262,
+            "ttft_s": 30.987142300000414,
+            "wall_s": 33.14680969999972
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 121.96545423794221,
+            "prompt_tokens": 8265,
+            "ttft_s": 1.220324800000526,
+            "wall_s": 3.338641100001041
+          }
+        ],
+        "serialized": true,
+        "serialized_note": "engine ran 8 requests with parallel 1",
+        "total_tps": 61.78511764192851,
+        "ttft_p50_s": 16.058649049999985,
+        "wall_s": 33.1471408999987
+      }
+    },
+    "ollama/S/memory/computed": {
+      "finished_at": "2026-11-03T11:34:56Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:55Z",
+      "status": "ok",
+      "values": {
+        "attention_layers": 8,
+        "cache_type_bytes": 2.0,
+        "curve": [
+          {
+            "bytes": 2917028672,
+            "ctx": 8192
+          },
+          {
+            "bytes": 3185464128,
+            "ctx": 16384
+          },
+          {
+            "bytes": 3722335040,
+            "ctx": 32768
+          },
+          {
+            "bytes": 4796076864,
+            "ctx": 65536
+          },
+          {
+            "bytes": 6943560512,
+            "ctx": 131072
+          },
+          {
+            "bytes": 11238527808,
+            "ctx": 262144
+          }
+        ],
+        "kv_bytes_per_token": 32768,
+        "note": "upper bound: sliding-window attention keeps a smaller cache, and recurrent state of hybrid models is not included; weights plus f16 KV cache; compute buffers and other overhead are not included",
+        "recurrent_state_ignored": true,
+        "sliding_window": false,
+        "weights_bytes": 2648593216
+      }
+    },
+    "ollama/S/memory/ctx-131072": {
+      "finished_at": "2026-11-03T11:37:58Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:37:16Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 131072,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 78.3702418395455,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 4096.0,
+        "load_s": 2.903934100000697,
+        "prompt_tokens": 124117,
+        "prompt_tps": 3919.4480278324168,
+        "rs_buffer_mb": null,
+        "shared_mb": 829,
+        "swap_mb": 1487,
+        "ttft_s": 32.223538299998836,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 2550,
+        "vram_used_mb": 9738
+      }
+    },
+    "ollama/S/memory/ctx-16384": {
+      "finished_at": "2026-11-03T11:36:42Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:36:32Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 16384,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 115.5556919754697,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 512.0,
+        "load_s": 2.627692500000194,
+        "prompt_tokens": 15311,
+        "prompt_tps": 7468.92987004566,
+        "rs_buffer_mb": null,
+        "shared_mb": 753,
+        "swap_mb": 1487,
+        "ttft_s": 2.163759499999287,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 6156,
+        "vram_used_mb": 6132
+      }
+    },
+    "ollama/S/memory/ctx-262144": {
+      "finished_at": "2026-11-03T11:38:00Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:37:58Z",
+      "status": "does_not_fit",
+      "values": {
+        "ctx": 262144,
+        "reason": "only -128 MB would stay free (10589 MB free, 10717 MB needed), reserve is 1536 MB",
+        "vram_baseline_mb": 1699
+      }
+    },
+    "ollama/S/memory/ctx-32768": {
+      "finished_at": "2026-11-03T11:36:56Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:36:42Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 110.40402698688435,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 1024.0,
+        "load_s": 2.8889717000001838,
+        "prompt_tokens": 31093,
+        "prompt_tps": 6719.672542120869,
+        "rs_buffer_mb": null,
+        "shared_mb": 785,
+        "swap_mb": 1487,
+        "ttft_s": 4.833106199999747,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 5612,
+        "vram_used_mb": 6676
+      }
+    },
+    "ollama/S/memory/ctx-65536": {
+      "finished_at": "2026-11-03T11:37:16Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:36:56Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 65536,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 95.34010347380605,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 2048.0,
+        "load_s": 2.9032741999999416,
+        "prompt_tokens": 62622,
+        "prompt_tps": 5523.735160618067,
+        "rs_buffer_mb": null,
+        "shared_mb": 849,
+        "swap_mb": 1487,
+        "ttft_s": 11.633126700000503,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 4524,
+        "vram_used_mb": 7764
+      }
+    },
+    "ollama/S/memory/ctx-8192": {
+      "finished_at": "2026-11-03T11:36:32Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:57Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 8192,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 121.26448542173515,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 256.0,
+        "load_s": 42.79033099999833,
+        "prompt_tokens": 7768,
+        "prompt_tps": 6400.121279332173,
+        "rs_buffer_mb": null,
+        "shared_mb": 737,
+        "swap_mb": 1487,
+        "ttft_s": 1.350243099999716,
+        "vram_baseline_mb": 1699,
+        "vram_free_mb": 6432,
+        "vram_used_mb": 5856
+      }
+    },
+    "ollama/S/smoke/code-1": {
+      "finished_at": "2026-11-03T11:39:19Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:18Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 117,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-2": {
+      "finished_at": "2026-11-03T11:39:20Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:19Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 55,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-3": {
+      "finished_at": "2026-11-03T11:39:22Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:20Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 235,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-4": {
+      "finished_at": "2026-11-03T11:39:23Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:22Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 165,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-5": {
+      "finished_at": "2026-11-03T11:39:25Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:23Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 114,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-6": {
+      "finished_at": "2026-11-03T11:39:26Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:25Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 119,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-6.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/creative-1": {
+      "finished_at": "2026-11-03T11:39:55Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:53Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 222,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-creative-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/creative-2": {
+      "finished_at": "2026-11-03T11:39:56Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:55Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 37,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-creative-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/explain-1": {
+      "finished_at": "2026-11-03T11:40:00Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:56Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 482,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-explain-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/explain-2": {
+      "finished_at": "2026-11-03T11:40:04Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:00Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 496,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-explain-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-1": {
+      "finished_at": "2026-11-03T11:39:26Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:26Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 33,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-2": {
+      "finished_at": "2026-11-03T11:39:27Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:26Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 80,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-3": {
+      "finished_at": "2026-11-03T11:39:28Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:27Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 23,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-4": {
+      "finished_at": "2026-11-03T11:39:28Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:28Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 54,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-5": {
+      "finished_at": "2026-11-03T11:39:29Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:28Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 25,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-1": {
+      "finished_at": "2026-11-03T11:38:55Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:50Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 249,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-2": {
+      "finished_at": "2026-11-03T11:39:00Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:55Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 644,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-3": {
+      "finished_at": "2026-11-03T11:39:01Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:00Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 157,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-4": {
+      "finished_at": "2026-11-03T11:39:07Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:01Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 677,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-5": {
+      "finished_at": "2026-11-03T11:39:09Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:07Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 270,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-6": {
+      "finished_at": "2026-11-03T11:39:12Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:09Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 436,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-6.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-7": {
+      "finished_at": "2026-11-03T11:39:14Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:12Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 247,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-7.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-8": {
+      "finished_at": "2026-11-03T11:39:18Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:14Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 405,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-8.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/needle-10": {
+      "finished_at": "2026-11-03T11:39:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:32Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 7,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-needle-10.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/needle-50": {
+      "finished_at": "2026-11-03T11:39:47Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:41Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 19,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-needle-50.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/needle-90": {
+      "finished_at": "2026-11-03T11:39:53Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:47Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 11,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-needle-90.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-1": {
+      "finished_at": "2026-11-03T11:39:29Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:29Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 26,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-2": {
+      "finished_at": "2026-11-03T11:39:30Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:29Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 55,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-3": {
+      "finished_at": "2026-11-03T11:39:31Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:30Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 29,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-4": {
+      "finished_at": "2026-11-03T11:39:31Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:31Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 6,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-5": {
+      "finished_at": "2026-11-03T11:39:32Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:31Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 90,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/speed/cache": {
+      "finished_at": "2026-11-03T11:38:47Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:31Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 7935,
+        "driver_reset_check": "none",
+        "first_ttft_s": 1.1890555000009044,
+        "gen_tokens": 256,
+        "gen_tps": 124.67406989962474,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 7939,
+        "runs": [
+          {
+            "cached_tokens": 8802,
+            "gen_tokens": 256,
+            "gen_tps": 124.67406989962474,
+            "prompt_tokens": 8806,
+            "ttft_s": 0.08778170000005048
+          },
+          {
+            "cached_tokens": 7935,
+            "gen_tokens": 256,
+            "gen_tps": 120.8379925977289,
+            "prompt_tokens": 7939,
+            "ttft_s": 0.07875539999986358
+          },
+          {
+            "cached_tokens": 7844,
+            "gen_tokens": 256,
+            "gen_tps": 124.81643208328376,
+            "prompt_tokens": 7848,
+            "ttft_s": 0.07594299999982468
+          }
+        ],
+        "ttft_s": 0.07875539999986358
+      }
+    },
+    "ollama/S/speed/cold": {
+      "finished_at": "2026-11-03T11:38:21Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:02Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 125.07664608927834,
+        "gpu_fraction": 1.0,
+        "load_s": 3.021802299999763,
+        "prompt_tokens": 531,
+        "prompt_tps": 3124.760935192105,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 125.07664608927834,
+            "load_s": 3.024029399999563,
+            "prompt_tokens": 504,
+            "prompt_tps": 3005.062098654281,
+            "ttft_incl_load_s": 3.218866799999887,
+            "ttft_s": 0.19483740000032412
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 123.75549593987972,
+            "load_s": 2.803183399999398,
+            "prompt_tokens": 531,
+            "prompt_tps": 3124.760935192105,
+            "ttft_incl_load_s": 3.0007332999994105,
+            "ttft_s": 0.1975499000000127
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 127.01707833927154,
+            "load_s": 3.021802299999763,
+            "prompt_tokens": 550,
+            "prompt_tps": 3186.429287340606,
+            "ttft_incl_load_s": 3.224410799999532,
+            "ttft_s": 0.20260849999976926
+          }
+        ],
+        "ttft_incl_load_s": 3.218866799999887,
+        "ttft_s": 0.1975499000000127
+      }
+    },
+    "ollama/S/speed/warm": {
+      "finished_at": "2026-11-03T11:38:31Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:21Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 122.39410525242545,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 8086,
+        "prompt_tps": 7644.877548019329,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 124.87609949503228,
+            "prompt_tokens": 7568,
+            "prompt_tps": 7684.551594026601,
+            "ttft_s": 1.047099100000196
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 122.39410525242545,
+            "prompt_tokens": 8086,
+            "prompt_tps": 7624.921025582996,
+            "ttft_s": 1.1714742999993177
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 118.60049562035239,
+            "prompt_tokens": 8162,
+            "prompt_tps": 7644.877548019329,
+            "ttft_s": 1.1959765999999945
+          }
+        ],
+        "ttft_s": 1.1714742999993177
+      }
+    }
+  }
+}

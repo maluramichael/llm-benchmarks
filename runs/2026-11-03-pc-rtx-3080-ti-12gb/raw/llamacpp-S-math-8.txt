@@ -1,0 +1,30 @@
+To find the number of distinct arrangements of the letters in the word **BANANA**, we follow these steps:
+
+1.  **Count the total number of letters**:
+    The word BANANA has 6 letters in total.
+
+2.  **Count the frequency of each letter**:
+    *   **B**: 1
+    *   **A**: 3
+    *   **N**: 2
+
+3.  **Apply the formula for permutations of a multiset**:
+    The number of distinct permutations $P$ of $n$ items where there are duplicates is given by the formula:
+    $$ P = \frac{n!}{n_1! \cdot n_2! \cdot \dots \cdot n_k!} $$
+    Where:
+    *   $n$ is the total number of items (6).
+    *   $n_1, n_2, \dots$ are the counts of each identical item (3 for A, 2 for N, 1 for B).
+
+4.  **Calculate the factorials**:
+    *   Total factorial: $6! = 6 \times 5 \times 4 \times 3 \times 2 \times 1 = 720$
+    *   Factorial for A: $3! = 3 \times 2 \times 1 = 6$
+    *   Factorial for N: $2! = 2 \times 1 = 2$
+    *   Factorial for B: $1! = 1$
+
+5.  **Compute the final value**:
+    $$ P = \frac{720}{6 \times 2 \times 1} = \frac{720}{12} $$
+    $$ P = 60 $$
+
+There are 60 distinct arrangements.
+
+ANSWER: 60

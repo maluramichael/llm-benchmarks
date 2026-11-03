@@ -1,0 +1,38 @@
+### What the Code Does
+
+This code defines a function called `fib` that calculates the **Fibonacci sequence**.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+
+Here is the logic inside the function:
+1.  **Base Cases**: If you ask for a number less than 2 (0 or 1), it just returns that number immediately.
+2.  **Recursive Step**: If you ask for a number greater than 1, it calculates the answer by adding the result of the previous number (`n-1`) and the one before that (`n-2`).
+
+**Example:**
+To calculate `fib(5)`:
+- It needs `fib(4)` + `fib(3)`
+- To get `fib(4)`, it needs `fib(3)` + `fib(2)`
+- To get `fib(3)`, it needs `fib(2)` + `fib(1)`
+- ...and so on.
+
+### Why It Is Faster
+
+Without the cache, this function is incredibly slow because it **re-calculates the same numbers over and over again**.
+
+#### The Problem: No Cache
+Imagine you want to calculate `fib(10)`. The tree of calculations looks like this:
+- To get `fib(10)`, you need `fib(9)` and `fib(8)`.
+- To get `fib(9)`, you need `fib(8)` and `fib(7)`.
+- **Notice?** `fib(8)` is needed twice!
+- As you go deeper, numbers like `fib(6)` or `fib(5)` get needed dozens of times.
+- The code has to re-do the math for these repeated numbers, leading to an exponential explosion in calculation time (it takes a very long time to reach even `n=40`).
+
+#### The Solution: `lru_cache`
+The `@lru_cache(maxsize=None)` decorator acts like a **smart notebook**.
+1.  **First Time**: When the code encounters a number (e.g., `fib(8)`) for the first time, it does the math and writes the answer down in the notebook.
+2.  **Second Time**: The next time the code needs `fib(8)`, it checks the notebook. It sees the answer is already there, so it **skips the math entirely** and just copies the saved number.
+3.  **Result**: Every unique number is calculated exactly once. The complexity drops from exponential (very slow) to linear (very fast).
+
+### Summary
+- **Without cache**: The computer solves the same puzzle hundreds of times.
+- **With cache**: The computer

@@ -1,0 +1,24 @@
+### What This Code Does
+
+This code defines a function called `fib` that calculates the **Fibonacci sequence**.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+- If you ask for `fib(0)` or `fib(1)`, it returns that number directly.
+- For any other number, it adds the result of `fib(n - 1)` and `fib(n - 2)`.
+
+**Example:** To find `fib(5)`:
+1. It needs `fib(4)` + `fib(3)`.
+2. To get `fib(4)`, it needs `fib(3)` + `fib(2)`.
+3. To get `fib(3)`, it needs `fib(2)` + `fib(1)`.
+
+Notice that `fib(3)` is calculated twice in this process, and smaller numbers like `fib(2)` are also calculated multiple times. This creates a "tree" of calculations that repeats the same work over and over.
+
+### Why It Is Faster (The Role of the Cache)
+
+Without the decorator (`@lru_cache`), Python runs the function fresh every single time it is called. As shown above, calculating `fib(5)` without caching results in thousands of redundant calculations for large numbers. The complexity grows exponentially ($O(2^n)$), making it incredibly slow even for moderately large inputs (like $n=40$).
+
+**The `@lru_cache(maxsize=None)` decorator acts like a memory notebook:**
+1.  **First Call:** When you call `fib(n)` for the first time, Python calculates the answer and writes it down in its "notebook" (the cache) so it doesn't forget it.
+2.  **Subsequent Calls:** The next time you need that same result, Python checks the "notebook" instantly. If the answer is there, it returns it immediately without doing any math.
+
+By storing the results of previous calculations and reusing them, the code avoids repeating work. This changes the complexity from exponential ($O(2^n)$) to linear ($O(n)$), making it fast enough to calculate huge Fibonacci numbers in a fraction of a second.

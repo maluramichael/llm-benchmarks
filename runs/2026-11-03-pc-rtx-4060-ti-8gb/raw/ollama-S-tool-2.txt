@@ -1,0 +1,13 @@
+
+
+[tool_calls]
+[
+  {
+    "arguments": {
+      "amount": 250,
+      "from_currency": "EUR",
+      "to_currency": "USD"
+    },
+    "name": "convert_currency"
+  }
+]

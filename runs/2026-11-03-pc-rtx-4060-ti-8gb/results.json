@@ -1,0 +1,2694 @@
+{
+  "doctor": [
+    {
+      "check": "uptime",
+      "status": "warn",
+      "text": "up for 239 min; a fresh boot gives cleaner results (over 30 min)"
+    },
+    {
+      "check": "processes",
+      "status": "ok",
+      "text": "no process above 4096 MB"
+    },
+    {
+      "check": "monitors",
+      "status": "info",
+      "text": "1 active monitor(s); every monitor on the benchmark GPU uses some VRAM"
+    },
+    {
+      "check": "tdr",
+      "status": "info",
+      "text": "TdrDelay not set (default 2 s), TdrDdiDelay not set (default 5 s). Windows defaults reset the driver quickly under heavy load; this tool does not change them."
+    },
+    {
+      "check": "reset_detection",
+      "status": "ok",
+      "text": "driver reset detection works (event log readable)"
+    },
+    {
+      "check": "sysmem_fallback",
+      "status": "info",
+      "text": "NVIDIA 'CUDA - Sysmem Fallback Policy' can silently spill VRAM into system RAM and distort results. Set it to 'Prefer No Sysmem Fallback' in the NVIDIA control panel yourself; this tool does not change it."
+    },
+    {
+      "check": "power_supply",
+      "status": "info",
+      "text": "Make sure the power supply has enough headroom for the GPU under load and all PCIe power cables are connected; a weak supply can cause driver resets."
+    }
+  ],
+  "engines": {
+    "llamacpp": {
+      "backend": "cuda",
+      "ctx": 10240,
+      "ctx_arg": 81920,
+      "effective_ctx": 81920,
+      "effective_parallel": 8,
+      "flash_attn": "on",
+      "flash_attn_fallback": false,
+      "kv_unified": false,
+      "llama_arg_env_removed": [],
+      "parallel": 8,
+      "thinking": false,
+      "version": "b12061 (d02b4c0d6)"
+    },
+    "ollama": {
+      "backend": "cuda",
+      "backend_used": "cuda",
+      "effective_ctx": 10240,
+      "effective_parallel": 1,
+      "flash_attn": "on",
+      "gpu_env": {},
+      "kv_cache_type": "f16",
+      "max_loaded_models": 1,
+      "num_parallel": 8,
+      "ollama_vulkan": false,
+      "settings_source": "server log",
+      "thinking": false,
+      "version": "0.40.13"
+    }
+  },
+  "models": {
+    "llamacpp/S": {
+      "cls": "S",
+      "digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+      "engine": "llamacpp",
+      "id": "S",
+      "quant": "Q4_K_M",
+      "size_bytes": 2648593216,
+      "weights_source": "local store"
+    },
+    "ollama/S": {
+      "cls": "S",
+      "digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+      "engine": "ollama",
+      "id": "S",
+      "quant": "Q4_K_M",
+      "size_bytes": 2648593216,
+      "weights_source": "local store"
+    }
+  },
+  "notes": [],
+  "run": {
+    "bench_version": "1.1.1",
+    "device": "PC RTX 4060 Ti 8 GB",
+    "started_at": "2026-11-03T11:28:42Z"
+  },
+  "schema_version": 1,
+  "system": {
+    "cores": 12,
+    "cpu": "AMD Ryzen 9 3900X",
+    "disk_free_gb": 698.5,
+    "gpus": [
+      {
+        "backend": "cuda",
+        "driver": "610.88",
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 4060 Ti",
+        "vendor": "nvidia",
+        "vram_free_mb": 7213,
+        "vram_total_mb": 8188
+      }
+    ],
+    "kernel": null,
+    "laptop": false,
+    "memory_for_models_gb": 8,
+    "model": "B550M AORUS ELITE",
+    "monitors_on_gpu": 1,
+    "os": "Microsoft Windows 11 IoT Enterprise LTSC",
+    "os_version": "10.0.26100",
+    "power": "ac",
+    "ram_gb": 32,
+    "ram_speed_mts": 3200,
+    "threads": 24,
+    "uptime_min": 239
+  },
+  "system_first": {
+    "cores": 12,
+    "cpu": "AMD Ryzen 9 3900X",
+    "disk_free_gb": 698.5,
+    "gpus": [
+      {
+        "backend": "cuda",
+        "driver": "610.88",
+        "index": 0,
+        "name": "NVIDIA GeForce RTX 4060 Ti",
+        "vendor": "nvidia",
+        "vram_free_mb": 7213,
+        "vram_total_mb": 8188
+      }
+    ],
+    "kernel": null,
+    "laptop": false,
+    "memory_for_models_gb": 8,
+    "model": "B550M AORUS ELITE",
+    "monitors_on_gpu": 1,
+    "os": "Microsoft Windows 11 IoT Enterprise LTSC",
+    "os_version": "10.0.26100",
+    "power": "ac",
+    "ram_gb": 32,
+    "ram_speed_mts": 3200,
+    "threads": 24,
+    "uptime_min": 239
+  },
+  "tests": {
+    "llamacpp/L/memory/fit": {
+      "finished_at": "2026-11-03T11:28:43Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:28:43Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "the weights alone (15.7 GiB) plus the 1.5 GiB safety reserve exceed the 8.0 GiB of the card"
+      }
+    },
+    "llamacpp/M/memory/fit": {
+      "finished_at": "2026-11-03T11:28:43Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:28:43Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "the weights alone (8.6 GiB) plus the 1.5 GiB safety reserve exceed the 8.0 GiB of the card"
+      }
+    },
+    "llamacpp/S/concurrency/p1": {
+      "finished_at": "2026-11-03T11:34:00Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:49Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 74.5485987703124,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 256,
+        "gpu_fraction": 1.0,
+        "load_s": 1.6207669000013993,
+        "parallel": 1,
+        "per_request_tps": 74.56778357166867,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 74.56778357166867,
+            "prompt_tokens": 8172,
+            "ttft_s": 1.5535582000011345,
+            "wall_s": 4.98755969999911
+          }
+        ],
+        "serialized": false,
+        "total_tps": 51.32592816473591,
+        "ttft_p50_s": 1.5535582000011345,
+        "wall_s": 4.987732500001584
+      }
+    },
+    "llamacpp/S/concurrency/p2": {
+      "finished_at": "2026-11-03T11:34:14Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:00Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 116.03883903052768,
+        "driver_reset_check": "none",
+        "effective_ctx": 20480,
+        "effective_parallel": 2,
+        "gen_tokens": 512,
+        "gpu_fraction": 1.0,
+        "load_s": 1.6219786000001477,
+        "parallel": 2,
+        "per_request_tps": 58.03322720923512,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 63.456259179158586,
+            "prompt_tokens": 8159,
+            "ttft_s": 3.200996199999281,
+            "wall_s": 7.236252000000604
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 52.61019523931165,
+            "prompt_tokens": 8167,
+            "ttft_s": 2.3092538000000786,
+            "wall_s": 7.176358700000492
+          }
+        ],
+        "serialized": false,
+        "total_tps": 70.75348369702013,
+        "ttft_p50_s": 2.75512499999968,
+        "wall_s": 7.236392799999521
+      }
+    },
+    "llamacpp/S/concurrency/p4": {
+      "finished_at": "2026-11-03T11:34:32Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:14Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 150.33952855489807,
+        "driver_reset_check": "none",
+        "effective_ctx": 40960,
+        "effective_parallel": 4,
+        "gen_tokens": 1024,
+        "gpu_fraction": 1.0,
+        "load_s": 1.6231314999986353,
+        "parallel": 4,
+        "per_request_tps": 37.29765202793351,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 27.414817023230633,
+            "prompt_tokens": 8172,
+            "ttft_s": 2.3121869999995397,
+            "wall_s": 11.651458500000444
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 41.60737750812441,
+            "prompt_tokens": 8182,
+            "ttft_s": 5.646910999999818,
+            "wall_s": 11.800710600000457
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 32.98792654774262,
+            "prompt_tokens": 8182,
+            "ttft_s": 3.9692006000004767,
+            "wall_s": 11.730726499999946
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 48.3539904980631,
+            "prompt_tokens": 8172,
+            "ttft_s": 6.5655642000001535,
+            "wall_s": 11.86085119999916
+          }
+        ],
+        "serialized": false,
+        "total_tps": 86.33166479124048,
+        "ttft_p50_s": 4.808055800000147,
+        "wall_s": 11.86123310000039
+      }
+    },
+    "llamacpp/S/concurrency/p8": {
+      "finished_at": "2026-11-03T11:34:59Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:34:32Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 174.6918484052476,
+        "driver_reset_check": "none",
+        "effective_ctx": 81920,
+        "effective_parallel": 8,
+        "gen_tokens": 2048,
+        "gpu_fraction": 1.0,
+        "load_s": 1.63722129999951,
+        "parallel": 8,
+        "per_request_tps": 20.23257638279724,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 15.364617374813479,
+            "prompt_tokens": 8174,
+            "ttft_s": 3.9775655000012193,
+            "wall_s": 20.640325200000007
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 29.73607721437075,
+            "prompt_tokens": 8175,
+            "ttft_s": 12.477170600001045,
+            "wall_s": 21.08734369999911
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 16.96254715969105,
+            "prompt_tokens": 8167,
+            "ttft_s": 5.654733600000327,
+            "wall_s": 20.747923599999922
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 14.062860326462712,
+            "prompt_tokens": 8175,
+            "ttft_s": 2.3162821999994776,
+            "wall_s": 20.52139299999908
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 24.93918394898534,
+            "prompt_tokens": 8162,
+            "ttft_s": 10.751219199999468,
+            "wall_s": 21.01730789999965
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 33.17899484494328,
+            "prompt_tokens": 8161,
+            "ttft_s": 13.43056389999947,
+            "wall_s": 21.147258599999986
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 21.51422855270927,
+            "prompt_tokens": 8179,
+            "ttft_s": 9.03600329999972,
+            "wall_s": 20.936265999998795
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 18.95092421288521,
+            "prompt_tokens": 8169,
+            "ttft_s": 7.336609399999361,
+            "wall_s": 20.846361500000057
+          }
+        ],
+        "serialized": false,
+        "total_tps": 96.84137801706638,
+        "ttft_p50_s": 8.18630634999954,
+        "wall_s": 21.147984899998846
+      }
+    },
+    "llamacpp/S/memory/computed": {
+      "finished_at": "2026-11-03T11:29:30Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:29Z",
+      "status": "ok",
+      "values": {
+        "attention_layers": 8,
+        "cache_type_bytes": 2.0,
+        "curve": [
+          {
+            "bytes": 2917028672,
+            "ctx": 8192
+          },
+          {
+            "bytes": 3185464128,
+            "ctx": 16384
+          },
+          {
+            "bytes": 3722335040,
+            "ctx": 32768
+          },
+          {
+            "bytes": 4796076864,
+            "ctx": 65536
+          },
+          {
+            "bytes": 6943560512,
+            "ctx": 131072
+          },
+          {
+            "bytes": 11238527808,
+            "ctx": 262144
+          }
+        ],
+        "kv_bytes_per_token": 32768,
+        "note": "upper bound: sliding-window attention keeps a smaller cache, and recurrent state of hybrid models is not included; weights plus f16 KV cache; compute buffers and other overhead are not included",
+        "recurrent_state_ignored": true,
+        "sliding_window": false,
+        "weights_bytes": 2648593216
+      }
+    },
+    "llamacpp/S/memory/ctx-131072": {
+      "finished_at": "2026-11-03T11:30:42Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:30:40Z",
+      "status": "does_not_fit",
+      "values": {
+        "ctx": 131072,
+        "reason": "only 592 MB would stay free (7213 MB free, 6621 MB needed), reserve is 1536 MB",
+        "vram_baseline_mb": 975
+      }
+    },
+    "llamacpp/S/memory/ctx-16384": {
+      "finished_at": "2026-11-03T11:29:52Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:41Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 16384,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 69.9261732573906,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 512.0,
+        "load_s": 1.590810400000919,
+        "prompt_tokens": 15853,
+        "prompt_tps": 4923.726191999543,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 193,
+        "swap_mb": 159,
+        "ttft_s": 3.2443967000017437,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 3905,
+        "vram_used_mb": 4283
+      }
+    },
+    "llamacpp/S/memory/ctx-262144": {
+      "finished_at": "2026-11-03T11:30:42Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:30:42Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 131072 did not fit or crashed"
+      }
+    },
+    "llamacpp/S/memory/ctx-32768": {
+      "finished_at": "2026-11-03T11:30:08Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:52Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 61.01034077611826,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 1024.0,
+        "load_s": 1.6110731000007945,
+        "prompt_tokens": 31741,
+        "prompt_tps": 3924.05717420905,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 209,
+        "swap_mb": 159,
+        "ttft_s": 8.143674000000829,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 3377,
+        "vram_used_mb": 4811
+      }
+    },
+    "llamacpp/S/memory/ctx-65536": {
+      "finished_at": "2026-11-03T11:30:40Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:30:08Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 65536,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 49.924119239078415,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 2048.0,
+        "load_s": 1.6100646000013512,
+        "prompt_tokens": 63411,
+        "prompt_tps": 2839.6067531330677,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 241,
+        "swap_mb": 159,
+        "ttft_s": 22.424658300000374,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 2321,
+        "vram_used_mb": 5867
+      }
+    },
+    "llamacpp/S/memory/ctx-8192": {
+      "finished_at": "2026-11-03T11:29:41Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:29:31Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 8192,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 75.26582655107875,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 256.0,
+        "load_s": 2.6332952000011574,
+        "prompt_tokens": 7796,
+        "prompt_tps": 5335.611028754536,
+        "rs_buffer_mb": 50.25,
+        "shared_mb": 185,
+        "swap_mb": 159,
+        "ttft_s": 1.4757831999995688,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 4169,
+        "vram_used_mb": 4019
+      }
+    },
+    "llamacpp/S/smoke/code-1": {
+      "finished_at": "2026-11-03T11:32:49Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:48Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 72,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-2": {
+      "finished_at": "2026-11-03T11:32:50Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:49Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 57,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-3": {
+      "finished_at": "2026-11-03T11:32:53Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:50Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 233,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-4": {
+      "finished_at": "2026-11-03T11:32:55Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:53Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 150,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-5": {
+      "finished_at": "2026-11-03T11:32:57Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:55Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 134,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/code-6": {
+      "finished_at": "2026-11-03T11:32:58Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:57Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 86,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-code-6.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/creative-1": {
+      "finished_at": "2026-11-03T11:33:37Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:34Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 247,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-creative-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/creative-2": {
+      "finished_at": "2026-11-03T11:33:38Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:37Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 35,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-creative-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/explain-1": {
+      "finished_at": "2026-11-03T11:33:42Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:38Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 271,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-explain-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/explain-2": {
+      "finished_at": "2026-11-03T11:33:49Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:42Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 600,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/llamacpp-S-explain-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-1": {
+      "finished_at": "2026-11-03T11:32:59Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:58Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 33,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-2": {
+      "finished_at": "2026-11-03T11:33:00Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:59Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 80,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-3": {
+      "finished_at": "2026-11-03T11:33:01Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:00Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 23,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-4": {
+      "finished_at": "2026-11-03T11:33:01Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:01Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 54,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/json-5": {
+      "finished_at": "2026-11-03T11:33:02Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:01Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 25,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-json-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-1": {
+      "finished_at": "2026-11-03T11:32:10Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:05Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 246,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-2": {
+      "finished_at": "2026-11-03T11:32:20Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:10Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 795,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-3": {
+      "finished_at": "2026-11-03T11:32:22Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:20Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 161,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-4": {
+      "finished_at": "2026-11-03T11:32:29Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:22Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 608,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-5": {
+      "finished_at": "2026-11-03T11:32:33Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:30Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 245,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-6": {
+      "finished_at": "2026-11-03T11:32:40Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:33Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 552,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-6.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-7": {
+      "finished_at": "2026-11-03T11:32:43Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:40Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 244,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-7.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/math-8": {
+      "finished_at": "2026-11-03T11:32:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:43Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 400,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-math-8.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/needle-10": {
+      "finished_at": "2026-11-03T11:33:16Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:06Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 7,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-needle-10.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/needle-50": {
+      "finished_at": "2026-11-03T11:33:25Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:16Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 19,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-needle-50.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/needle-90": {
+      "finished_at": "2026-11-03T11:33:34Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:26Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 11,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-needle-90.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-1": {
+      "finished_at": "2026-11-03T11:33:02Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:02Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 26,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-1.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-2": {
+      "finished_at": "2026-11-03T11:33:03Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:02Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 55,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-2.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-3": {
+      "finished_at": "2026-11-03T11:33:04Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:03Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 29,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-3.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-4": {
+      "finished_at": "2026-11-03T11:33:04Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:04Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 18,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-4.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/smoke/tool-5": {
+      "finished_at": "2026-11-03T11:33:06Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:33:04Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 76,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/llamacpp-S-tool-5.txt",
+        "reason": ""
+      }
+    },
+    "llamacpp/S/speed/cache": {
+      "finished_at": "2026-11-03T11:31:43Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:17Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 8186,
+        "driver_reset_check": "none",
+        "first_ttft_s": 1.5494627999996737,
+        "gen_tokens": 256,
+        "gen_tps": 74.24238689273861,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 8190,
+        "runs": [
+          {
+            "cached_tokens": 8186,
+            "gen_tokens": 256,
+            "gen_tps": 74.24238689273861,
+            "prompt_tokens": 8190,
+            "ttft_s": 0.06375669999943057
+          },
+          {
+            "cached_tokens": 8188,
+            "gen_tokens": 256,
+            "gen_tps": 74.40975767706688,
+            "prompt_tokens": 8192,
+            "ttft_s": 0.06212430000050517
+          },
+          {
+            "cached_tokens": 8168,
+            "gen_tokens": 256,
+            "gen_tps": 74.10377133197187,
+            "prompt_tokens": 8172,
+            "ttft_s": 0.05137950000062119
+          }
+        ],
+        "ttft_s": 0.06212430000050517
+      }
+    },
+    "llamacpp/S/speed/cold": {
+      "finished_at": "2026-11-03T11:31:02Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:30:44Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 80.6927981047279,
+        "gpu_fraction": 1.0,
+        "load_s": 1.6239296000003378,
+        "prompt_tokens": 512,
+        "prompt_tps": 4010.3077441235673,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 80.78342248436161,
+            "load_s": 1.6290933000000223,
+            "prompt_tokens": 512,
+            "prompt_tps": 4027.753740618952,
+            "ttft_incl_load_s": 1.7584636000010505,
+            "ttft_s": 0.12937030000102823
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 80.6927981047279,
+            "load_s": 1.6239296000003378,
+            "prompt_tokens": 512,
+            "prompt_tps": 3633.705456945558,
+            "ttft_incl_load_s": 1.7789771000007022,
+            "ttft_s": 0.15504750000036438
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 80.26062128618273,
+            "load_s": 1.6202306000013778,
+            "prompt_tokens": 512,
+            "prompt_tps": 4010.3077441235673,
+            "ttft_incl_load_s": 1.764868900001602,
+            "ttft_s": 0.14463830000022426
+          }
+        ],
+        "ttft_incl_load_s": 1.764868900001602,
+        "ttft_s": 0.14463830000022426
+      }
+    },
+    "llamacpp/S/speed/llama-bench": {
+      "finished_at": "2026-11-03T11:32:01Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:43Z",
+      "status": "ok",
+      "values": {
+        "driver_reset_check": "none",
+        "pp512_tps": 5648.53968,
+        "pp8192_tps": 5407.685983,
+        "tg256_tps": 83.035674
+      }
+    },
+    "llamacpp/S/speed/llama-bench-deep": {
+      "finished_at": "2026-11-03T11:32:03Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:32:01Z",
+      "status": "skipped",
+      "values": {
+        "reason": "only 1346 MB would stay free (7213 MB free, 5867 MB needed), reserve is 1536 MB"
+      }
+    },
+    "llamacpp/S/speed/warm": {
+      "finished_at": "2026-11-03T11:31:17Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "b12061 (d02b4c0d6)",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:31:02Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 74.28579719397008,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 8161,
+        "prompt_tps": 5330.163681831637,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 74.22221784104964,
+            "prompt_tokens": 8174,
+            "prompt_tps": 5355.459272891902,
+            "ttft_s": 1.5392893000007462
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 74.29869002122156,
+            "prompt_tokens": 8157,
+            "prompt_tps": 5330.163681831637,
+            "ttft_s": 1.5416343999986566
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 74.28579719397008,
+            "prompt_tokens": 8161,
+            "prompt_tps": 5325.414055673775,
+            "ttft_s": 1.5495243000004848
+          }
+        ],
+        "ttft_s": 1.5416343999986566
+      }
+    },
+    "ollama/L/memory/fit": {
+      "finished_at": "2026-11-03T11:35:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:35:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "the weights alone (15.7 GiB) plus the 1.5 GiB safety reserve exceed the 8.0 GiB of the card"
+      }
+    },
+    "ollama/M/memory/fit": {
+      "finished_at": "2026-11-03T11:35:00Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:35:00Z",
+      "status": "does_not_fit",
+      "values": {
+        "reason": "the weights alone (8.6 GiB) plus the 1.5 GiB safety reserve exceed the 8.0 GiB of the card"
+      }
+    },
+    "ollama/S/concurrency/p1": {
+      "finished_at": "2026-11-03T11:40:59Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:46Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 64.22859599601423,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 256,
+        "gpu_fraction": 1.0,
+        "load_s": 2.60137080000095,
+        "parallel": 1,
+        "per_request_tps": 65.23704108226212,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.23704108226212,
+            "prompt_tokens": 8205,
+            "ttft_s": 1.7239342000011675,
+            "wall_s": 5.709697800000868
+          }
+        ],
+        "serialized": false,
+        "total_tps": 44.83494121473792,
+        "ttft_p50_s": 1.7239342000011675,
+        "wall_s": 5.709832399999868
+      }
+    },
+    "ollama/S/concurrency/p2": {
+      "finished_at": "2026-11-03T11:41:19Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:59Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 129.96712793135748,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 512,
+        "gpu_fraction": 1.0,
+        "load_s": 2.588563499999509,
+        "parallel": 2,
+        "per_request_tps": 65.29095971417684,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.58243866248715,
+            "prompt_tokens": 8120,
+            "ttft_s": 7.33687110000028,
+            "wall_s": 11.255248499999652
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 64.99948076586654,
+            "prompt_tokens": 8109,
+            "ttft_s": 1.6885844999997062,
+            "wall_s": 5.649350499999855
+          }
+        ],
+        "serialized": true,
+        "serialized_note": "engine ran 2 requests with parallel 1",
+        "total_tps": 45.48743338578697,
+        "ttft_p50_s": 4.512727799999993,
+        "wall_s": 11.255855999999767
+      }
+    },
+    "ollama/S/concurrency/p4": {
+      "finished_at": "2026-11-03T11:41:51Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:19Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 260.92329369132347,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 1024,
+        "gpu_fraction": 1.0,
+        "load_s": 2.5869042000012996,
+        "parallel": 4,
+        "per_request_tps": 65.36528557281028,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.33140503608156,
+            "prompt_tokens": 8162,
+            "ttft_s": 18.60823960000016,
+            "wall_s": 22.54283209999994
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.14087732547843,
+            "prompt_tokens": 8202,
+            "ttft_s": 1.71726690000105,
+            "wall_s": 5.663360000000466
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 66.13748070451918,
+            "prompt_tokens": 8262,
+            "ttft_s": 7.375557700001082,
+            "wall_s": 11.262439899999663
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.399166109539,
+            "prompt_tokens": 8296,
+            "ttft_s": 12.982877599999483,
+            "wall_s": 16.91392900000028
+          }
+        ],
+        "serialized": true,
+        "serialized_note": "engine ran 4 requests with parallel 1",
+        "total_tps": 45.42422768610404,
+        "ttft_p50_s": 10.179217650000282,
+        "wall_s": 22.54303599999912
+      }
+    },
+    "ollama/S/concurrency/p8": {
+      "finished_at": "2026-11-03T11:42:45Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:41:51Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "ctx_per_slot": 10240,
+        "decode_tps_total": 522.5397732528487,
+        "driver_reset_check": "none",
+        "effective_ctx": 10240,
+        "effective_parallel": 1,
+        "gen_tokens": 2048,
+        "gpu_fraction": 1.0,
+        "load_s": 2.6033669999997073,
+        "parallel": 8,
+        "per_request_tps": 65.79734999521091,
+        "requests": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.44010773077736,
+            "prompt_tokens": 8313,
+            "ttft_s": 35.69382460000088,
+            "wall_s": 39.62249840000004
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 64.73752222191315,
+            "prompt_tokens": 8314,
+            "ttft_s": 13.015475899999728,
+            "wall_s": 16.98691560000043
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.93691331279157,
+            "prompt_tokens": 8294,
+            "ttft_s": 24.352709299999333,
+            "wall_s": 28.252088700000968
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.86650865565684,
+            "prompt_tokens": 8338,
+            "ttft_s": 18.725422899999103,
+            "wall_s": 22.628130500001134
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.72819133476497,
+            "prompt_tokens": 8323,
+            "ttft_s": 1.737143800000922,
+            "wall_s": 5.650705799998832
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 66.17996815089033,
+            "prompt_tokens": 8326,
+            "ttft_s": 7.398359700000583,
+            "wall_s": 11.285178599999199
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 64.9933914922635,
+            "prompt_tokens": 8368,
+            "ttft_s": 29.993881200000033,
+            "wall_s": 33.95287459999963
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 66.00932381698915,
+            "prompt_tokens": 8371,
+            "ttft_s": 41.380769900000814,
+            "wall_s": 45.275458699999945
+          }
+        ],
+        "serialized": true,
+        "serialized_note": "engine ran 8 requests with parallel 1",
+        "total_tps": 45.233798074606455,
+        "ttft_p50_s": 21.539066099999218,
+        "wall_s": 45.27587970000059
+      }
+    },
+    "ollama/S/memory/computed": {
+      "finished_at": "2026-11-03T11:35:03Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:35:03Z",
+      "status": "ok",
+      "values": {
+        "attention_layers": 8,
+        "cache_type_bytes": 2.0,
+        "curve": [
+          {
+            "bytes": 2917028672,
+            "ctx": 8192
+          },
+          {
+            "bytes": 3185464128,
+            "ctx": 16384
+          },
+          {
+            "bytes": 3722335040,
+            "ctx": 32768
+          },
+          {
+            "bytes": 4796076864,
+            "ctx": 65536
+          },
+          {
+            "bytes": 6943560512,
+            "ctx": 131072
+          },
+          {
+            "bytes": 11238527808,
+            "ctx": 262144
+          }
+        ],
+        "kv_bytes_per_token": 32768,
+        "note": "upper bound: sliding-window attention keeps a smaller cache, and recurrent state of hybrid models is not included; weights plus f16 KV cache; compute buffers and other overhead are not included",
+        "recurrent_state_ignored": true,
+        "sliding_window": false,
+        "weights_bytes": 2648593216
+      }
+    },
+    "ollama/S/memory/ctx-131072": {
+      "finished_at": "2026-11-03T11:37:34Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:37:34Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 65536 did not fit or crashed"
+      }
+    },
+    "ollama/S/memory/ctx-16384": {
+      "finished_at": "2026-11-03T11:36:44Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:36:32Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 16384,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 61.274685799687305,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 512.0,
+        "load_s": 2.587077500000305,
+        "prompt_tokens": 15311,
+        "prompt_tps": 4896.721425770744,
+        "rs_buffer_mb": null,
+        "shared_mb": 727,
+        "swap_mb": 159,
+        "ttft_s": 3.2744937000006757,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 2941,
+        "vram_used_mb": 5247
+      }
+    },
+    "ollama/S/memory/ctx-262144": {
+      "finished_at": "2026-11-03T11:37:34Z",
+      "meta": {},
+      "started_at": "2026-11-03T11:37:34Z",
+      "status": "skipped",
+      "values": {
+        "reason": "lower step 65536 did not fit or crashed"
+      }
+    },
+    "ollama/S/memory/ctx-32768": {
+      "finished_at": "2026-11-03T11:37:02Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:36:44Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 55.609233913291305,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 1024.0,
+        "load_s": 2.5883349000014277,
+        "prompt_tokens": 31093,
+        "prompt_tps": 3967.923284179136,
+        "rs_buffer_mb": null,
+        "shared_mb": 707,
+        "swap_mb": 159,
+        "ttft_s": 8.025899000000209,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 2507,
+        "vram_used_mb": 5681
+      }
+    },
+    "ollama/S/memory/ctx-65536": {
+      "finished_at": "2026-11-03T11:37:34Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:37:02Z",
+      "status": "does_not_fit",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 65536,
+        "gen_tokens": 128,
+        "gen_tps": 45.387737155359034,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 2048.0,
+        "load_s": 2.587115800000902,
+        "prompt_tokens": 62622,
+        "prompt_tps": 2876.563800257642,
+        "reason": "shared GPU memory grew by 662 MB (limit 500 MB) and only 1451 MB VRAM are free (reserve 1536 MB): spill into system memory",
+        "rs_buffer_mb": null,
+        "shared_mb": 739,
+        "swap_mb": 159,
+        "ttft_s": 22.10494309999922,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 1451,
+        "vram_used_mb": 6737
+      }
+    },
+    "ollama/S/memory/ctx-8192": {
+      "finished_at": "2026-11-03T11:36:32Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:35:04Z",
+      "status": "ok",
+      "values": {
+        "cached_tokens": 0,
+        "ctx": 8192,
+        "driver_reset_check": "none",
+        "gen_tokens": 128,
+        "gen_tps": 31.21767720482772,
+        "gpu_fraction": 1.0,
+        "kv_buffer_mb": 256.0,
+        "load_s": 40.266962600000625,
+        "prompt_tokens": 7766,
+        "prompt_tps": 4694.086514806983,
+        "rs_buffer_mb": null,
+        "shared_mb": 711,
+        "swap_mb": 159,
+        "ttft_s": 1.802416300000914,
+        "vram_baseline_mb": 975,
+        "vram_free_mb": 3215,
+        "vram_used_mb": 4973
+      }
+    },
+    "ollama/S/smoke/code-1": {
+      "finished_at": "2026-11-03T11:39:35Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:34Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 70,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-2": {
+      "finished_at": "2026-11-03T11:39:36Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:35Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 55,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-3": {
+      "finished_at": "2026-11-03T11:39:40Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:36Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 235,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-4": {
+      "finished_at": "2026-11-03T11:39:42Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:40Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 165,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-5": {
+      "finished_at": "2026-11-03T11:39:44Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:42Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 113,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/code-6": {
+      "finished_at": "2026-11-03T11:39:46Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:44Z",
+      "status": "ok",
+      "values": {
+        "category": "code",
+        "driver_reset_check": "none",
+        "gen_tokens": 119,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-code-6.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/creative-1": {
+      "finished_at": "2026-11-03T11:40:30Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:26Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 210,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-creative-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/creative-2": {
+      "finished_at": "2026-11-03T11:40:31Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:30Z",
+      "status": "ok",
+      "values": {
+        "category": "creative",
+        "driver_reset_check": "none",
+        "gen_tokens": 33,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-creative-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/explain-1": {
+      "finished_at": "2026-11-03T11:40:38Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:31Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 515,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-explain-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/explain-2": {
+      "finished_at": "2026-11-03T11:40:46Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:38Z",
+      "status": "ok",
+      "values": {
+        "category": "code_explain",
+        "driver_reset_check": "none",
+        "gen_tokens": 538,
+        "gpu_fraction": 1.0,
+        "passed": null,
+        "raw": "raw/ollama-S-explain-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-1": {
+      "finished_at": "2026-11-03T11:39:47Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:46Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 33,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-2": {
+      "finished_at": "2026-11-03T11:39:48Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:47Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 80,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-3": {
+      "finished_at": "2026-11-03T11:39:49Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:48Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 23,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-4": {
+      "finished_at": "2026-11-03T11:39:50Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:49Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 54,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/json-5": {
+      "finished_at": "2026-11-03T11:39:51Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:50Z",
+      "status": "ok",
+      "values": {
+        "category": "json",
+        "driver_reset_check": "none",
+        "gen_tokens": 25,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-json-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-1": {
+      "finished_at": "2026-11-03T11:38:54Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:48Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 249,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-2": {
+      "finished_at": "2026-11-03T11:39:04Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:54Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 652,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-3": {
+      "finished_at": "2026-11-03T11:39:06Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:04Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 157,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-4": {
+      "finished_at": "2026-11-03T11:39:14Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:06Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 536,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-5": {
+      "finished_at": "2026-11-03T11:39:18Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:14Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 242,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-6": {
+      "finished_at": "2026-11-03T11:39:24Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:18Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 436,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-6.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-7": {
+      "finished_at": "2026-11-03T11:39:28Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:24Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 247,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-7.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/math-8": {
+      "finished_at": "2026-11-03T11:39:34Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:28Z",
+      "status": "ok",
+      "values": {
+        "category": "math",
+        "driver_reset_check": "none",
+        "gen_tokens": 405,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-math-8.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/needle-10": {
+      "finished_at": "2026-11-03T11:40:07Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:55Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 7,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-needle-10.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/needle-50": {
+      "finished_at": "2026-11-03T11:40:17Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:07Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 19,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-needle-50.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/needle-90": {
+      "finished_at": "2026-11-03T11:40:26Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:40:17Z",
+      "status": "ok",
+      "values": {
+        "category": "long_context",
+        "context_tokens": 32768,
+        "driver_reset_check": "none",
+        "gen_tokens": 11,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-needle-90.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-1": {
+      "finished_at": "2026-11-03T11:39:51Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:51Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 26,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-1.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-2": {
+      "finished_at": "2026-11-03T11:39:52Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:51Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 55,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-2.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-3": {
+      "finished_at": "2026-11-03T11:39:53Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:52Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 29,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-3.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-4": {
+      "finished_at": "2026-11-03T11:39:53Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:53Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 6,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-4.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/smoke/tool-5": {
+      "finished_at": "2026-11-03T11:39:55Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "thinking": false,
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:39:53Z",
+      "status": "ok",
+      "values": {
+        "category": "tool_calls",
+        "driver_reset_check": "none",
+        "gen_tokens": 90,
+        "gpu_fraction": 1.0,
+        "passed": true,
+        "raw": "raw/ollama-S-tool-5.txt",
+        "reason": ""
+      }
+    },
+    "ollama/S/speed/cache": {
+      "finished_at": "2026-11-03T11:38:46Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:38:16Z",
+      "status": "ok",
+      "values": {
+        "cache_hit": true,
+        "cached_tokens": 7935,
+        "driver_reset_check": "none",
+        "first_ttft_s": 1.7223176999996213,
+        "gen_tokens": 256,
+        "gen_tps": 65.93764359467306,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 7939,
+        "runs": [
+          {
+            "cached_tokens": 8801,
+            "gen_tokens": 256,
+            "gen_tps": 65.93764359467306,
+            "prompt_tokens": 8805,
+            "ttft_s": 0.09000259999993432
+          },
+          {
+            "cached_tokens": 7935,
+            "gen_tokens": 256,
+            "gen_tps": 66.06204412996159,
+            "prompt_tokens": 7939,
+            "ttft_s": 0.099868699999206
+          },
+          {
+            "cached_tokens": 7843,
+            "gen_tokens": 256,
+            "gen_tps": 65.64652985006691,
+            "prompt_tokens": 7847,
+            "ttft_s": 0.1030588000012358
+          }
+        ],
+        "ttft_s": 0.099868699999206
+      }
+    },
+    "ollama/S/speed/cold": {
+      "finished_at": "2026-11-03T11:37:59Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:37:36Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 69.6088742613574,
+        "gpu_fraction": 1.0,
+        "load_s": 2.6951169000003574,
+        "prompt_tokens": 530,
+        "prompt_tps": 2634.116278838603,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 69.31521173766467,
+            "load_s": 2.6909147999995184,
+            "prompt_tokens": 503,
+            "prompt_tps": 2573.6667331829044,
+            "ttft_incl_load_s": 2.9170574999989185,
+            "ttft_s": 0.22614269999940007
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 69.6088742613574,
+            "load_s": 2.774265199999718,
+            "prompt_tokens": 530,
+            "prompt_tps": 2634.116278838603,
+            "ttft_incl_load_s": 2.982663099999627,
+            "ttft_s": 0.208397899999909
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 70.09611930359506,
+            "load_s": 2.6951169000003574,
+            "prompt_tokens": 549,
+            "prompt_tps": 2663.406540627865,
+            "ttft_incl_load_s": 2.9322515000003477,
+            "ttft_s": 0.23713459999999031
+          }
+        ],
+        "ttft_incl_load_s": 2.9322515000003477,
+        "ttft_s": 0.22614269999940007
+      }
+    },
+    "ollama/S/speed/warm": {
+      "finished_at": "2026-11-03T11:38:16Z",
+      "meta": {
+        "bench_version": "1.1.1",
+        "engine_version": "0.40.13",
+        "model_digest": "sha256:a9d0a3e1d8c91732a3812becd31f8d4a8ff57414903f226306069f0437e2ac50",
+        "weights_source": "local store"
+      },
+      "started_at": "2026-11-03T11:37:59Z",
+      "status": "ok",
+      "values": {
+        "cache_contaminated": false,
+        "cached_tokens": 0,
+        "driver_reset_check": "none",
+        "gen_tokens": 256,
+        "gen_tps": 65.51609149424546,
+        "gpu_fraction": 1.0,
+        "prompt_tokens": 8087,
+        "prompt_tps": 5122.458378457063,
+        "runs": [
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.60541367672984,
+            "prompt_tokens": 7578,
+            "prompt_tps": 5139.090452874717,
+            "ttft_s": 1.5386386000009225
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.00880666177747,
+            "prompt_tokens": 8087,
+            "prompt_tps": 5105.287479388198,
+            "ttft_s": 1.726549299999533
+          },
+          {
+            "cached_tokens": 0,
+            "gen_tokens": 256,
+            "gen_tps": 65.51609149424546,
+            "prompt_tokens": 8164,
+            "prompt_tps": 5122.458378457063,
+            "ttft_s": 1.7622319999991305
+          }
+        ],
+        "ttft_s": 1.726549299999533
+      }
+    }
+  }
+}

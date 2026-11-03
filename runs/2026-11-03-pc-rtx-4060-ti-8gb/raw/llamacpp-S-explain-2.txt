@@ -1,0 +1,36 @@
+### What the Code Does
+
+This code defines a function called `fib` that calculates the **Fibonacci sequence**.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+
+Here is the logic inside the function:
+1.  **Base Cases**: If you ask for a number less than 2 (i.e., 0 or 1), it just returns that number immediately.
+2.  **Recursive Step**: If you ask for a larger number (like 5), it tells the function to calculate the previous two numbers (3 and 2) and add them together.
+
+**Example:** To find `fib(5)`:
+*   It needs `fib(4)` + `fib(3)`
+*   To find `fib(4)`, it needs `fib(3)` + `fib(2)`
+*   To find `fib(3)`, it needs `fib(2)` + `fib(1)`
+*   ...and so on.
+
+### Why It Is Faster
+
+Without the cache (the `@lru_cache` decorator), this code is incredibly slow for large numbers because it **recalculates the same values over and over again**.
+
+#### The Problem: Redundant Work
+Let's look at how `fib(5)` is calculated **without** the cache:
+1.  `fib(5)` calls `fib(4)` and `fib(3)`.
+2.  `fib(4)` calls `fib(3)` and `fib(2)`.
+3.  `fib(3)` calls `fib(2)` and `fib(1)`.
+4.  **Notice that `fib(3)` is calculated twice!** Once for `fib(5)` and once for `fib(4)`.
+5.  Similarly, `fib(2)` is calculated three times.
+
+As the number gets bigger, this pattern explodes. To calculate `fib(30)`, the function performs roughly **3.3 million** calculations. It's like solving the same math problem 100 times instead of remembering the answer after you solve it once.
+
+#### The Solution: Caching with `lru_cache`
+The `@lru_cache(maxsize=None)` decorator acts like a **smart notebook**.
+
+1.  **First Time**: When you call `fib(5)` for the first time, the function calculates the answer, writes it down in the notebook, and returns it.
+2.  **Second Time**: If you (or the recursion) try to calculate `fib(5)` again, the decorator checks the notebook first.
+3.  **Result**: It sees the answer is already there, grabs it instantly,

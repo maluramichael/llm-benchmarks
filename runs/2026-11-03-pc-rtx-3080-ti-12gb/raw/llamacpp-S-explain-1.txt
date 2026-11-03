@@ -1,0 +1,17 @@
+This code implements the **Bubble Sort** algorithm.
+
+### What it does in plain English:
+It goes through the list multiple times, looking at pairs of neighboring items. If it finds a pair where the left item is bigger than the right item, it swaps them. This process repeats until the list is completely sorted from smallest to largest.
+
+Think of it like bubbles rising: the larger numbers "bubble up" to the end of the list, while the smaller numbers sink to the front.
+
+### What it returns for the input `[3, 1, 2]`:
+1.  **First Pass:**
+    *   Compare 3 and 1: 3 is bigger, so swap them. List becomes `[1, 3, 2]`.
+    *   Compare 3 and 2: 3 is bigger, so swap them. List becomes `[1, 2, 3]`.
+2.  **Second Pass:**
+    *   Compare 1 and 2: 1 is not bigger, so no swap.
+    *   Compare 2 and 3: 2 is not bigger, so no swap.
+3.  **Result:** The list is now sorted.
+
+**Output:** `[1, 2, 3]`

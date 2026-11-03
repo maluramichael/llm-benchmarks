@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="366" viewBox="0 0 960 366" role="img" aria-label="Smoke tests passed per device, engine, model class and category">
+<style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #9198a1; }
+    .title { font-size: 20px; font-weight: 600; fill: #f0f6fc; }
+    .section { font-size: 15px; font-weight: 600; fill: #f0f6fc; }
+    .panel { font-size: 13px; font-weight: 600; fill: #f0f6fc; }
+    .device { font-size: 13px; fill: #f0f6fc; }
+    .sub { font-size: 13px; }
+    .legend { font-size: 12px; fill: #f0f6fc; }
+    .value { font-size: 11px; font-variant-numeric: tabular-nums; }
+    .tick { font-size: 10px; fill: #6e7681; font-variant-numeric: tabular-nums; }
+    .muted, .note, .foot { fill: #6e7681; }
+    .note { font-size: 11px; }
+    .foot { font-size: 11px; }
+    .cell { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .limitlabel { font-size: 10px; fill: #6e7681; }
+    .grid { stroke: #1d232b; stroke-width: 1; }
+    .row { stroke: #1d232b; stroke-width: 1; }
+    .base { stroke: #3d444d; stroke-width: 1; }
+    .limit { stroke: #4d5560; stroke-width: 1; stroke-dasharray: 2 3; }
+    .gapbox { fill: none; stroke: #6e7681; stroke-width: 1; stroke-dasharray: 3 2; }
+    </style>
+<rect x="0.5" y="0.5" width="959" height="365" rx="8" fill="#0d1117" stroke="#3d444d"/>
+<text x="28" y="42" class="title">Smoke tests passed</text>
+<text x="28" y="64" class="sub">Passed tasks out of judged tasks per category. All results of a device, engine and model come from its newest run.</text>
+<rect x="28" y="81" width="10" height="10" rx="2" fill="#184f95"/>
+<text x="44" y="90" class="legend">0-19%</text>
+<rect x="99.6" y="81" width="10" height="10" rx="2" fill="#256abf"/>
+<text x="115.6" y="90" class="legend">20-39%</text>
+<rect x="177.92000000000002" y="81" width="10" height="10" rx="2" fill="#3987e5"/>
+<text x="193.92000000000002" y="90" class="legend">40-59%</text>
+<rect x="256.24" y="81" width="10" height="10" rx="2" fill="#6da7ec"/>
+<text x="272.24" y="90" class="legend">60-79%</text>
+<rect x="334.56" y="81" width="10" height="10" rx="2" fill="#9ec5f4"/>
+<text x="350.56" y="90" class="legend">80-100%</text>
+<rect x="420.1" y="81.5" width="9" height="9" rx="2" class="gapbox"/>
+<text x="435.6" y="90" class="legend">No judged task in this category</text>
+<text x="236.0" y="120" class="panel" text-anchor="middle" style="font-size:12px">math</text>
+<text x="315.0" y="120" class="panel" text-anchor="middle" style="font-size:12px">code</text>
+<text x="394.0" y="120" class="panel" text-anchor="middle" style="font-size:12px">json</text>
+<text x="473.0" y="120" class="panel" text-anchor="middle" style="font-size:12px">tool calls</text>
+<text x="552.0" y="120" class="panel" text-anchor="middle" style="font-size:12px">long context</text>
+<text x="28" y="156" class="device">PC RTX 3080 Ti 12 GB</text>
+<text x="42" y="182.0" class="note">llama.cpp, class S</text>
+<rect x="198" y="164" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, llama.cpp, class S, math: 8 of 8 passed</title></rect>
+<text x="236.0" y="182.0" class="cell" text-anchor="middle" style="fill:#0d1117">8/8</text>
+<rect x="277" y="164" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, llama.cpp, class S, code: 6 of 6 passed</title></rect>
+<text x="315.0" y="182.0" class="cell" text-anchor="middle" style="fill:#0d1117">6/6</text>
+<rect x="356" y="164" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, llama.cpp, class S, json: 5 of 5 passed</title></rect>
+<text x="394.0" y="182.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="435" y="164" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, llama.cpp, class S, tool_calls: 5 of 5 passed</title></rect>
+<text x="473.0" y="182.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="514" y="164" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, llama.cpp, class S, long_context: 3 of 3 passed</title></rect>
+<text x="552.0" y="182.0" class="cell" text-anchor="middle" style="fill:#0d1117">3/3</text>
+<text x="42" y="213.0" class="note">Ollama, class S</text>
+<rect x="198" y="195" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, Ollama, class S, math: 8 of 8 passed</title></rect>
+<text x="236.0" y="213.0" class="cell" text-anchor="middle" style="fill:#0d1117">8/8</text>
+<rect x="277" y="195" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, Ollama, class S, code: 6 of 6 passed</title></rect>
+<text x="315.0" y="213.0" class="cell" text-anchor="middle" style="fill:#0d1117">6/6</text>
+<rect x="356" y="195" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, Ollama, class S, json: 5 of 5 passed</title></rect>
+<text x="394.0" y="213.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="435" y="195" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, Ollama, class S, tool_calls: 5 of 5 passed</title></rect>
+<text x="473.0" y="213.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="514" y="195" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 3080 Ti 12 GB, Ollama, class S, long_context: 3 of 3 passed</title></rect>
+<text x="552.0" y="213.0" class="cell" text-anchor="middle" style="fill:#0d1117">3/3</text>
+<text x="28" y="252" class="device">PC RTX 4060 Ti 8 GB</text>
+<text x="42" y="278.0" class="note">llama.cpp, class S</text>
+<rect x="198" y="260" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, llama.cpp, class S, math: 8 of 8 passed</title></rect>
+<text x="236.0" y="278.0" class="cell" text-anchor="middle" style="fill:#0d1117">8/8</text>
+<rect x="277" y="260" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, llama.cpp, class S, code: 6 of 6 passed</title></rect>
+<text x="315.0" y="278.0" class="cell" text-anchor="middle" style="fill:#0d1117">6/6</text>
+<rect x="356" y="260" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, llama.cpp, class S, json: 5 of 5 passed</title></rect>
+<text x="394.0" y="278.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="435" y="260" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, llama.cpp, class S, tool_calls: 5 of 5 passed</title></rect>
+<text x="473.0" y="278.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="514" y="260" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, llama.cpp, class S, long_context: 3 of 3 passed</title></rect>
+<text x="552.0" y="278.0" class="cell" text-anchor="middle" style="fill:#0d1117">3/3</text>
+<text x="42" y="309.0" class="note">Ollama, class S</text>
+<rect x="198" y="291" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, Ollama, class S, math: 8 of 8 passed</title></rect>
+<text x="236.0" y="309.0" class="cell" text-anchor="middle" style="fill:#0d1117">8/8</text>
+<rect x="277" y="291" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, Ollama, class S, code: 6 of 6 passed</title></rect>
+<text x="315.0" y="309.0" class="cell" text-anchor="middle" style="fill:#0d1117">6/6</text>
+<rect x="356" y="291" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, Ollama, class S, json: 5 of 5 passed</title></rect>
+<text x="394.0" y="309.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="435" y="291" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, Ollama, class S, tool_calls: 5 of 5 passed</title></rect>
+<text x="473.0" y="309.0" class="cell" text-anchor="middle" style="fill:#0d1117">5/5</text>
+<rect x="514" y="291" width="76" height="28" rx="4" fill="#9ec5f4"><title>PC RTX 4060 Ti 8 GB, Ollama, class S, long_context: 3 of 3 passed</title></rect>
+<text x="552.0" y="309.0" class="cell" text-anchor="middle" style="fill:#0d1117">3/3</text>
+<text x="28" y="344" class="foot">Tasks the checker cannot judge, and tasks that were skipped or failed to run, are not counted.</text>
+</svg>

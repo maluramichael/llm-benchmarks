@@ -1,0 +1,33 @@
+To find the sum of all integers from 1 to 100 that are divisible by 3 or by 5, we can use the Principle of Inclusion-Exclusion.
+
+Let $S$ be the set of integers $\{1, 2, \dots, 100\}$.
+We need to calculate the sum of elements in the set $A \cup B$, where:
+- $A$ is the set of numbers in $S$ divisible by 3.
+- $B$ is the set of numbers in $S$ divisible by 5.
+
+The formula for the sum of a union of two sets is:
+$\text{Sum}(A \cup B) = \text{Sum}(A) + \text{Sum}(B) - \text{Sum}(A \cap B)$
+
+**Step 1: Calculate Sum(A)**
+Numbers divisible by 3 form an arithmetic sequence: $3, 6, 9, \dots, 99$.
+The number of terms $n_3$ is $\lfloor \frac{100}{3} \rfloor = 33$.
+The sum of an arithmetic sequence is given by $\frac{n}{2}(a_1 + a_n)$.
+$\text{Sum}(A) = \frac{33}{2}(3 + 99) = \frac{33}{2}(102) = 33 \times 51 = 1683$.
+
+**Step 2: Calculate Sum(B)**
+Numbers divisible by 5 form an arithmetic sequence: $5, 10, 15, \dots, 100$.
+The number of terms $n_5$ is $\lfloor \frac{100}{5} \rfloor = 20$.
+$\text{Sum}(B) = \frac{20}{2}(5 + 100) = 10 \times 105 = 1050$.
+
+**Step 3: Calculate Sum(A $\cap$ B)**
+Numbers divisible by both 3 and 5 are divisible by their least common multiple, which is 15.
+The sequence is $15, 30, 45, \dots, 90$.
+The number of terms $n_{15}$ is $\lfloor \frac{100}{15} \rfloor = 6$.
+$\text{Sum}(A \cap B) = \frac{6}{2}(15 + 90) = 3 \times 105 = 315$.
+
+**Step 4: Calculate the Final Sum**
+$\text{Total Sum} = 1683 + 1050 - 315$
+$\text{Total Sum} = 2733 - 315$
+$\text{Total Sum} = 2418$
+
+ANSWER: 2418

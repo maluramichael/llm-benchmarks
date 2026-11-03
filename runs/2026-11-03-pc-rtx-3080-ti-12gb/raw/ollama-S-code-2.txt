@@ -1,0 +1,9 @@
+```python
+def second_largest(nums):
+    unique_nums = set(nums)
+    if len(unique_nums) < 2:
+        return None
+    
+    sorted_unique = sorted(unique_nums, reverse=True)
+    return sorted_unique[1]
+```

@@ -1,0 +1,20 @@
+```python
+def longest_common_prefix(strs):
+    if not strs:
+        return ""
+    
+    # Sort the strings so that the first and last have the least common prefix
+    strs.sort()
+    
+    first = strs[0]
+    last = strs[-1]
+    
+    i = 0
+    while i < len(first) and i < len(last):
+        if first[i] == last[i]:
+            i += 1
+        else:
+            break
+    
+    return first[:i]
+```
