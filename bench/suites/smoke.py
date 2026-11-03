@@ -149,8 +149,6 @@ def _run_task(ctx: RunContext, task: dict, test_key: str, length: int | None, st
             ctx.model, messages, _sampling(task), tools=task.get("tools"),
             json_schema=task.get("json_schema"), thinking=bool(ctx.cfg.thinking))
         check_state = reset_state(ctx, started)
-        if check_state != "reset":
-            outcome, reason = check(task, result, ctx.cfg)
     except RunAborted:
         raise
     except Exception as err:
@@ -170,6 +168,10 @@ def _run_task(ctx: RunContext, task: dict, test_key: str, length: int | None, st
                        {"reason": "GPU driver reset detected during this task",
                         "category": task["category"]}, meta)
         raise RunAborted(f"GPU driver reset detected during {test_key}")
+    try:
+        outcome, reason = check(task, result, ctx.cfg)
+    except Exception as err:  # e.g. RecursionError in compile(): judged, not an engine error
+        outcome, reason = "fail", f"checker error: {type(err).__name__}"
     status, passed = to_store(outcome, reason)
     values = {"passed": passed, "reason": _clean(reason), "category": task["category"],
               "raw": _write_raw(ctx, task["id"], result), "gen_tokens": result.timing.gen_tokens,

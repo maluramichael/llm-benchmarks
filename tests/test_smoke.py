@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from bench.config import Config
 from bench.engines.base import ChatResult, EngineError, ModelRef, Timing
@@ -236,6 +237,27 @@ class SmokeTest(unittest.TestCase):
         entry = ctx.store.get(key(ctx, "smoke", "math-1"))
         self.assertEqual(entry["status"], "ok")
         self.assertEqual(entry["values"]["driver_reset_check"], "unknown")
+
+    def test_checker_exception_is_judged_not_an_engine_error(self):
+        ctx = self.ctx(ChatEngine(), Config(tasks=["math-1"]))
+        with mock.patch.object(smoke, "check", side_effect=RecursionError("deep")):
+            smoke.run_smoke(ctx)
+        entry = ctx.store.get(key(ctx, "smoke", "math-1"))
+        self.assertEqual(entry["status"], "ok")
+        self.assertIs(entry["values"]["passed"], False)
+        self.assertEqual(entry["values"]["reason"], "checker error: RecursionError")
+
+    def test_needle_text_gets_the_task_depth(self):
+        seen = []
+        real = smoke.needle_text
+
+        def spy(text, n, depth, needle, count):
+            seen.append(depth)
+            return real(text, n, depth, needle, count)
+        ctx = self.ctx(ChatEngine(), Config(tasks=["needle-*"]), rungs=[(8192, "ok")])
+        with mock.patch.object(smoke, "needle_text", spy):
+            smoke.run_smoke(ctx)
+        self.assertEqual(seen, [0.1, 0.5, 0.9])
 
     def test_force_test_reruns(self):
         engine = ChatEngine()

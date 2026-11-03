@@ -1,7 +1,10 @@
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from bench import checkers
 from bench.checkers import (check, check_code, check_json, check_needle, check_number,
                             check_tool_call, to_store)
 from bench.config import Config
@@ -164,6 +167,151 @@ class CodeTest(unittest.TestCase):
         outcome, reason = check_code(self.SPEC, self.code("def add(a, b):\n    return a+b"), cfg)
         self.assertEqual(outcome, "skipped")
         self.assertEqual(to_store(outcome, reason)[0], "skipped")
+
+
+class CodeHardeningTest(unittest.TestCase):
+    SPEC = {"type": "code", "tests": "assert add(2, 3) == 5\n"}
+    SPAWN = ("import subprocess, sys\n"
+             "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n")
+
+    def code(self, body):
+        return result("```python\n" + body + "\n```")
+
+    def run_recording(self, body, timeout=10):
+        made = []
+        real = tempfile.mkdtemp
+
+        def record(*a, **kw):
+            made.append(real(*a, **kw))
+            return made[-1]
+        started = time.monotonic()
+        with mock.patch("bench.checkers.tempfile.mkdtemp", side_effect=record):
+            outcome = check_code(self.SPEC, self.code(body), Config(), timeout=timeout)
+        return outcome, time.monotonic() - started, made
+
+    def test_surviving_grandchild_does_not_hang_normal_exit(self):
+        body = self.SPAWN + "def add(a, b):\n    return a + b"
+        outcome, elapsed, made = self.run_recording(body)
+        self.assertEqual(outcome[0], "pass")
+        self.assertLess(elapsed, 10)
+        self.assertEqual(len(made), 1)
+        self.assertFalse(Path(made[0]).exists())
+
+    def test_surviving_grandchild_does_not_hang_timeout(self):
+        body = self.SPAWN + "def add(a, b):\n    while True:\n        pass"
+        outcome, elapsed, made = self.run_recording(body, timeout=1)
+        self.assertEqual(outcome, ("fail", "timeout"))
+        self.assertLess(elapsed, 10)
+        self.assertFalse(Path(made[0]).exists())
+
+    def test_temp_dir_is_removed_after_timeout(self):
+        body = "def add(a, b):\n    while True:\n        pass"
+        _outcome, _elapsed, made = self.run_recording(body, timeout=1)
+        self.assertFalse(Path(made[0]).exists())
+
+    def test_pass_token_is_not_readable_by_model_code(self):
+        body = ("import os, sys\n"
+                "def add(a, b):\n"
+                "    open('pass-' + sys.argv[1], 'w').write('ok')\n"
+                "    os._exit(0)")
+        self.assertEqual(check_code(self.SPEC, self.code(body), Config())[0], "fail")
+
+    def test_os_exit_does_not_fake_a_pass(self):
+        body = "import os\nos._exit(0)\ndef add(a, b):\n    return 0"
+        self.assertEqual(check_code(self.SPEC, self.code(body), Config())[0], "fail")
+
+    def test_runs_isolated(self):
+        body = ("import os, sys\n"
+                "assert sys.flags.isolated == 1\n"
+                "assert os.getcwd() not in sys.path and '' not in sys.path\n"
+                "def add(a, b):\n    return a + b")
+        self.assertEqual(check_code(self.SPEC, self.code(body), Config())[0], "pass")
+
+
+class FakeKernel32:
+    def __init__(self, set_ok=1, assign_ok=1):
+        self.calls = []
+        self.set_ok, self.assign_ok = set_ok, assign_ok
+
+    def CreateJobObjectW(self, attrs, name):
+        self.calls.append("create")
+        return 77
+
+    def SetInformationJobObject(self, handle, info_class, info, size):
+        self.calls.append(("set", handle, info_class))
+        return self.set_ok
+
+    def AssignProcessToJobObject(self, handle, process):
+        self.calls.append(("assign", handle, process))
+        return self.assign_ok
+
+    def TerminateJobObject(self, handle, code):
+        self.calls.append(("terminate", handle))
+        return 1
+
+    def CloseHandle(self, handle):
+        self.calls.append(("close", handle))
+        return 1
+
+
+class WindowsJobTest(unittest.TestCase):
+    def test_job_is_created_assigned_and_killed(self):
+        k32 = FakeKernel32()
+        job = checkers._WinJob.open(k32)
+        self.assertIsNotNone(job)
+        self.assertEqual(k32.calls[:2], ["create", ("set", 77, 9)])
+        self.assertTrue(job.assign(1234))
+        self.assertTrue(job.kill())
+        job.kill()  # idempotent: handle closed once
+        self.assertEqual(k32.calls[2:], [("assign", 77, 1234), ("terminate", 77), ("close", 77)])
+
+    def test_job_setup_failure_gives_no_job(self):
+        k32 = FakeKernel32(set_ok=0)
+        self.assertIsNone(checkers._WinJob.open(k32))
+        self.assertIn(("close", 77), k32.calls)
+
+    def test_assign_failure_is_reported(self):
+        job = checkers._WinJob.open(FakeKernel32(assign_ok=0))
+        self.assertFalse(job.assign(5))
+
+    def test_kill_tree_uses_job_on_windows(self):
+        proc, job = mock.Mock(pid=5), mock.Mock()
+        job.kill.return_value = True
+        with mock.patch.object(checkers, "IS_WINDOWS", True), \
+                mock.patch.object(checkers.subprocess, "run") as run:
+            checkers._kill_tree(proc, job)
+        job.kill.assert_called_once()
+        run.assert_not_called()
+
+    def test_kill_tree_falls_back_to_taskkill(self):
+        proc = mock.Mock(pid=5)
+        with mock.patch.object(checkers, "IS_WINDOWS", True), \
+                mock.patch.object(checkers.subprocess, "run") as run:
+            checkers._kill_tree(proc, None)
+        self.assertEqual(run.call_args[0][0], ["taskkill", "/F", "/T", "/PID", "5"])
+
+    def test_spawn_kwargs_per_platform(self):
+        with mock.patch.object(checkers, "IS_WINDOWS", True):
+            self.assertIn("creationflags", checkers._spawn_kwargs())
+        with mock.patch.object(checkers, "IS_WINDOWS", False):
+            self.assertEqual(checkers._spawn_kwargs(), {"start_new_session": True})
+
+
+class FixTest(unittest.TestCase):
+    def test_malformed_numbers_fail(self):
+        spec = {"type": "number", "answer": "12"}
+        for text in ("ANSWER: 12,34", "ANSWER: 12%", "ANSWER: 12abc", "ANSWER: 12,5"):
+            self.assertEqual(check_number(spec, result(text))[0], "fail", text)
+        self.assertEqual(check_number(spec, result("ANSWER: 12."))[0], "pass")
+        self.assertEqual(check_number(spec, result("ANSWER: 12 dollars"))[0], "pass")
+
+    def test_enum_is_type_aware(self):
+        from bench.checkers import validate_schema
+        self.assertIsNotNone(validate_schema(1, {"enum": [True]}))
+        self.assertIsNotNone(validate_schema(True, {"enum": [1]}))
+        self.assertIsNone(validate_schema(True, {"enum": [True]}))
+        self.assertIsNone(validate_schema("a", {"enum": ["a", "b"]}))
+        self.assertIsNone(validate_schema(2, {"enum": [1, 2.0]}))
 
 
 class NeedleTest(unittest.TestCase):

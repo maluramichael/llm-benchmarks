@@ -20,7 +20,16 @@ HOME/TMP, `python -I` (isolated mode), a minimal environment (no inherited token
 secrets), stdin closed, a 10 second time limit that kills the whole process tree, and a
 cap on the captured output. The code can still read files the user can read and use the
 network. Use `--no-code-exec` to skip the code tasks on a machine where that is not
-acceptable.
+acceptable. A deliberately adversarial model can still cheat: the pass token is handed over
+in a file the runner deletes before it runs the solution, but the solution runs in the same
+process as the runner.
+
+After the runner has finished (normally or by timeout) the whole process tree is killed, so
+a child the model code left behind cannot keep the output pipes open or pin the temp
+directory. POSIX: own process group, `killpg`. Windows: a Job Object (ctypes) with
+kill-on-close; the process is assigned right after the spawn, so a child started in the
+first microseconds could escape (tiny race, `subprocess` cannot start suspended); `taskkill
+/T` is the fallback when the job API fails.
 """
 
 from __future__ import annotations
@@ -39,20 +48,27 @@ import threading
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+IS_WINDOWS = sys.platform == "win32"
 CODE_TIMEOUT = 10  # seconds
 OUTPUT_CAP = 64 * 1024  # bytes kept per stream; the rest is read and thrown away
 REASON_LIMIT = 300
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
-_NUMBER = re.compile(r"ANSWER:[ \t]*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)")
+# The lookahead rejects partial reads such as "12,34" (-> 12) or "42%" (-> 42).
+_NUMBER = re.compile(
+    r"ANSWER:[ \t]*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)(?![\w%]|[,.]\d)")
 _FENCE = re.compile(r"```[ \t]*([\w+-]*)[ \t]*\n(.*?)(?:```|\Z)", re.DOTALL)
 
 # Runs solution and hidden tests in one interpreter. A pass is only believed when the
 # runner got to its end and wrote the token file, so sys.exit(0) or os._exit(0) inside the
 # model code cannot fake a pass.
 _RUNNER = '''\
+import os
 import sys
-token = sys.argv[1]
+with open("token.txt", encoding="utf-8") as handle:
+    token = handle.read().strip()
+os.remove("token.txt")
+del sys.argv[1:]
 namespace = {"__name__": "solution"}
 with open("solution.py", encoding="utf-8") as handle:
     solution = handle.read()
@@ -112,6 +128,11 @@ _TYPES = {
     "null": lambda v: v is None, "integer": _is_int, "number": _is_number}
 
 
+def _same_enum(value, option) -> bool:
+    # `1 == True` in Python; JSON keeps booleans and numbers apart.
+    return isinstance(value, bool) == isinstance(option, bool) and value == option
+
+
 def validate_schema(value, schema: dict, path: str = "$") -> str | None:
     """Subset of JSON schema: type, properties, required, enum, items, minimum, maximum.
 
@@ -122,7 +143,7 @@ def validate_schema(value, schema: dict, path: str = "$") -> str | None:
         kinds = kind if isinstance(kind, list) else [kind]
         if not any(_TYPES[k](value) for k in kinds):
             return f"{path}: expected type {kind}"
-    if "enum" in schema and value not in schema["enum"]:
+    if "enum" in schema and not any(_same_enum(value, e) for e in schema["enum"]):
         return f"{path}: value not in enum"
     if _is_number(value):
         if "minimum" in schema and value < schema["minimum"]:
@@ -280,12 +301,116 @@ def _drain(stream, sink: list) -> None:
         pass
 
 
-def _kill_tree(proc: subprocess.Popen) -> None:
+class _WinJob:
+    """Windows Job Object that kills every process in it when terminated or closed."""
+
+    KILL_ON_JOB_CLOSE = 0x2000
+    EXTENDED_LIMIT_INFORMATION = 9
+
+    def __init__(self, kernel32, handle):
+        self.k32 = kernel32
+        self.handle = handle
+
+    @classmethod
+    def open(cls, kernel32=None):
+        """A new job set to kill on close, or None when the API fails."""
+        try:
+            if kernel32 is None:
+                import ctypes
+                kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            handle = kernel32.CreateJobObjectW(None, None)
+            if not handle:
+                return None
+            info = cls._limit_info()
+            if not kernel32.SetInformationJobObject(
+                    handle, cls.EXTENDED_LIMIT_INFORMATION, info, cls._size(info)):
+                kernel32.CloseHandle(handle)
+                return None
+            return cls(kernel32, handle)
+        except (OSError, AttributeError, ValueError):
+            return None
+
+    @classmethod
+    def _limit_info(cls):
+        import ctypes
+
+        class Basic(ctypes.Structure):
+            _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64),
+                        ("PerJobUserTimeLimit", ctypes.c_int64),
+                        ("LimitFlags", ctypes.c_uint32),
+                        ("MinimumWorkingSetSize", ctypes.c_size_t),
+                        ("MaximumWorkingSetSize", ctypes.c_size_t),
+                        ("ActiveProcessLimit", ctypes.c_uint32),
+                        ("Affinity", ctypes.c_size_t),
+                        ("PriorityClass", ctypes.c_uint32),
+                        ("SchedulingClass", ctypes.c_uint32)]
+
+        class Extended(ctypes.Structure):
+            _fields_ = [("BasicLimitInformation", Basic),
+                        ("IoInfo", ctypes.c_uint64 * 6),
+                        ("ProcessMemoryLimit", ctypes.c_size_t),
+                        ("JobMemoryLimit", ctypes.c_size_t),
+                        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                        ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+        info = Extended()
+        info.BasicLimitInformation.LimitFlags = cls.KILL_ON_JOB_CLOSE
+        return info
+
+    @staticmethod
+    def _size(info) -> int:
+        import ctypes
+        return ctypes.sizeof(info)
+
+    def assign(self, process_handle) -> bool:
+        try:
+            return bool(self.k32.AssignProcessToJobObject(self.handle, process_handle))
+        except (OSError, ValueError):
+            return False
+
+    def kill(self) -> bool:
+        """Terminate every process of the job and close it (once)."""
+        if self.handle is None:
+            return True
+        handle, self.handle = self.handle, None
+        try:
+            ok = bool(self.k32.TerminateJobObject(handle, 1))
+            self.k32.CloseHandle(handle)
+            return ok
+        except (OSError, ValueError):
+            return False
+
+
+def _spawn_kwargs() -> dict:
+    if IS_WINDOWS:
+        # numeric fallbacks: CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW
+        return {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
+                | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+    return {"start_new_session": True}  # own process group, killed as a whole
+
+
+def _attach_job(proc: subprocess.Popen):
+    """Windows: put the new process into a kill-on-close job. None elsewhere or on failure."""
+    if not IS_WINDOWS:
+        return None
+    job = _WinJob.open()
+    if job is None:
+        return None
+    if not job.assign(int(proc._handle)):
+        job.kill()
+        return None
+    return job
+
+
+def _kill_tree(proc: subprocess.Popen, job=None) -> None:
+    """Kill the process and everything it started, also when the parent is already gone."""
     try:
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                           capture_output=True, timeout=10, check=False)
+        if IS_WINDOWS:
+            if job is None or not job.kill():
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                               capture_output=True, timeout=10, check=False)
         else:
+            # The group id is the pid of the leader; members outlive a dead leader.
             os.killpg(proc.pid, signal.SIGKILL)
     except (OSError, subprocess.SubprocessError):
         pass
@@ -297,15 +422,12 @@ def _kill_tree(proc: subprocess.Popen) -> None:
 
 def _run_python(workdir: str, token: str, timeout: float) -> tuple[int | None, str]:
     """Run runner.py in `workdir`; returns (exit code or None on timeout, stderr text)."""
-    flags = {}
-    if os.name == "nt":
-        flags["creationflags"] = (subprocess.CREATE_NEW_PROCESS_GROUP
-                                  | subprocess.CREATE_NO_WINDOW)
-    else:
-        flags["start_new_session"] = True  # own process group, killed as a whole
+    Path(workdir, "token.txt").write_text(token, encoding="utf-8")
     proc = subprocess.Popen(
-        [sys.executable, "-I", "runner.py", token], cwd=workdir, env=_minimal_env(workdir),
-        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **flags)
+        [sys.executable, "-I", "runner.py"], cwd=workdir, env=_minimal_env(workdir),
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        **_spawn_kwargs())
+    job = _attach_job(proc)
     out: list = []
     err: list = []
     threads = [threading.Thread(target=_drain, args=(proc.stdout, out), daemon=True),
@@ -317,15 +439,16 @@ def _run_python(workdir: str, token: str, timeout: float) -> tuple[int | None, s
         proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         timed_out = True
-        _kill_tree(proc)
-        proc.wait()
+    _kill_tree(proc, job)  # always: leftover children must not hold the pipes or the dir
+    proc.wait()
     for thread in threads:
-        thread.join(timeout=2)
-    for stream in (proc.stdout, proc.stderr):
-        try:
-            stream.close()
-        except OSError:
-            pass
+        thread.join(timeout=5)
+    if not any(thread.is_alive() for thread in threads):
+        for stream in (proc.stdout, proc.stderr):  # closing under a blocked reader would hang
+            try:
+                stream.close()
+            except OSError:
+                pass
     return (None if timed_out else proc.returncode), b"".join(err).decode("utf-8", "replace")
 
 
