@@ -45,6 +45,7 @@ CORPUS_CACHE = REPO_ROOT / ".bench" / "cache" / "corpus"
 LOG_DIR = REPO_ROOT / ".bench" / "logs"
 MIB = 1024 * 1024
 RUN_DIR_NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})-(.+)$")
+NUMBER_SUFFIX = re.compile(r"-(\d{1,2})$")  # -2, -3 ...: a folder name that was taken
 
 
 # --- injectable pieces ---------------------------------------------------------------------
@@ -128,11 +129,18 @@ def find_run_dir(output: Path, device: str, today: date) -> Path:
     if output.is_dir():
         for folder in output.iterdir():
             match = RUN_DIR_NAME.match(folder.name)
-            if (folder.is_dir() and match and match.group(2) == slug
-                    and _continuable(folder)):
-                found.append(folder)
+            if not (folder.is_dir() and match):
+                continue
+            rest, number = match.group(2), 1
+            if rest != slug:
+                suffix = NUMBER_SUFFIX.search(rest)
+                if not suffix or rest[:suffix.start()] != slug:
+                    continue
+                number = int(suffix.group(1))
+            if _continuable(folder):
+                found.append((match.group(1), number, folder))
     if found:
-        return sorted(found, key=lambda f: f.name)[-1]
+        return sorted(found, key=lambda f: f[:2])[-1][2]
     return _free_name(output / run_dir_name(today, device))
 
 
@@ -188,11 +196,19 @@ class _State:
         self.problems.append(message)
         self.say(f"problem: {message}")
 
+    def fail(self, message: str) -> None:
+        """A problem that also goes into the notes, so results.json says why."""
+        self.problem(message)
+        self.note(message)
+
     def note(self, text: str) -> None:
         text = _clean(text)
         if text not in self.notes:
             self.notes.append(text)
-            self.store.set_section("notes", self.notes)
+            try:
+                self.store.set_section("notes", self.notes)
+            except OSError as err:
+                self.say(f"warning: could not save a note: {_clean(str(err))}")
 
 
 def _dict_of(value) -> dict:
@@ -281,15 +297,15 @@ def _resolve_models(state: _State, engine_name: str) -> list:
         try:
             ref = state.env.resolve(model_id, engine_name, cfg, say=state.say)
         except models.NeedsConsent as err:
-            state.problem(f"{label}: {err}")
+            state.fail(f"{label}: {err}")
             continue
         except models.ModelError as err:
-            state.problem(f"{label}: {_clean(str(err))}")
+            state.fail(f"{label}: {_clean(str(err))}")
             continue
         except RunAborted:
             raise
         except Exception as err:  # e.g. the NAS share is gone
-            state.problem(f"{label}: cannot resolve the model: {clean_error(err)}")
+            state.fail(f"{label}: cannot resolve the model: {clean_error(err)}")
             continue
         weights = (ref.size_bytes or 0) / MIB
         reserve = state.guard.reserve_mb()
@@ -325,7 +341,7 @@ def _run_model(state: _State, engine, ref) -> bool:
         except (RunAborted, KeyboardInterrupt):
             raise
         except Exception as err:
-            _retryable(state.store, f"the {name} suite stopped with an unexpected error")
+            _retryable(state, f"the {name} suite stopped with an unexpected error")
             state.problem(f"{label}: the {name} suite failed: {clean_error(err)}")
             state.note(f"{label}: the {name} suite stopped with an unexpected error "
                        f"({clean_error(err)})")
@@ -341,13 +357,13 @@ def _run_engine(state: _State, engine_name: str) -> None:
     try:
         engine = state.env.make_engine(engine_name, state.cfg)
     except Exception as err:
-        state.problem(f"{engine_name}: cannot create the engine: {clean_error(err)}")
+        state.fail(f"{engine_name}: cannot create the engine: {clean_error(err)}")
         return
     try:
         try:
             engine.start()
         except Exception as err:
-            state.problem(f"{engine_name}: cannot start: {clean_error(err)}")
+            state.fail(f"{engine_name}: cannot start: {clean_error(err)}")
             return
         for ref in refs:
             if not _run_model(state, engine, ref):
@@ -363,17 +379,21 @@ def _run_engine(state: _State, engine_name: str) -> None:
             state.say(f"warning: stopping {engine_name} failed: {clean_error(err)}")
 
 
-def _retryable(store: ResultStore, reason: str) -> None:
+def _retryable(state: "_State", reason: str) -> None:
     """Turn tests left `running` into `error`. Neither Ctrl+C nor a Python exception is a
     crash: recover_crashed would call them `aborted`, which for a ladder rung means
     "does not fit, never retried"."""
-    for key, entry in list(store.data["tests"].items()):
+    for key, entry in list(state.store.data["tests"].items()):
         if entry.get("status") == "running":
-            store.save(key, "error", {"reason": reason})
+            try:
+                state.store.save(key, "error", {"reason": reason})
+            except Exception as err:  # e.g. the disk is full: report it, do not crash
+                state.problem(f"could not mark {key} as retryable: {clean_error(err)}")
+                return
 
 
-def _mark_interrupted(store: ResultStore) -> None:
-    _retryable(store, "interrupted by the user (Ctrl+C); it is measured again by the next run")
+def _mark_interrupted(state: "_State") -> None:
+    _retryable(state, "interrupted by the user (Ctrl+C); it is measured again by the next run")
 
 
 # --- run -----------------------------------------------------------------------------------
@@ -482,7 +502,7 @@ def _run(cfg: Config, env: Env) -> int:
                 except (RunAborted, KeyboardInterrupt):
                     raise
                 except Exception as err:
-                    _retryable(store, f"{engine_name} stopped with an unexpected error")
+                    _retryable(state, f"{engine_name} stopped with an unexpected error")
                     state.problem(f"{engine_name}: stopped with an unexpected error: "
                                   f"{clean_error(err)}")
                     state.note(f"{engine_name} stopped with an unexpected error "
@@ -491,7 +511,7 @@ def _run(cfg: Config, env: Env) -> int:
             aborted = err
         except KeyboardInterrupt:
             interrupted = True
-            _mark_interrupted(store)
+            _mark_interrupted(state)
 
     if aborted is not None:
         say(f"Run ended early: {aborted}. The GPU driver was reset, so nothing more is "
@@ -501,14 +521,17 @@ def _run(cfg: Config, env: Env) -> int:
         say("Interrupted. Engines were stopped and results are saved. Run the same command "
             "again to continue.")
 
+    report_failure = None
     try:
         report.write_report(run_dir)
         say(f"Report: {run_dir / 'README.md'}")
     except PrivacyError as err:
-        state.problem("the report was not written, personal data was found. Fix "
-                      f"results.json or raw/ by hand and run `bench report`: {err}")
+        report_failure = ("the report was not written, personal data was found. Fix "
+                          f"results.json or raw/ by hand and run `bench report`: {err}")
     except (OSError, ValueError) as err:
-        state.problem(f"the report was not written: {_clean(str(err))}")
+        report_failure = f"the report was not written: {_clean(str(err))}"
+    if report_failure:
+        state.problems.append(report_failure)
 
     counts: dict[str, int] = {}
     for entry in store.data["tests"].values():
@@ -528,6 +551,8 @@ def _run(cfg: Config, env: Env) -> int:
         say(f"{len(retryable)} test(s) ended with an error or are unfinished; run the same "
             "command again to retry them.")
 
+    if report_failure:
+        say(f"problem: {report_failure}")  # last line: nothing may bury it
     if interrupted:
         return EXIT_INTERRUPTED
     if aborted is not None:

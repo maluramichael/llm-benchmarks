@@ -25,6 +25,11 @@ SYSTEM = {"os": "Test OS", "cpu": "Test CPU", "gpus": [
 DEVICE = "PC RTX 3090 24 GB"
 
 
+def io_stringio():
+    import io
+    return io.StringIO()
+
+
 class FakeGuard:
     def __init__(self, cfg, gpu_index, vram_total_mb, reset=False):
         self.cfg, self.gpu_index, self.vram_total_mb = cfg, gpu_index, vram_total_mb
@@ -663,6 +668,142 @@ class RunnerTest(unittest.TestCase):
         with mock.patch("builtins.print") as printed:
             runner.Env().say("hello")
         self.assertEqual(printed.call_args.kwargs.get("flush"), True)
+
+    # fix round 2
+    def test_a_numbered_folder_is_continued(self):
+        for name in ("2026-11-03-pc-rtx-3090-24gb", "2026-11-03-pc-rtx-3090-24gb-2"):
+            (self.out / name).mkdir(parents=True)
+        (self.out / "2026-11-03-pc-rtx-3090-24gb" / "results.json").write_text("{bad", "utf-8")
+        ResultStore(self.out / "2026-11-03-pc-rtx-3090-24gb-2" / "results.json").save(
+            "ollama/S/speed/warm", "ok", {})
+        found = runner.find_run_dir(self.out, DEVICE, date(2026, 11, 9))
+        self.assertEqual(found.name, "2026-11-03-pc-rtx-3090-24gb-2")
+        self.assertEqual(runner.run(self.cfg(), self.env()), 0, self.text)
+        self.assertEqual(sorted(p.name for p in self.out.iterdir()),
+                         ["2026-11-03-pc-rtx-3090-24gb", "2026-11-03-pc-rtx-3090-24gb-2"])
+        self.assertIn("continuing run 2026-11-03-pc-rtx-3090-24gb-2", self.text)
+
+    def test_numbered_folders_sort_by_number_and_slugs_with_digits_are_not_misparsed(self):
+        for name in ("2026-11-03-pc-2", "2026-11-03-pc-10", "2026-11-03-pc-3090"):
+            (self.out / name).mkdir(parents=True)
+            ResultStore(self.out / name / "results.json").save("a/b/c/d", "ok", {})
+        self.assertEqual(runner.find_run_dir(self.out, "PC", date(2026, 11, 4)).name,
+                         "2026-11-03-pc-10")
+        self.assertEqual(runner.find_run_dir(self.out, "PC 3090", date(2026, 11, 4)).name,
+                         "2026-11-03-pc-3090")
+        self.assertEqual(runner.find_run_dir(self.out, "PC 30", date(2026, 11, 4)).name,
+                         "2026-11-04-pc-30")
+
+    def test_report_and_plan_find_a_numbered_folder(self):
+        from bench import cli
+        folder = self.out / "2026-11-03-pc-test-2"
+        ResultStore(folder / "results.json").save("ollama/S/speed/warm", "ok", {"gen_tps": 7.5})
+        with contextlib.redirect_stdout(io_stringio()):
+            self.assertEqual(cli.main(["report", "--output", str(self.out),
+                                       "--device", "PC Test"]), 0)
+        self.assertTrue((folder / "README.md").is_file())
+
+    def test_report_failure_is_the_last_line_even_after_an_abort(self):
+        def abort(ctx):
+            raise RunAborted("GPU driver reset detected")
+        env = self.env()
+        env.suites = {**env.suites, "memory": abort}
+        with mock.patch.object(runner.report, "write_report",
+                               side_effect=PrivacyError(["ip: 10.0.0.1"])):
+            code = runner.run(self.cfg(), env)
+        self.assertEqual(code, runner.EXIT_ABORTED)
+        self.assertIn("report was not written", self.messages[-1])
+        self.assertIn("10.0.0.1", self.messages[-1])
+
+    def test_interrupt_keeps_130_and_report_failure_last(self):
+        def interrupt(ctx):
+            raise KeyboardInterrupt
+        env = self.env()
+        env.suites = {**env.suites, "memory": interrupt}
+        with mock.patch.object(runner.report, "write_report", side_effect=OSError("disk")):
+            code = runner.run(self.cfg(), env)
+        self.assertEqual(code, 130)
+        self.assertIn("report was not written", self.messages[-1])
+
+    def test_resolve_and_engine_failures_leave_a_note(self):
+        def resolve(model_id, engine, cfg, say=None):
+            if model_id == "M":
+                raise OSError("the share is gone")
+            if model_id == "L":
+                raise ModelNotFound("no L here")
+            return self.resolve(model_id, engine, cfg)
+
+        def make(name, cfg):
+            if name == "llamacpp":
+                raise RuntimeError("cannot build engine")
+            return self.make_engine(name, cfg)
+        seen = []
+        env = self.env(resolve=resolve, make_engine=make)
+        env.suites = {"memory": lambda ctx: seen.append((ctx.engine.name, ctx.model.id))}
+        code = runner.run(self.cfg(engines=["llamacpp", "ollama"], models=["S", "M", "L"],
+                                   suites=["memory"]), env)
+        self.assertEqual((code, seen), (1, [("ollama", "S")]))
+        notes = "\n".join(self.results()["notes"])
+        for expected in ("ollama/M", "the share is gone", "ollama/L", "no L here",
+                         "llamacpp: cannot create the engine", "cannot build engine"):
+            self.assertIn(expected, notes)
+        self.assertIn("cannot create the engine", self.text)  # the inner catch, not the outer
+
+    def test_unreliable_vram_does_not_skip_a_model_in_the_runner(self):
+        system = json.loads(json.dumps(SYSTEM))
+        system["gpus"][0].update(vendor="amd", vram_total_mb=4096)
+        big = lambda model_id, engine, cfg, say=None: ModelRef(  # noqa: E731
+            model_id, model_id, "Q4_K_M", "t", None, None, 20 * 1024**3)
+        seen = []
+        for platform, expected in (("win32", [1]), ("linux", [])):
+            seen.clear()
+            env = self.env(system=lambda: system, resolve=big)
+            env.suites = {"memory": lambda ctx: seen.append(1)}
+            with mock.patch.object(runner.plan.sys, "platform", platform):
+                runner.run(self.cfg(suites=["memory"], force=True), env)
+            self.assertEqual(seen, expected, platform)
+
+    def test_save_failures_surface_as_a_problem(self):
+        def save_one(ctx):
+            ctx.store.save("ollama/S/speed/warm", "ok", {})
+        original = ResultStore._persist
+        calls = {"n": 0}
+
+        def flaky(store):
+            calls["n"] += 1
+            if store.data["tests"] and "ollama/S/speed/warm" in store.data["tests"]:
+                raise OSError("disk full")
+            return original(store)
+        env = self.env()
+        env.suites = {"speed": save_one}
+        with mock.patch.object(ResultStore, "_persist", flaky):
+            code = runner.run(self.cfg(suites=["speed"]), env)
+        self.assertEqual(code, 1)
+        self.assertIn("disk full", self.text)
+        self.assertIn("speed suite failed", self.text)
+
+    def test_failing_save_while_cleaning_up_running_entries_is_no_traceback(self):
+        original = ResultStore._persist
+        state = {"broken": False}
+
+        def flaky(store):
+            if state["broken"]:
+                raise OSError("disk full")
+            return original(store)
+
+        def suite(ctx):
+            ctx.store.mark_running("ollama/S/speed/warm", {})
+            state["broken"] = True
+            raise ValueError("suite broke")
+        env = self.env()
+        env.suites = {"speed": suite}
+        with mock.patch.object(ResultStore, "_persist", flaky):
+            code = runner.run(self.cfg(suites=["speed"]), env)
+            state["broken"] = False
+        self.assertEqual(code, 1)
+        self.assertIn("disk full", self.text)
+        self.assertIn("suite broke", self.text)
+        self.assertTrue((self.run_dir() / "README.md").is_file())
 
     def test_run_summary_is_printed(self):
         runner.run(self.cfg(), self.env())
