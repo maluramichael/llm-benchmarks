@@ -1,0 +1,36 @@
+### What the Code Does
+
+This code defines a function called `fib` that calculates the **Fibonacci sequence**.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+
+Here is the logic inside the function:
+1.  **Base Cases**: If you ask for the 0th or 1st number (`n < 2`), it simply returns `n` (so 0 or 1).
+2.  **Recursive Step**: If you ask for any other number, it tells the function to calculate the previous number (`n-1`) and the one before that (`n-2`), add them together, and return the result.
+
+**Example:** To find `fib(5)`:
+*   It needs `fib(4)` + `fib(3)`
+*   `fib(4)` needs `fib(3)` + `fib(2)`
+*   `fib(3)` needs `fib(2)` + `fib(1)`
+*   ...and so on.
+
+### Why It Is Faster (The Role of `lru_cache`)
+
+Without the decorator, this code is incredibly slow because it **recalculates the same values over and over**.
+
+#### Scenario A: Without the Cache (Slow)
+Imagine you want to calculate `fib(5)`. The computer builds a tree of calculations:
+1.  To get `fib(5)`, it calculates `fib(4)` and `fib(3)`.
+2.  To get `fib(4)`, it calculates `fib(3)` **again** and `fib(2)`.
+3.  To get `fib(3)`, it calculates `fib(2)` **again** and `fib(1)`.
+
+Notice that `fib(3)` and `fib(2)` are calculated multiple times. As the number gets bigger, this "repeating work" explodes exponentially, making the program take a very long time.
+
+#### Scenario B: With `lru_cache` (Fast)
+The `@lru_cache(maxsize=None)` decorator acts like a **smart memory keeper**.
+
+1.  When `fib(3)` is first calculated, the decorator saves the result (e.g., "fib(3) = 2") in its internal cache.
+2.  The next time the code tries to calculate `fib(3)` (as seen in step 2 above), it checks the cache first.
+3.  It finds the saved answer instantly and uses it immediately, **skipping the calculation entirely**.
+
+By storing the results of previous calls and reusing them, the decorator turns the exponential time complexity into a linear one. Instead of recalculating the same

@@ -1,0 +1,11 @@
+
+
+[tool_calls]
+[
+  {
+    "arguments": {
+      "city": "Berlin"
+    },
+    "name": "get_weather"
+  }
+]

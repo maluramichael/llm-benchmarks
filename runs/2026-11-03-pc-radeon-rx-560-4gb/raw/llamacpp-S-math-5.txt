@@ -1,0 +1,27 @@
+Let the two numbers be $x$ and $y$.
+We are given the following system of equations:
+1. $x + y = 58$
+2. $x - y = 14$
+
+To find the product $x \cdot y$, we can first solve for $x$ and $y$.
+Adding the two equations together:
+$(x + y) + (x - y) = 58 + 14$
+$2x = 72$
+$x = 36$
+
+Now, substitute the value of $x$ back into the first equation to find $y$:
+$36 + y = 58$
+$y = 58 - 36$
+$y = 22$
+
+Check the difference: $36 - 22 = 14$. This matches the given information.
+
+Now, calculate the product of the two numbers:
+Product $= x \cdot y = 36 \cdot 22$
+
+Calculation:
+$36 \cdot 20 = 720$
+$36 \cdot 2 = 72$
+$720 + 72 = 792$
+
+ANSWER: 792
