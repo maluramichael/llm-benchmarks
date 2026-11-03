@@ -585,6 +585,17 @@ class EnsureTest(TempDirCase):
         self.ensure(server, gpus=[mock.Mock(backend="vulkan")])
         self.assertEqual(self.downloads(server), ["/dl/" + asset])
 
+    def test_amd_card_without_rocm_gets_the_vulkan_asset_on_linux(self):
+        # the whole chain: gpu backend for AMD without rocm-smi -> default_backend -> asset
+        from bench.gpu import GpuInfo
+        with mock.patch("bench.gpu.shutil.which", return_value=None):
+            amd = GpuInfo(0, "amd", "Radeon RX 560", 4096, 4000, None, gpu_module_backend())
+        self.assertEqual(release.default_backend("linux", [amd]), "vulkan")
+        asset = f"llama-{TAG}-bin-ubuntu-vulkan-x64.tar.gz"
+        server = self.serve({asset: LINUX_TAR})
+        self.ensure(server, gpus=[amd])
+        self.assertEqual(self.downloads(server), ["/dl/" + asset])
+
     def test_different_backends_do_not_collide(self):
         cpu = f"llama-{TAG}-bin-ubuntu-x64.tar.gz"
         vk = f"llama-{TAG}-bin-ubuntu-vulkan-x64.tar.gz"
@@ -714,3 +725,8 @@ class EnsureTest(TempDirCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def gpu_module_backend() -> str:
+    from bench import gpu
+    return gpu.amd_backend()

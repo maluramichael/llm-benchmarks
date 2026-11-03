@@ -11,6 +11,30 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 NVIDIA_CSV = (FIXTURES / "nvidia-smi.csv").read_text(encoding="utf-8")
 
 
+class AmdBackendTest(unittest.TestCase):
+    """AMD cards without ROCm (Polaris on the home server) run on Vulkan."""
+
+    def test_vulkan_without_rocm_smi_and_rocm_with_it(self):
+        with mock.patch("bench.gpu.shutil.which", return_value=None):
+            self.assertEqual(gpu.amd_backend(), "vulkan")
+        with mock.patch("bench.gpu.shutil.which", return_value="/opt/rocm/bin/rocm-smi"):
+            self.assertEqual(gpu.amd_backend(), "rocm")
+
+    def test_query_amd_without_rocm_reports_vulkan(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        card = root / "card0" / "device"
+        card.mkdir(parents=True)
+        (card / "vendor").write_text("0x1002\n")
+        (card / "mem_info_vram_total").write_text(str(4096 * 1024 * 1024) + "\n")
+        (card / "mem_info_vram_used").write_text("0\n")
+        with mock.patch("bench.gpu.AMD_SYSFS_ROOT", root), \
+                mock.patch("bench.gpu.shutil.which", return_value=None), \
+                mock.patch("bench.gpu.run_text", return_value=""):
+            gpus = gpu.query_amd()
+        self.assertEqual([g.backend for g in gpus], ["vulkan"])
+
+
 class ParseNvidiaSmiTest(unittest.TestCase):
     def test_parse_nvidia_smi(self):
         gpus = parse_nvidia_smi(NVIDIA_CSV)

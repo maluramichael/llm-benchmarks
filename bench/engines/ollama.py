@@ -52,6 +52,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from bench import gpu as gpu_module
 from bench import proc
 from bench.config import Config
 from bench.engines.base import (ChatResult, Completion, EngineError, ModelRef,
@@ -73,7 +74,12 @@ PINNED_ENV = {"OLLAMA_KV_CACHE_TYPE": "f16",  # what the llama.cpp runs use
               "OLLAMA_KEEP_ALIVE": KEEP_ALIVE}
 # Every other OLLAMA_* variable of the user is removed from the child, except these.
 KEPT_ENV = ("OLLAMA_MODELS", "OLLAMA_DEBUG", "OLLAMA_NOPRUNE", "OLLAMA_NOHISTORY",
-            "OLLAMA_TMPDIR")
+            "OLLAMA_TMPDIR", "OLLAMA_VULKAN")  # OLLAMA_VULKAN selects the GPU backend
+# GPU backend selection (not performance tuning): never touched, the child inherits them.
+# Without OLLAMA_VULKAN=1 an AMD card without ROCm (Polaris) would silently run on the CPU.
+GPU_SELECTION_ENV = ("OLLAMA_VULKAN", "GGML_VK_VISIBLE_DEVICES", "CUDA_VISIBLE_DEVICES",
+                     "HIP_VISIBLE_DEVICES", "ROCR_VISIBLE_DEVICES", "HSA_OVERRIDE_GFX_VERSION",
+                     "GPU_DEVICE_ORDINAL")
 DROPPED_ENV = ("OLLAMA_*",)
 DEFAULT_LOG_DIR = Path(".bench") / "logs"
 BACKENDS = {"cuda", "rocm", "metal", "vulkan", "cpu"}
@@ -92,6 +98,16 @@ KV_RES = (
     re.compile(r"KV buffer size\s*=\s*([\d.]+)\s*MiB"),  # llama.cpp runner
     re.compile(r'msg="kv cache" device=\S+ size="([\d.]+) MiB"'),  # Ollama engine runner
 )
+
+
+def gpu_backend(cfg: Config) -> str | None:
+    """Best backend of the benchmark GPU (cuda, rocm, vulkan, metal) or None if unknown."""
+    gpus = gpu_module.list_gpus()
+    index = cfg.gpu or 0
+    for info in gpus:
+        if info.index == index:
+            return info.backend
+    return None
 
 
 def pick_port() -> int:
@@ -138,6 +154,7 @@ class OllamaEngine:
         self._owned: proc.Owned | None = None
         self._log_path: Path | None = None
         self._parallel = 1
+        self._gpu_env: dict[str, str] = {}  # GPU selection variables of our server
         self._ctx: dict[str, int] = {}
         self._ratios: dict[tuple[str, int], float] = {}  # (model id, ctx) -> chars per token
         self._log_mark = 0
@@ -158,10 +175,13 @@ class OllamaEngine:
             return {"kv_cache_type": "unknown", "flash_attn": "unknown",
                     "max_loaded_models": "unknown", "num_parallel": "unknown",
                     "effective_parallel": None, "effective_ctx": None,
-                    "settings_source": "foreign server"}
+                    "ollama_vulkan": "unknown", "gpu_env": "unknown",
+                    "backend_used": "unknown", "settings_source": "foreign server"}
         meta = {"kv_cache_type": PINNED_ENV["OLLAMA_KV_CACHE_TYPE"], "flash_attn": "on",
                 "max_loaded_models": int(PINNED_ENV["OLLAMA_MAX_LOADED_MODELS"]),
-                "num_parallel": self._parallel, "settings_source": "pinned"}
+                "num_parallel": self._parallel, "settings_source": "pinned",
+                "ollama_vulkan": self._gpu_env.get("OLLAMA_VULKAN", "").lower() in FLASH_ON,
+                "gpu_env": dict(self._gpu_env), "backend_used": self.backend()}
         started = parse_runner_start(self._log_text_from(self._log_mark))
         meta["effective_parallel"] = started[0] if started else None
         meta["effective_ctx"] = started[1] if started else None
@@ -224,6 +244,12 @@ class OllamaEngine:
                "OLLAMA_NUM_PARALLEL": str(parallel)}
         if self.cfg.ollama_models_dir:
             env["OLLAMA_MODELS"] = str(self.cfg.ollama_models_dir)
+        try:
+            backend = gpu_backend(self.cfg)
+        except Exception:  # a failing probe must not stop the run: keep the parent setting
+            backend = None
+        if backend == "vulkan":
+            env["OLLAMA_VULKAN"] = "1"  # AMD without ROCm, Intel: Ollama runs on Vulkan only
         # Everything OLLAMA_* of the user goes (also differently cased names on Windows);
         # the values above are then set on the clean copy. The user's model store stays
         # unless the config names one.
@@ -240,6 +266,8 @@ class OllamaEngine:
             owned.start()
             self._log_path = log_path
             self._parallel = parallel
+            self._gpu_env = {name: env[name] if name in env else os.environ[name]
+                             for name in GPU_SELECTION_ENV if name in env or name in os.environ}
             self._log_mark = 0
             self.base_url = f"http://127.0.0.1:{port}"
             owned.wait_until(self._answers, self.start_timeout)

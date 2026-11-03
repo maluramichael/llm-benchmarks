@@ -40,7 +40,9 @@ FAKE_OLLAMA = """#!{python}
 import json, os, sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 host, port = os.environ["OLLAMA_HOST"].rsplit(":", 1)
-env = {{k: v for k, v in os.environ.items() if k.startswith("OLLAMA_")}}
+GPU = ("GGML_VK_VISIBLE_DEVICES", "CUDA_VISIBLE_DEVICES", "HIP_VISIBLE_DEVICES",
+       "ROCR_VISIBLE_DEVICES", "HSA_OVERRIDE_GFX_VERSION", "GPU_DEVICE_ORDINAL")
+env = {{k: v for k, v in os.environ.items() if k.startswith("OLLAMA_") or k in GPU}}
 open(os.environ["FAKE_OUT"], "w").write(json.dumps({{"argv": sys.argv[1:], "env": env}}))
 if os.environ.get("FAKE_MODE") == "hang":  # accepts connections, never answers
     import socket, time
@@ -164,6 +166,65 @@ class ProcessOwnershipTest(ProcessOwnershipTestBase):
                      "OLLAMA_SCHED_SPREAD", "OLLAMA_NUM_GPU"):
             self.assertNotIn(name, env)
         self.assertEqual(os.environ["OLLAMA_KV_CACHE_TYPE"], "q8_0")  # parent untouched
+
+    GPU_ENV = {"OLLAMA_VULKAN": "1", "GGML_VK_VISIBLE_DEVICES": "0", "CUDA_VISIBLE_DEVICES": "1",
+               "HIP_VISIBLE_DEVICES": "2", "ROCR_VISIBLE_DEVICES": "3",
+               "HSA_OVERRIDE_GFX_VERSION": "8.0.3", "GPU_DEVICE_ORDINAL": "0"}
+
+    def start_gpu(self, parent: dict, backend: str | None, probe_fails=False):
+        out = self.dir / "env.json"
+        patcher = mock.patch.dict(os.environ, {**parent, "FAKE_OUT": str(out)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        def probe(cfg):
+            if probe_fails:
+                raise RuntimeError("no gpu tools")
+            return backend
+        with mock.patch("bench.engines.ollama.gpu_backend", probe):
+            engine = OllamaEngine(config(ollama_bin=self.fake_binary()),
+                                  log_dir=self.dir / "logs")
+            engine.start()
+        self.addCleanup(engine.stop)
+        return engine, json.loads(out.read_text(encoding="utf-8"))["env"]
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_gpu_selection_variables_are_kept(self):
+        engine, env = self.start_gpu(self.GPU_ENV, "cuda")
+        for name, value in self.GPU_ENV.items():
+            self.assertEqual(env[name], value)
+        self.assertEqual(engine.meta["ollama_vulkan"], True)
+        self.assertEqual(engine.meta["gpu_env"]["GGML_VK_VISIBLE_DEVICES"], "0")
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_vulkan_backend_sets_ollama_vulkan_even_if_the_parent_lacks_it(self):
+        engine, env = self.start_gpu({}, "vulkan")
+        self.assertEqual(env["OLLAMA_VULKAN"], "1")
+        self.assertIs(engine.meta["ollama_vulkan"], True)
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_other_backends_do_not_set_ollama_vulkan(self):
+        for backend in ("cuda", "rocm", None):
+            engine, env = self.start_gpu({}, backend)
+            self.assertNotIn("OLLAMA_VULKAN", env, backend)
+            self.assertIs(engine.meta["ollama_vulkan"], False)
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_failing_gpu_probe_keeps_the_parent_setting(self):
+        engine, env = self.start_gpu({"OLLAMA_VULKAN": "1"}, None, probe_fails=True)
+        self.assertEqual(env["OLLAMA_VULKAN"], "1")
+        self.assertIs(engine.meta["ollama_vulkan"], True)
+
+    def test_foreign_server_vulkan_is_unknown(self):
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            self.assertEqual(self.engine_for(server).meta["ollama_vulkan"], "unknown")
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_meta_reports_the_backend_from_our_log(self):
+        engine, _ = self.start_gpu({}, "vulkan")
+        engine._log_path.write_text('level=INFO msg="inference compute" library=Vulkan\n',
+                                    encoding="utf-8")
+        self.assertEqual(engine.meta["backend_used"], "vulkan")
 
     @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
     def test_models_dir_from_the_user_environment_is_kept_unless_configured(self):
