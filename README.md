@@ -1,6 +1,6 @@
 # LLM Benchmarks
 
-Local language models on real hardware, measured the same way on every device. The input is German prose, the answer is 256 tokens long, and every value is the median of three runs. **Prompt processing** shows how fast a document is read. **Generation** shows how fast the answer is written. Other suites measure memory use per context size, small quality checks (smoke tests) and parallel requests.
+Local language models on real hardware, measured the same way on every device. The input is English text from 25 pinned Wikipedia articles, the answer is 256 tokens long, and every value is the median of three runs. **Prompt processing** shows how fast a document is read. **Generation** shows how fast the answer is written. Other suites measure memory use per context size, small quality checks (smoke tests) and parallel requests.
 
 Everything runs through one program, `bench`. It starts the engines itself (Ollama and llama.cpp), checks that the model fits, saves after every single test, and writes a report you can send as a pull request.
 
@@ -40,7 +40,7 @@ Runs marked "old prompt" were measured by hand with an earlier version of the be
 
 ## Run it yourself
 
-You need Python only through the launcher: `bench.sh` (macOS, Linux) or `bench.ps1` (Windows) finds `uv` or downloads it into `.bench/`. It needs no admin rights and changes no system settings.
+You do not need to install Python. The launcher, `bench.sh` (macOS, Linux) or `bench.ps1` (Windows), finds `uv` or downloads it into `.bench/`. It needs no admin rights and changes no system settings.
 
 ```text
 ./bench.sh doctor
