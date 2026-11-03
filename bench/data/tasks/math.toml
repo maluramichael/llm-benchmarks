@@ -1,0 +1,111 @@
+[[task]]
+id = "math-1"
+category = "math"
+messages = [{role = "user", content = 'A train travels 180 km in 2.5 hours and then 120 km in 1.5 hours. What is its average speed over the whole trip, in km/h? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "75"
+
+[[task]]
+id = "math-2"
+category = "math"
+messages = [{role = "user", content = 'What is the sum of all integers from 1 to 100 that are divisible by 3 or by 5? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "2418"
+
+[[task]]
+id = "math-3"
+category = "math"
+messages = [{role = "user", content = 'A jacket costs a shop 50 dollars. The shop marks it up by 40 percent and later discounts the marked price by 10 percent. What is the final price in dollars? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "63"
+
+[[task]]
+id = "math-4"
+category = "math"
+messages = [{role = "user", content = 'How many positive integers smaller than 1000 are divisible by 7 but not divisible by 11? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "130"
+
+[[task]]
+id = "math-5"
+category = "math"
+messages = [{role = "user", content = 'The sum of two numbers is 58 and their difference is 14. What is their product? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "792"
+
+[[task]]
+id = "math-6"
+category = "math"
+messages = [{role = "user", content = 'What is the remainder when 3 to the power of 101 is divided by 7? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "5"
+
+[[task]]
+id = "math-7"
+category = "math"
+messages = [{role = "user", content = 'A rectangle has a perimeter of 54 and its length is twice its width. What is its area? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "162"
+
+[[task]]
+id = "math-8"
+category = "math"
+messages = [{role = "user", content = 'How many distinct arrangements are there of the letters of the word BANANA? End your reply with a final line of the form "ANSWER: <number>" containing only the number.'}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 1024
+
+[task.check]
+type = "number"
+answer = "60"

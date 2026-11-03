@@ -1,0 +1,25 @@
+[[task]]
+id = "explain-1"
+category = "code_explain"
+messages = [{role = "user", content = "Explain in plain English what this Python code does and what it returns for the input [3, 1, 2].\n\ndef f(xs):\n    for i in range(len(xs)):\n        for j in range(len(xs) - 1 - i):\n            if xs[j] > xs[j + 1]:\n                xs[j], xs[j + 1] = xs[j + 1], xs[j]\n    return xs"}]
+
+[task.sampling]
+temperature = 0.3
+top_p = 0.95
+max_tokens = 600
+
+[task.check]
+type = "none"
+
+[[task]]
+id = "explain-2"
+category = "code_explain"
+messages = [{role = "user", content = "Explain in plain English what this Python code does and why it is faster than calling it without the cache.\n\nfrom functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n):\n    return n if n < 2 else fib(n - 1) + fib(n - 2)"}]
+
+[task.sampling]
+temperature = 0.3
+top_p = 0.95
+max_tokens = 600
+
+[task.check]
+type = "none"

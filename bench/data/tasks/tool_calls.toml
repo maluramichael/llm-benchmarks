@@ -1,0 +1,78 @@
+[[task]]
+id = "tool-1"
+category = "tool_calls"
+messages = [{role = "user", content = "What is the weather like in Berlin right now?"}]
+tools = [{type = "function", function = {name = "get_weather", description = "Get the current weather for a city.", parameters = {type = "object", properties = {city = {type = "string", description = "City name"}}, required = ["city"]}}}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 256
+
+[task.check]
+type = "tool_call"
+name = "get_weather"
+args = {city = "Berlin"}
+
+[[task]]
+id = "tool-2"
+category = "tool_calls"
+messages = [{role = "user", content = "Convert 250 euros to US dollars."}]
+tools = [{type = "function", function = {name = "convert_currency", description = "Convert an amount of money between currencies.", parameters = {type = "object", properties = {amount = {type = "number"}, from_currency = {type = "string", enum = ["EUR", "USD", "GBP"]}, to_currency = {type = "string", enum = ["EUR", "USD", "GBP"]}}, required = ["amount", "from_currency", "to_currency"]}}}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 256
+
+[task.check]
+type = "tool_call"
+name = "convert_currency"
+args = {amount = 250, from_currency = "EUR", to_currency = "USD"}
+
+[[task]]
+id = "tool-3"
+category = "tool_calls"
+messages = [{role = "user", content = "What time is it in Tokyo?"}]
+tools = [{type = "function", function = {name = "search_web", description = "Search the web for pages about a query.", parameters = {type = "object", properties = {query = {type = "string"}}, required = ["query"]}}}, {type = "function", function = {name = "get_time", description = "Get the current local time in a time zone.", parameters = {type = "object", properties = {timezone = {type = "string", enum = ["UTC", "Asia/Tokyo", "America/New_York"]}}, required = ["timezone"]}}}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 256
+
+[task.check]
+type = "tool_call"
+name = "get_time"
+args = {timezone = "Asia/Tokyo"}
+
+[[task]]
+id = "tool-4"
+category = "tool_calls"
+messages = [{role = "user", content = "Write a one sentence greeting for a new colleague who starts on Monday."}]
+tools = [{type = "function", function = {name = "get_weather", description = "Get the current weather for a city.", parameters = {type = "object", properties = {city = {type = "string", description = "City name"}}, required = ["city"]}}}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 256
+
+[task.check]
+type = "tool_call"
+expect_none = true
+
+[[task]]
+id = "tool-5"
+category = "tool_calls"
+messages = [{role = "user", content = "Send an email to anna@example.org with the subject \"Meeting moved\" and tell her that the meeting is now at 3 pm."}]
+tools = [{type = "function", function = {name = "send_email", description = "Send an email.", parameters = {type = "object", properties = {to = {type = "string"}, subject = {type = "string"}, body = {type = "string"}}, required = ["to", "subject", "body"]}}}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 256
+
+[task.check]
+type = "tool_call"
+name = "send_email"
+args = {to = "anna@example.org", subject = "Meeting moved"}

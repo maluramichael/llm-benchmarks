@@ -1,0 +1,50 @@
+# The document is built at run time from the pinned corpus with the needle inserted at
+# `depth`; "{document}" in the message is replaced by it.
+
+[[task]]
+id = "needle-10"
+category = "long_context"
+depth = 0.1
+needle = "Note for the reader: the access code of the blue cabinet is 7391-QZ."
+messages = [{role = "user", content = "{document}\n\nQuestion: What is the access code of the blue cabinet according to the note in the text above? Answer with the code only."}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 64
+
+[task.check]
+type = "needle"
+answer = "7391-QZ"
+
+[[task]]
+id = "needle-50"
+category = "long_context"
+depth = 0.5
+needle = "Note for the reader: the meeting point for the field trip is the old lighthouse at Pier 48."
+messages = [{role = "user", content = "{document}\n\nQuestion: Where is the meeting point for the field trip according to the note in the text above? Answer in one short sentence."}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 64
+
+[task.check]
+type = "needle"
+answer = "Pier 48"
+
+[[task]]
+id = "needle-90"
+category = "long_context"
+depth = 0.9
+needle = "Note for the reader: the password of the archive is violet-harbor-5520."
+messages = [{role = "user", content = "{document}\n\nQuestion: What is the password of the archive according to the note in the text above? Answer with the password only."}]
+
+[task.sampling]
+temperature = 0.0
+top_p = 1.0
+max_tokens = 64
+
+[task.check]
+type = "needle"
+answer = "violet-harbor-5520"

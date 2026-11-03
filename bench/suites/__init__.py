@@ -119,3 +119,23 @@ def median(values) -> float | int | None:
     import statistics
     present = [v for v in values if v is not None]
     return statistics.median(present) if present else None
+
+
+def context_plan(ctx: RunContext) -> tuple[str, int | str | None]:
+    """What a step that needs a context size can do now: ("pending", None),
+    ("skip", reason) or ("run", largest ok memory rung).
+
+    pending: no `memory/ctx-*` entry yet, or no rung is ok and a rung is still retryable
+    (error, aborted, running): the step is neither run nor stored.
+    """
+    prefix = key(ctx, "memory", "ctx-")
+    rungs = {int(k[len(prefix):]): v["status"] for k, v in ctx.store.data["tests"].items()
+             if k.startswith(prefix) and k[len(prefix):].isdigit()}
+    if not rungs:
+        return "pending", None
+    ok = [n for n, status in rungs.items() if status == "ok"]
+    if ok:
+        return "run", max(ok)
+    if any(status not in ("does_not_fit", "skipped") for status in rungs.values()):
+        return "pending", None  # memory ladder has errors, rerun memory first
+    return "skip", "no context step fits"

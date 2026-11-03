@@ -36,8 +36,8 @@ import secrets
 from bench.engines.base import Sampling
 from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
-from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, median,
-                          now, reset_state, step_meta)
+from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
+                          make_prompt, median, now, reset_state, step_meta)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -148,23 +148,7 @@ class _Skip(Exception):
     """A step that is final without being measured (stored as `skipped`)."""
 
 
-def _deep_plan(ctx: RunContext) -> tuple[str, int | str | None]:
-    """What the deep step can do now: ("pending", None), ("skip", reason) or ("run", depth).
-
-    pending: no `memory/ctx-*` entry yet, or no rung is ok and a rung is still retryable
-    (error, aborted, running): the step is neither run nor stored.
-    """
-    prefix = key(ctx, "memory", "ctx-")
-    rungs = {int(k[len(prefix):]): v["status"] for k, v in ctx.store.data["tests"].items()
-             if k.startswith(prefix) and k[len(prefix):].isdigit()}
-    if not rungs:
-        return "pending", None
-    ok = [n for n, status in rungs.items() if status == "ok"]
-    if ok:
-        return "run", max(ok)
-    if any(status not in ("does_not_fit", "skipped") for status in rungs.values()):
-        return "pending", None  # memory ladder has errors, rerun memory first
-    return "skip", "no context step fits"
+_deep_plan = context_plan  # shared with the smoke suite (long context needle)
 
 
 def _required_mb(ctx: RunContext, depth: int) -> int | None:
