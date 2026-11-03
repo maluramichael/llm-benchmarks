@@ -194,66 +194,117 @@ class SpeedTest(unittest.TestCase):
         ctx = self.run_speed(FakeEngine())
         self.assertIsNone(ctx.store.get(key(ctx, "speed", "llama-bench")))
 
+    BENCH = Path("/x/llama-bench")
+    ROWS = [{"n_prompt": 512, "n_gen": 0, "avg_ts": 900.0},
+            {"n_prompt": 8192, "n_gen": 0, "avg_ts": 700.0},
+            {"n_prompt": 0, "n_gen": 256, "avg_ts": 80.0}]
+
+    def bench_ctx(self, suites=("speed",), guard=None):
+        cfg = Config(llama_bench=self.BENCH, suites=list(suites))
+        return make_ctx(self.tmp.name, FakeEngine(name="llamacpp"), cfg=cfg, guard=guard)
+
+    def fake_bench(self, calls):
+        def run(binary, model, args, **kw):
+            calls.append(args)
+            if "-d" in args:
+                depth = int(args[args.index("-d") + 1])
+                return [{"n_prompt": 512, "n_gen": 0, "n_depth": depth, "avg_ts": 300.0},
+                        {"n_prompt": 0, "n_gen": 256, "n_depth": depth, "avg_ts": 50.0}]
+            return self.ROWS
+        return run
+
     def test_llama_bench_runs_for_llamacpp(self):
-        engine = FakeEngine(name="llamacpp")
-        cfg = Config(llama_bench=Path("/x/llama-bench"), suites=["speed"])
-        rows = [{"n_prompt": 512, "n_gen": 0, "avg_ts": 900.0},
-                {"n_prompt": 8192, "n_gen": 0, "avg_ts": 700.0},
-                {"n_prompt": 0, "n_gen": 256, "avg_ts": 80.0}]
-        with mock.patch.object(speed, "run_llama_bench", return_value=rows) as bench:
-            ctx = self.run_speed(engine, cfg=cfg)
-        self.assertEqual(bench.call_count, 1)  # no memory result: no deep run
+        ctx = self.bench_ctx()
+        calls = []
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench(calls)):
+            speed.run_speed(ctx)
+        self.assertEqual(len(calls), 1)  # no memory ladder: deep stays pending
         values = ctx.store.get(key(ctx, "speed", "llama-bench"))["values"]
         self.assertEqual(values["pp512_tps"], 900.0)
         self.assertEqual(values["pp8192_tps"], 700.0)
         self.assertEqual(values["tg256_tps"], 80.0)
-        self.assertIsNone(values["deep"])
+        self.assertNotIn("deep", values)
+        self.assertIsNone(ctx.store.get(key(ctx, "speed", "llama-bench-deep")))
 
-    def test_llama_bench_waits_for_memory(self):
-        engine = FakeEngine(name="llamacpp")
-        cfg = Config(llama_bench=Path("/x/llama-bench"))  # full scope, memory selected
-        with mock.patch.object(speed, "run_llama_bench") as bench:
-            ctx = self.run_speed(engine, cfg=cfg)
-        self.assertEqual(bench.call_count, 0)
-        self.assertIsNone(ctx.store.get(key(ctx, "speed", "llama-bench")))
+    def test_deep_pending_then_filled_after_memory(self):
+        ctx = self.bench_ctx(suites=("speed", "memory"))
+        calls = []
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench(calls)):
+            speed.run_speed(ctx)
+            self.assertIsNone(ctx.store.get(key(ctx, "speed", "llama-bench-deep")))
+            ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"vram_used_mb": 5000})
+            speed.run_speed(ctx)
+        self.assertEqual(len(calls), 2)  # llama-bench ran once, deep once
+        deep = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))
+        self.assertEqual(deep["status"], "ok")
+        self.assertEqual(deep["values"]["depth"], 8192)
 
-    def test_llama_bench_deep_refused_by_guard(self):
-        engine = FakeEngine(name="llamacpp")
-        cfg = Config(llama_bench=Path("/x/llama-bench"), suites=["speed"])
+    def test_deep_pending_when_ladder_has_error(self):
+        ctx = self.bench_ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "error", {"error": "x"})
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench([])):
+            speed.run_speed(ctx)
+        self.assertIsNone(ctx.store.get(key(ctx, "speed", "llama-bench-deep")))
+
+    def test_deep_skipped_when_no_step_fits(self):
+        ctx = self.bench_ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "does_not_fit", {})
+        ctx.store.save(key(ctx, "memory", "ctx-16384"), "skipped", {})
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench([])):
+            speed.run_speed(ctx)
+        deep = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))
+        self.assertEqual(deep["status"], "skipped")
+        self.assertEqual(deep["values"]["reason"], "no context step fits")
+
+    def test_deep_refused_by_guard(self):
         guard = Guard()
         guard.refuse = "low VRAM"
-        ctx = make_ctx(self.tmp.name, engine, cfg=cfg, guard=guard)
+        ctx = self.bench_ctx(guard=guard)
         ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"vram_used_mb": 5000})
         calls = []
-        with mock.patch.object(speed, "run_llama_bench",
-                               side_effect=lambda *a, **k: calls.append(a[2]) or []):
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench(calls)):
             speed.run_speed(ctx)
         self.assertEqual(len(calls), 1)
-        deep = ctx.store.get(key(ctx, "speed", "llama-bench"))["values"]["deep"]
-        self.assertEqual(deep, {"depth": 8192, "skipped": "low VRAM"})
+        deep = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))
+        self.assertEqual((deep["status"], deep["values"]["reason"]), ("skipped", "low VRAM"))
 
-    def test_llama_bench_deep_uses_largest_ok_memory_step(self):
-        engine = FakeEngine(name="llamacpp")
-        cfg = Config(llama_bench=Path("/x/llama-bench"), suites=["speed"])
-        ctx = make_ctx(self.tmp.name, engine, cfg=cfg)
+    def test_deep_without_vram_reading_uses_computed_estimate(self):
+        guard = Guard()
+        required = []
+        guard.before_step = lambda mb, reading: required.append(mb) or (True, "ok")
+        ctx = self.bench_ctx(guard=guard)
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"vram_used_mb": None})
+        ctx.store.save(key(ctx, "memory", "computed"), "ok",
+                       {"curve": [{"ctx": 8192, "bytes": 6 * 1024 * 1024 * 1024}]})
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench([])):
+            speed.run_speed(ctx)
+        self.assertEqual(required, [6144])
+
+    def test_deep_skipped_without_any_memory_figure(self):
+        ctx = self.bench_ctx()
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {})
+        calls = []
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench(calls)):
+            speed.run_speed(ctx)
+        self.assertEqual(len(calls), 1)
+        deep = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))
+        self.assertEqual((deep["status"], deep["values"]["reason"]),
+                         ("skipped", "no memory figure for depth 8192"))
+
+    def test_deep_uses_largest_ok_memory_step(self):
+        ctx = self.bench_ctx()
         for n in (8192, 16384):
-            ctx.store.save(key(ctx, "memory", f"ctx-{n}"), "ok", {})
+            ctx.store.save(key(ctx, "memory", f"ctx-{n}"), "ok", {"vram_used_mb": 1000})
         ctx.store.save(key(ctx, "memory", "ctx-32768"), "does_not_fit", {})
         calls = []
-
-        def fake_bench(binary, model, args, **kw):
-            calls.append(args)
-            if "-d" in args:
-                return [{"n_prompt": 512, "n_gen": 0, "n_depth": 16384, "avg_ts": 300.0},
-                        {"n_prompt": 0, "n_gen": 256, "n_depth": 16384, "avg_ts": 50.0}]
-            return [{"n_prompt": 512, "n_gen": 0, "avg_ts": 900.0}]
-        with mock.patch.object(speed, "run_llama_bench", side_effect=fake_bench):
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench(calls)):
             speed.run_speed(ctx)
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[1][calls[1].index("-d") + 1], "16384")
-        deep = ctx.store.get(key(ctx, "speed", "llama-bench"))["values"]["deep"]
+        deep = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))["values"]
         self.assertEqual(deep["depth"], 16384)
         self.assertEqual(deep["pp512_tps"], 300.0)
+        self.assertEqual(deep["tg256_tps"], 50.0)
 
     def test_driver_reset_aborts_run(self):
         engine = FakeEngine()

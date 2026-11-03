@@ -7,21 +7,24 @@ Fixed parameters: temperature 0, seed 42, 256 output tokens, `cfg.reps` repetiti
 * warm   model resident, `reps` requests with new 8,192 token prompts.
 * cache  per repetition: the same new 8,192 token prompt twice; the second request is
          the result (TTFT, cached tokens), the first one is kept as `first_ttft_s`.
-* llama-bench  pp512, pp8192, tg256 and, when a memory step has proven it fits, a run at
-         depth = the largest `ok` memory context step.
+* llama-bench  pp512, pp8192, tg256 at depth 0 (llama.cpp only, final `ok`).
+* llama-bench-deep  pp512 and tg256 at depth = the largest `ok` memory rung.
 
 Every request uses its own prompt (see bench.suites.make_prompt) so no engine prompt cache
 can serve it by accident; only `cache` repeats a prompt on purpose.
 
-Order: the memory suite must run before speed (runner order memory -> speed). The deep
-llama-bench run needs a measured ladder rung; while no `memory/ctx-*` entry exists (full
-scope, memory suite selected) the `llama-bench` step is left pending, not stored. Once the
-ladder ran without any fitting rung, the step is stored with `deep: null`.
+Order: the memory suite should run before speed (runner order memory -> speed). The deep
+step is its own step: it is neither run nor stored while no `memory/ctx-*` entry exists, or
+while no rung is ok and a rung is retryable (error, aborted); a later run fills it. It is
+stored `skipped` with a reason when all rungs are does_not_fit/skipped ("no context step
+fits"), when no VRAM figure exists for the depth ("no memory figure for depth N", taken
+from the rung, else from memory/computed), or when the guard refuses.
 A step stored `aborted` (driver reset, or a crash recovered as aborted) is not repeated
 automatically; only --force / --force-test run it again.
 Every run_speed call uses a fresh prompt nonce, so a rerun against a warm server stays cold.
 
-A driver reset (Windows) after a step, or a failing step while the reset probe says reset, stores the step as `aborted` and raises RunAborted.
+A driver reset (Windows) after a step, or a failing step while the reset probe says
+reset, stores the step as `aborted` and raises RunAborted.
 When the reset probe itself fails, the step is kept and marked `driver_reset_check:
 "unknown"` (a speed step is short and not the risky one; the context ladder is stricter).
 """
@@ -44,7 +47,7 @@ OUTPUT_TOKENS = 256
 COLD_SLOT, WARM_SLOT, CACHE_SLOT = 0, 100, 200
 CONTAMINATION = 0.05  # warm run with more cached tokens than this share is flagged
 
-STEPS = ("cold", "warm", "cache", "llama-bench")
+STEPS = ("cold", "warm", "cache", "llama-bench", "llama-bench-deep")
 
 
 def _sampling() -> Sampling:
@@ -141,59 +144,83 @@ def _bench_rows(rows: list[dict], depth: int) -> dict:
     return out
 
 
-def _deep_depth(ctx: RunContext) -> int | None:
-    """Largest context step the memory ladder has measured as `ok` (never a guess)."""
+class _Skip(Exception):
+    """A step that is final without being measured (stored as `skipped`)."""
+
+
+def _deep_plan(ctx: RunContext) -> tuple[str, int | str | None]:
+    """What the deep step can do now: ("pending", None), ("skip", reason) or ("run", depth).
+
+    pending: no `memory/ctx-*` entry yet, or no rung is ok and a rung is still retryable
+    (error, aborted, running): the step is neither run nor stored.
+    """
     prefix = key(ctx, "memory", "ctx-")
-    depths = [int(k[len(prefix):]) for k, v in ctx.store.data["tests"].items()
-              if k.startswith(prefix) and k[len(prefix):].isdigit() and v["status"] == "ok"]
-    return max(depths) if depths else None
+    rungs = {int(k[len(prefix):]): v["status"] for k, v in ctx.store.data["tests"].items()
+             if k.startswith(prefix) and k[len(prefix):].isdigit()}
+    if not rungs:
+        return "pending", None
+    ok = [n for n, status in rungs.items() if status == "ok"]
+    if ok:
+        return "run", max(ok)
+    if any(status not in ("does_not_fit", "skipped") for status in rungs.values()):
+        return "pending", None  # memory ladder has errors, rerun memory first
+    return "skip", "no context step fits"
 
 
-def _llama_bench(ctx: RunContext, state: dict) -> dict:
+def _required_mb(ctx: RunContext, depth: int) -> int | None:
+    """VRAM the deep run needs: the measured rung, else the computed estimate, else None."""
+    rung = (ctx.store.get(key(ctx, "memory", f"ctx-{depth}")) or {}).get("values", {})
+    if rung.get("vram_used_mb"):
+        return int(rung["vram_used_mb"])
+    computed = (ctx.store.get(key(ctx, "memory", "computed")) or {}).get("values", {})
+    for row in computed.get("curve", []):
+        if row.get("ctx") == depth:
+            return int(row["bytes"] // (1024 * 1024))
+    return None
+
+
+def _bench_common(ctx: RunContext, state: dict):
     binary = _bench_binary(ctx)
     if binary is None:
         raise RuntimeError("no llama-bench binary known (use --llama-bench)")
     fa = "0" if getattr(ctx.engine, "meta", {}).get("flash_attn") == "off" else "1"
-    common = ["-r", str(ctx.cfg.reps), "-ngl", "99", "-fa", fa]
     # The server holds the GPU; llama-bench needs it for itself.
     state["loaded"] = False
     ctx.engine.unload(ctx.model)
+    return binary, ["-r", str(ctx.cfg.reps), "-ngl", "99", "-fa", fa]
+
+
+def _llama_bench(ctx: RunContext, state: dict) -> dict:
+    binary, common = _bench_common(ctx, state)
     rows = run_llama_bench(binary, ctx.model, ["-p", "512,8192", "-n", "256", *common])
-    values = _bench_rows(rows, 0)
-    values["deep"] = None
-    depth = _deep_depth(ctx)
-    if depth:
-        used = (ctx.store.get(key(ctx, "memory", f"ctx-{depth}")) or {}).get("values", {})
-        allowed, why = ctx.guard.before_step(
-            int(used.get("vram_used_mb") or 0), take_reading(ctx.guard.gpu_index))
-        if not allowed:
-            values["deep"] = {"depth": depth, "skipped": why}
-        else:
-            deep_rows = run_llama_bench(
-                binary, ctx.model, ["-p", "512", "-n", "256", "-d", str(depth), *common])
-            values["deep"] = {"depth": depth, **_bench_rows(deep_rows, depth)}
-    else:
-        values["deep_reason"] = "no memory ladder step fits"
-    return values
+    return _bench_rows(rows, 0)
 
 
-def _waits_for_memory(ctx: RunContext) -> bool:
-    """True while the deep llama-bench run cannot know its depth yet (memory not run)."""
-    cfg = ctx.cfg
-    if cfg.scope != "full" or "memory" not in cfg.suites:
-        return False
-    prefix = key(ctx, "memory", "ctx-")
-    return not any(k.startswith(prefix) for k in ctx.store.data["tests"])
+def _llama_bench_deep(ctx: RunContext, state: dict) -> dict:
+    kind, depth = _deep_plan(ctx)
+    if kind == "skip":
+        raise _Skip(depth)
+    required = _required_mb(ctx, depth)
+    if required is None:
+        raise _Skip(f"no memory figure for depth {depth}")
+    binary, common = _bench_common(ctx, state)
+    allowed, why = ctx.guard.before_step(required, take_reading(ctx.guard.gpu_index))
+    if not allowed:
+        raise _Skip(why)
+    rows = run_llama_bench(
+        binary, ctx.model, ["-p", "512", "-n", "256", "-d", str(depth), *common])
+    return {"depth": depth, **_bench_rows(rows, depth)}
 
 
-_STEP_FUNCTIONS = {"cold": _cold, "warm": _warm, "cache": _cache, "llama-bench": _llama_bench}
+_STEP_FUNCTIONS = {"cold": _cold, "warm": _warm, "cache": _cache,
+                   "llama-bench": _llama_bench, "llama-bench-deep": _llama_bench_deep}
 
 
 def run_speed(ctx: RunContext) -> None:
     """Run the speed steps that have no final result yet. Raises RunAborted on a driver reset."""
     steps = ["warm"] if ctx.cfg.scope == "warm-only" else list(STEPS)
     if ctx.engine.name != "llamacpp":
-        steps = [s for s in steps if s != "llama-bench"]
+        steps = [s for s in steps if not s.startswith("llama-bench")]
     state = {"loaded": False}
     ctx.prompts.clear()
     ctx.nonce = secrets.token_hex(3)  # fresh prompts even if this is a rerun on a warm server
@@ -205,8 +232,8 @@ def run_speed(ctx: RunContext) -> None:
         entry = ctx.store.get(test_key)
         if entry and entry["status"] == "aborted" and not forced(ctx, test_key):
             continue  # may have reset the driver: only --force/--force-test repeats it
-        if step == "llama-bench" and _waits_for_memory(ctx):
-            continue  # stays pending until the memory suite has run
+        if step == "llama-bench-deep" and _deep_plan(ctx)[0] == "pending":
+            continue  # stays pending until the memory ladder gives a depth
         ctx.store.mark_running(test_key, meta)
         started = now()
         try:
@@ -214,6 +241,9 @@ def run_speed(ctx: RunContext) -> None:
             check = reset_state(ctx, started)
         except RunAborted:
             raise
+        except _Skip as skip:
+            ctx.store.save(test_key, "skipped", {"reason": str(skip)}, meta)
+            continue
         except Exception as err:
             state["loaded"] = False  # unknown state: load again for the next step
             check = reset_state(ctx, started)  # a dead engine is how a driver reset looks
