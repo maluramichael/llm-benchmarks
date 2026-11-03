@@ -70,6 +70,9 @@ def _retry_on_lock(action):
             delay = min(delay * 2, LOCK_BACKOFF_MAX)
 
 
+retry_on_lock = _retry_on_lock  # shared with the model and release downloads
+
+
 def _normalize(value: Any, what: str) -> Any:
     """Return a deep copy shaped exactly like it will be after reload from disk.
 

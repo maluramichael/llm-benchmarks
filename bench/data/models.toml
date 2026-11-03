@@ -5,10 +5,11 @@
 #
 # Keys per class:
 #   ollama_tag         tag in the Ollama library (and in the mirror's Ollama store)
-#   quant              quantisation of the Ollama model layer
+#   quant              quantisation of the Ollama model layer (file_type of its GGUF)
 #   size_bytes         size of the Ollama model layer in bytes
 #   reuse_ollama_blob  llama.cpp may load the GGUF blob of the Ollama model directly
-#   [<class>.gguf]     a separate GGUF file for llama.cpp (pinned revision and sha256)
+#   [<class>.gguf]     a separate GGUF file for llama.cpp (pinned revision and sha256),
+#                      with its own quant: it can differ from the Ollama layer
 #       mirror_path    location below <mirror>/gguf
 
 [S]
@@ -31,11 +32,12 @@ reuse_ollama_blob = true
 
 [F]
 ollama_tag = "flint:40b"
-quant = "Q4_K_M"
+quant = "NVFP4"
 size_bytes = 22863084160
 reuse_ollama_blob = false
 
 [F.gguf]
+quant = "Q4_K_M"
 repo = "ggml-org/Flint-GGUF"
 file = "Flint-Q4_K_M.gguf"
 revision = "468307a1b38259e9e4c9d4fe53d4e3b76386572c"

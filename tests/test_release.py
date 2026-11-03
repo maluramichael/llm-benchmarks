@@ -293,6 +293,20 @@ class DownloadTest(TempDirCase):
         _, entry = self.serve(b"payload")
         self.assertEqual(self.fetch(entry).read_bytes(), b"payload")
 
+    def test_final_replace_retries_on_a_transient_lock(self):
+        _, entry = self.serve(b"payload")
+        real = os.replace
+        calls = []
+
+        def flaky(src, dst):
+            calls.append(src)
+            if len(calls) == 1:
+                raise PermissionError("locked")
+            return real(src, dst)
+        with mock.patch("bench.engines.release.os.replace", flaky):
+            self.assertEqual(self.fetch(entry).read_bytes(), b"payload")
+        self.assertEqual(len(calls), 2)
+
     def test_size_mismatch_is_refused(self):
         _, entry = self.serve(b"payload", size=100)
         with self.assertRaises(ReleaseError) as ctx:

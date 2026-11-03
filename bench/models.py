@@ -25,14 +25,16 @@ import json
 import os
 import re
 import shutil
+import time
 import tomllib
 from pathlib import Path
 from typing import Callable
 
 from bench.config import Config
+from bench import gguf
 from bench.engines import release
 from bench.engines.base import ModelRef
-from bench.store import _retry_on_lock
+from bench.store import retry_on_lock
 
 CATALOG_FILE = Path(__file__).parent / "data" / "models.toml"
 CONSENT_BYTES = 20 * 10**9
@@ -43,10 +45,18 @@ MODEL_LAYER = "application/vnd.ollama.image.model"
 PART_PREFIX = ".bench-"
 COPY_CHUNK = 1 << 20
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
-HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]+)?$")
+HOST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.-]*$")  # no registry :port
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 URL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 ENGINE_NAMES = ("ollama", "llamacpp")
+# general.file_type values of llama.cpp (enum llama_ftype)
+FILE_TYPES = {
+    0: "F32", 1: "F16", 2: "Q4_0", 3: "Q4_1", 7: "Q8_0", 8: "Q5_0", 9: "Q5_1",
+    10: "Q2_K", 11: "Q3_K_S", 12: "Q3_K_M", 13: "Q3_K_L", 14: "Q4_K_S", 15: "Q4_K_M",
+    16: "Q5_K_S", 17: "Q5_K_M", 18: "Q6_K", 19: "IQ2_XXS", 20: "IQ2_XS", 21: "Q2_K_S",
+    22: "IQ3_XS", 23: "IQ3_XXS", 24: "IQ1_S", 25: "IQ4_NL", 26: "IQ3_S", 27: "IQ3_M",
+    28: "IQ2_S", 29: "IQ2_M", 30: "IQ4_XS", 31: "IQ1_M", 32: "BF16", 36: "TQ1_0",
+    37: "TQ2_0", 38: "MXFP4_MOE", 39: "NVFP4"}
 
 
 class ModelError(RuntimeError):
@@ -110,7 +120,7 @@ def _read_manifest(path: Path, tag: str) -> dict:
     try:
         manifest = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        raise ModelNotFound(f"no manifest for {tag} in {path.parent}") from None
+        raise ModelNotFound(f"no manifest for {tag}") from None
     except (OSError, ValueError) as err:
         raise ModelError(f"unreadable manifest for {tag}: {err}") from None
     entries = []
@@ -140,7 +150,7 @@ def _model_blob(tag: str, models_dir: Path) -> tuple[Path, dict]:
     try:
         actual = blob.stat().st_size
     except OSError:
-        raise ModelNotFound(f"blob {blob.name} of {tag} is missing in {blob.parent}") from None
+        raise ModelNotFound(f"blob {blob.name} of {tag} is missing") from None
     if actual != layer["size"]:
         raise ModelError(f"blob {blob.name} of {tag} has {actual} bytes, "
                          f"the manifest says {layer['size']}")
@@ -158,13 +168,35 @@ def _mirror_ollama_dir(mirror: Path) -> Path:
         return mirror / "ollama"
     if (mirror / "manifests").is_dir():
         return mirror
-    raise ModelNotFound(f"no Ollama store (ollama/manifests) in mirror {mirror}")
+    raise ModelNotFound("no Ollama store (ollama/manifests) in the mirror")
+
+
+def _scratch(dest: Path) -> Path:
+    """A scratch name next to `dest`, unique per process and call."""
+    return dest.with_name(f"{PART_PREFIX}{os.getpid()}-{time.time_ns()}-{dest.name}.part")
+
+
+def _publish(part: Path, dest: Path) -> None:
+    """Move `part` to `dest` without ever replacing an existing `dest`.
+
+    A hard link fails when `dest` exists, which closes the gap between checking and
+    renaming. Where links are not supported the plain check-then-replace path is used.
+    """
+    try:
+        retry_on_lock(lambda: os.link(part, dest))
+    except FileExistsError:
+        pass  # somebody else was faster: keep what is there
+    except OSError:
+        if not dest.exists():
+            retry_on_lock(lambda: os.replace(part, dest))
+    finally:
+        part.unlink(missing_ok=True)
 
 
 def _copy_verified(src: Path, dest: Path, digest: str, size: int) -> None:
     """Copy `src` to `dest` through a scratch file, checking size and sha256 on the way."""
     dest.parent.mkdir(parents=True, exist_ok=True)
-    part = dest.with_name(PART_PREFIX + dest.name + ".part")
+    part = _scratch(dest)
     hasher = hashlib.sha256()
     total = 0
     try:
@@ -180,9 +212,7 @@ def _copy_verified(src: Path, dest: Path, digest: str, size: int) -> None:
             raise ModelError(f"{src.name}: copied {total} bytes, expected {size}")
         if "sha256:" + hasher.hexdigest() != digest:
             raise ModelError(f"{src.name}: sha256 does not match {digest}")
-        if dest.exists():  # appeared meanwhile: keep what is there
-            return
-        _retry_on_lock(lambda: os.replace(part, dest))
+        _publish(part, dest)
     finally:
         part.unlink(missing_ok=True)
 
@@ -195,6 +225,8 @@ def import_from_mirror(mirror: Path, tag: str, ollama_models_dir: Path,
     followed). Everything the mirror must provide is checked before the first byte is
     copied. Existing blobs and an existing manifest are never overwritten; a present blob
     of unexpected size only triggers a warning through `say`. The manifest comes last.
+    A manifest that exists in the mirror but lacks a blob aborts with `ModelError`; there is
+    no fallback to a pull, so a broken mirror is noticed instead of silently re-downloading.
     """
     source = _mirror_ollama_dir(mirror)
     target = Path(ollama_models_dir)
@@ -224,7 +256,7 @@ def import_from_mirror(mirror: Path, tag: str, ollama_models_dir: Path,
         target.mkdir(parents=True, exist_ok=True)
         free = shutil.disk_usage(target).free
         if free < needed:
-            raise ModelError(f"not enough disk space in {target}: need "
+            raise ModelError(f"not enough disk space for the Ollama store: need "
                              f"{needed / 1e9:.1f} GB, {free / 1e9:.1f} GB free")
     for src, dest, digest, size in missing:
         if say:
@@ -233,22 +265,44 @@ def import_from_mirror(mirror: Path, tag: str, ollama_models_dir: Path,
     manifest_dest = _manifest_path(tag, target)
     if not manifest_dest.exists():
         manifest_dest.parent.mkdir(parents=True, exist_ok=True)
-        part = manifest_dest.with_name(PART_PREFIX + manifest_dest.name + ".part")
+        part = _scratch(manifest_dest)
         try:
             part.write_bytes(manifest_src.read_bytes())
-            _retry_on_lock(lambda: os.replace(part, manifest_dest))
+            _publish(part, manifest_dest)
         finally:
             part.unlink(missing_ok=True)
 
 
 # -- resolution ----------------------------------------------------------------------------
 
-def _gguf_ref(model_id: str, entry: dict | None, path: Path, digest: str | None,
-              size: int | None) -> ModelRef:
-    return ModelRef(id=model_id, cls=model_id,
-                    quant=(entry or {}).get("quant", "unknown"),
+def header_quant(path: Path) -> str:
+    """Quantisation name from general.file_type of a GGUF file; "unknown" on any problem."""
+    try:
+        file_type = gguf.read_metadata(path).get("general.file_type")
+    except (OSError, ValueError, EOFError):
+        return "unknown"
+    if isinstance(file_type, bool) or not isinstance(file_type, int):
+        return "unknown"
+    return FILE_TYPES.get(file_type, "unknown")
+
+
+def _gguf_ref(model_id: str, entry: dict | None, path: Path | None, quant: str,
+              digest: str | None, size: int | None) -> ModelRef:
+    return ModelRef(id=model_id, cls=model_id, quant=quant,
                     ollama_tag=(entry or {}).get("ollama_tag"),
                     gguf_path=path, digest=digest, size_bytes=size)
+
+
+def _explicit_ref(model_id: str, entry: dict | None, path: Path) -> ModelRef:
+    if not path.is_file():
+        raise ModelError(f"--gguf file for {model_id} not found: {path.name}")
+    # The quant comes from the file itself, never from the catalog; not hashed, so no digest.
+    return _gguf_ref(model_id, entry, path, header_quant(path), None, path.stat().st_size)
+
+
+def _unverified(say, path: Path) -> None:
+    if say:
+        say(f"{path.name}: size matches the pin, sha256 not verified")
 
 
 def _check_consent(what: str, size: int, cfg: Config) -> None:
@@ -275,8 +329,7 @@ def _download(model_id: str, entry: dict, cfg: Config, opener, hf_base: str,
     _check_consent(what, pin["size_bytes"], cfg)
     digest = "sha256:" + pin["sha256"]
     if cfg.dry_run:
-        return ModelRef(model_id, model_id, entry["quant"], entry["ollama_tag"], None,
-                        digest, pin["size_bytes"])
+        return _gguf_ref(model_id, entry, None, pin["quant"], digest, pin["size_bytes"])
     dest = Path(cfg.model_dir or DEFAULT_MODEL_DIR) / pin["file"]
     asset = {"name": pin["file"], "size": pin["size_bytes"], "digest": digest,
              "browser_download_url":
@@ -285,7 +338,7 @@ def _download(model_id: str, entry: dict, cfg: Config, opener, hf_base: str,
         release.download_asset(asset, dest, opener or release.default_opener(), say)
     except release.ReleaseError as err:
         raise ModelError(str(err)) from None
-    return _gguf_ref(model_id, entry, dest, digest, pin["size_bytes"])
+    return _gguf_ref(model_id, entry, dest, pin["quant"], digest, pin["size_bytes"])
 
 
 def _resolve_llamacpp(model_id: str, entry: dict, cfg: Config, opener, hf_base: str,
@@ -296,10 +349,7 @@ def _resolve_llamacpp(model_id: str, entry: dict, cfg: Config, opener, hf_base: 
     store = Path(cfg.ollama_models_dir or default_ollama_models_dir())
     # 1. explicit file
     if model_id in cfg.gguf:
-        path = Path(cfg.gguf[model_id])
-        if not path.is_file():
-            raise ModelError(f"--gguf file for {model_id} not found: {path}")
-        return _gguf_ref(model_id, entry, path, None, path.stat().st_size)
+        return _explicit_ref(model_id, entry, Path(cfg.gguf[model_id]))
     # 2. mirror
     if cfg.mirror:
         if URL_RE.match(cfg.mirror):
@@ -308,27 +358,29 @@ def _resolve_llamacpp(model_id: str, entry: dict, cfg: Config, opener, hf_base: 
         if pin and pin.get("mirror_path"):
             found = _pinned_file(mirror / "gguf" / pin["mirror_path"], pin)
             if found:
-                return _gguf_ref(model_id, entry, found, "sha256:" + pin["sha256"],
-                                 pin["size_bytes"])
+                _unverified(say, found)
+                return _gguf_ref(model_id, entry, found, pin["quant"], None, pin["size_bytes"])
         if reuse:
             try:
                 blob, layer = _model_blob(tag, _mirror_ollama_dir(mirror))
-                return _gguf_ref(model_id, entry, blob, layer["digest"], layer["size"])
+                return _gguf_ref(model_id, entry, blob, entry["quant"], layer["digest"],
+                                 layer["size"])
             except ModelNotFound:
                 pass
     # 3. local store
     if reuse:
         try:
             blob, layer = _model_blob(tag, store)
-            return _gguf_ref(model_id, entry, blob, layer["digest"], layer["size"])
+            return _gguf_ref(model_id, entry, blob, entry["quant"], layer["digest"],
+                             layer["size"])
         except ModelNotFound:
             pass
     if pin:
         for folder in (Path(cfg.model_dir or DEFAULT_MODEL_DIR),):
             found = _pinned_file(folder / pin["file"], pin)
             if found:
-                return _gguf_ref(model_id, entry, found, "sha256:" + pin["sha256"],
-                                 pin["size_bytes"])
+                _unverified(say, found)
+                return _gguf_ref(model_id, entry, found, pin["quant"], None, pin["size_bytes"])
     # 4. download
     if pin:
         return _download(model_id, entry, cfg, opener, hf_base, say)
@@ -382,10 +434,7 @@ def resolve(model_id: str, engine: str, cfg: Config, *, opener=None, hf_base: st
         if path is None:
             raise ModelNotFound(f"model {model_id} is not in the catalog; "
                                 f"pass --gguf {model_id}=<path> (llama.cpp only)")
-        path = Path(path)
-        if not path.is_file():
-            raise ModelError(f"--gguf file for {model_id} not found: {path}")
-        return _gguf_ref(model_id, None, path, None, path.stat().st_size)
+        return _explicit_ref(model_id, None, Path(path))
     if engine == "ollama":
         return _resolve_ollama(model_id, entry, cfg, say)
     return _resolve_llamacpp(model_id, entry, cfg, opener, hf_base, say)

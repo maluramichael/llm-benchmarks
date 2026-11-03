@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import Callable
 
 from bench.config import Config
+from bench.store import retry_on_lock
 
 DEFAULT_RELEASE = "b12061"
 REPO = "ggml-org/llama.cpp"
@@ -256,7 +257,7 @@ def download_asset(asset: dict, dest: Path, opener,
                                f"the announced {size} bytes")
         if expected_digest and hasher.hexdigest() != expected_digest:
             raise ReleaseError(f"{asset.get('name')}: digest does not match the release data")
-        os.replace(part, dest)
+        retry_on_lock(lambda: os.replace(part, dest))
         return {"name": asset.get("name"), "size": size,
                 "digest_verified": expected_digest is not None}
     except (urllib.error.URLError, OSError, http.client.HTTPException) as err:

@@ -1,13 +1,16 @@
 import hashlib
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from bench import models
 from bench.config import Config
 from bench.models import ModelError, ModelNotFound, NeedsConsent
 from tests.fake_http import FakeServer
+from tests.gguf_writer import write_gguf
 
 
 def digest_of(data: bytes) -> str:
@@ -27,14 +30,17 @@ def make_model(store: Path, tag: str, model_data: bytes, *, extra_layers=True,
     """Write a manifest shaped like Ollama 0.40 plus blobs; returns the model digest."""
     name, _, version = tag.partition(":")
     layers = []
+    if extra_layers:  # the model layer must not be the first one
+        data = b"{{ .Prompt }}"
+        layers.append({"mediaType": "application/vnd.ollama.image.template",
+                       "digest": blob_file(store, data), "size": len(data)})
     model_digest = blob_file(store, model_data)
     layers.append({"mediaType": models.MODEL_LAYER, "digest": model_digest,
                    "size": len(model_data), "from": "model.gguf"})
     if extra_layers:
-        for media, data in (("application/vnd.ollama.image.template", b"{{ .Prompt }}"),
-                            ("application/vnd.ollama.image.params", b'{"stop":[]}')):
-            layers.append({"mediaType": media, "digest": blob_file(store, data),
-                           "size": len(data)})
+        data = b'{"stop":[]}'
+        layers.append({"mediaType": "application/vnd.ollama.image.params",
+                       "digest": blob_file(store, data), "size": len(data)})
         # manifest list pointing at a variant blob the mirror does not have
         listing = json.dumps({"manifests": [
             {"digest": "sha256:" + "ab" * 32, "platform": {"os": "mlx"}}]}).encode()
@@ -82,6 +88,9 @@ class CatalogTest(unittest.TestCase):
         self.assertRegex(pin["sha256"], r"^[0-9a-f]{64}$")
         self.assertGreater(pin["size_bytes"], 20 * 10**9)
         self.assertTrue(all(cat[k]["quant"] for k in cat))
+        self.assertEqual([cat[k]["quant"] for k in "SML"], ["Q4_K_M"] * 3)
+        self.assertEqual(cat["F"]["quant"], "NVFP4")  # the Ollama layer
+        self.assertEqual(pin["quant"], "Q4_K_M")  # the Hugging Face file
 
     def test_catalog_is_a_fresh_copy(self):
         models.catalog()["S"]["quant"] = "x"
@@ -110,9 +119,23 @@ class BlobLookupTest(Base):
             models.ollama_blob_for("qwen3:14b", self.store)
 
     def test_tag_cannot_leave_the_store(self):
-        for tag in ("../../etc/passwd:x", "a/b/c/d:1", "qwen3:../x", "x:y/z"):
+        for tag in ("../../etc/passwd:x", "a/b/c/d:1", "qwen3:../x", "x:y/z",
+                    "registry.example:5000/ns/name:1"):
             with self.assertRaises(ModelError, msg=tag):
                 models.ollama_blob_for(tag, self.store)
+
+    def test_errors_do_not_contain_the_store_path(self):
+        with self.assertRaises(ModelNotFound) as ctx:
+            models.ollama_blob_for("qwen3:14b", self.store)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+        digest = make_model(self.store, "qwen3:14b", b"GGUF-14b")
+        (self.store / "blobs" / digest.replace(":", "-")).unlink()
+        with self.assertRaises(ModelNotFound) as ctx:
+            models.ollama_blob_for("qwen3:14b", self.store)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
+        with self.assertRaises(ModelNotFound) as ctx:
+            models.import_from_mirror(self.tmp / "nomirror", "qwen3:14b", self.store)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
 
     def test_no_model_layer(self):
         make_model(self.store, "qwen3:14b", b"x")
@@ -161,11 +184,70 @@ class MirrorImportTest(Base):
 
     def test_missing_mirror_blob_copies_nothing(self):
         mirror_store = self.mirror / "ollama"
-        digest = make_model(mirror_store, "qwen3:14b", b"mirror")
-        (mirror_store / "blobs" / digest.replace(":", "-")).unlink()
+        make_model(mirror_store, "qwen3:14b", b"mirror")
+        manifest = json.loads((mirror_store / "manifests/registry.ollama.ai/library/qwen3/14b")
+                              .read_text())
+        last = manifest["layers"][-1]["digest"]  # the last blob that would be copied
+        (mirror_store / "blobs" / last.replace(":", "-")).unlink()
         with self.assertRaises(ModelError):
             models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
-        self.assertFalse(self.store.exists() and any(self.store.rglob("*.*")))
+        self.assertEqual(list((self.store / "blobs").glob("*")) if self.store.exists() else [], [])
+        self.assertFalse((self.store / "manifests").exists())
+
+    def test_wrong_size_mirror_blob_copies_nothing(self):
+        mirror_store = self.mirror / "ollama"
+        make_model(mirror_store, "qwen3:14b", b"mirror")
+        manifest = json.loads((mirror_store / "manifests/registry.ollama.ai/library/qwen3/14b")
+                              .read_text())
+        last = manifest["layers"][-1]["digest"]
+        with (mirror_store / "blobs" / last.replace(":", "-")).open("ab") as handle:
+            handle.write(b"x")
+        with self.assertRaises(ModelError):
+            models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertEqual(list((self.store / "blobs").glob("*")) if self.store.exists() else [], [])
+        self.assertFalse((self.store / "manifests").exists())
+
+    def test_transient_lock_while_publishing_is_retried(self):
+        make_model(self.mirror / "ollama", "qwen3:14b", b"mirror")
+        real = os.link
+        calls = []
+
+        def flaky(src, dst):
+            calls.append(dst)
+            if len(calls) == 1:
+                raise PermissionError("locked")
+            return real(src, dst)
+        with mock.patch("bench.models.os.link", flaky):
+            models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertEqual(models.ollama_blob_for("qwen3:14b", self.store).read_bytes(), b"mirror")
+
+    def test_publish_without_hard_links_falls_back(self):
+        make_model(self.mirror / "ollama", "qwen3:14b", b"mirror")
+        with mock.patch("bench.models.os.link", side_effect=OSError(95, "not supported")):
+            models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertEqual(models.ollama_blob_for("qwen3:14b", self.store).read_bytes(), b"mirror")
+        self.assertEqual([p for p in self.store.rglob("*") if ".part" in p.name], [])
+
+    def test_publish_keeps_a_file_that_appeared_meanwhile(self):
+        dest = self.tmp / "final"
+        dest.write_bytes(b"theirs")
+        part = self.tmp / "scratch"
+        part.write_bytes(b"mine")
+        models._publish(part, dest)
+        self.assertEqual(dest.read_bytes(), b"theirs")
+        self.assertFalse(part.exists())
+
+    def test_scratch_names_are_unique_per_call(self):
+        names = {models._scratch(self.tmp / "blob").name for _ in range(3)}
+        self.assertEqual(len(names), 3)
+
+    def test_not_enough_disk_space(self):
+        make_model(self.mirror / "ollama", "qwen3:14b", b"mirror")
+        usage = mock.Mock(free=1)
+        with mock.patch("bench.models.shutil.disk_usage", return_value=usage):
+            with self.assertRaises(ModelError) as ctx:
+                models.import_from_mirror(self.mirror, "qwen3:14b", self.store)
+        self.assertIn("disk space", str(ctx.exception))
         self.assertFalse((self.store / "manifests").exists())
 
     def test_corrupt_blob_is_rejected_and_manifest_not_written(self):
@@ -225,8 +307,12 @@ class ResolveLlamacppTest(Base):
         (self.model_dir / "Flint-Q4_K_M.gguf").write_bytes(data)
         ref = models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror)), entries=entries)
         self.assertEqual(ref.gguf_path, self.mirror / "gguf/flint/Flint-Q4_K_M.gguf")
+        self.assertIsNone(ref.digest)  # never hashed, so no digest is claimed
+        self.assertEqual(ref.quant, "Q4_K_M")
         ref = models.resolve("F", "llamacpp", self.cfg(), entries=entries)
         self.assertEqual(ref.gguf_path, self.model_dir / "Flint-Q4_K_M.gguf")
+        self.assertIsNone(ref.digest)
+        self.assertEqual(ref.quant, "Q4_K_M")
         (self.model_dir / "Flint-Q4_K_M.gguf").unlink()
         with FakeServer({}) as server:  # server has nothing: the download is attempted
             with self.assertRaises(ModelError):
@@ -243,6 +329,65 @@ class ResolveLlamacppTest(Base):
         with self.assertRaises(ModelError):
             models.resolve("F", "llamacpp", self.cfg(), entries=entries)
         self.assertEqual(existing.read_bytes(), b"partial")
+
+    def test_reuse_ollama_blobs_override_uses_the_nvfp4_blob(self):
+        digest = make_model(self.store, "flint:40b", b"nvfp4-blob")
+        ref = models.resolve("F", "llamacpp", self.cfg(reuse_ollama_blobs=True))
+        self.assertEqual(ref.gguf_path.read_bytes(), b"nvfp4-blob")
+        self.assertEqual((ref.quant, ref.digest), ("NVFP4", digest))
+        # without the override the blob is ignored and the (large) download needs consent
+        with self.assertRaises(NeedsConsent):
+            models.resolve("F", "llamacpp", self.cfg())
+
+    def test_quant_follows_the_source(self):
+        make_model(self.store, "qwen3:14b", b"blob")
+        self.assertEqual(models.resolve("M", "llamacpp", self.cfg()).quant, "Q4_K_M")
+        make_model(self.store, "flint:40b", b"blob")
+        self.assertEqual(models.resolve("F", "ollama", self.cfg()).quant, "NVFP4")
+        ref = models.resolve("F", "llamacpp", self.cfg(dry_run=True))  # pinned HF file
+        self.assertEqual(ref.quant, "Q4_K_M")
+
+    def test_download_ref_has_the_pinned_quant(self):
+        entries = models.catalog()
+        pin = entries["F"]["gguf"]
+        data = b"flint"
+        pin.update(size_bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+        path = f"/{pin['repo']}/resolve/{pin['revision']}/{pin['file']}"
+        with FakeServer({path: data}) as server:
+            ref = models.resolve("F", "llamacpp", self.cfg(yes=True), entries=entries,
+                                 hf_base=server.url)
+        self.assertEqual(ref.quant, "Q4_K_M")
+
+    def test_explicit_gguf_quant_comes_from_the_header(self):
+        for file_type, quant in ((15, "Q4_K_M"), (39, "NVFP4"), (7, "Q8_0"), (1, "F16"),
+                                 (9999, "unknown")):
+            path = write_gguf(self.tmp / f"t{file_type}.gguf",
+                              {"general.architecture": "llama", "general.file_type": file_type})
+            ref = models.resolve("F", "llamacpp", self.cfg(gguf={"F": path}))
+            self.assertEqual(ref.quant, quant, file_type)
+        junk = self.tmp / "junk.gguf"
+        junk.write_bytes(b"not a gguf")
+        self.assertEqual(models.resolve("S", "llamacpp", self.cfg(gguf={"S": junk})).quant,
+                         "unknown")
+        nokey = write_gguf(self.tmp / "nokey.gguf", {"general.architecture": "llama"})
+        self.assertEqual(models.resolve("XL", "llamacpp", self.cfg(gguf={"XL": nokey})).quant,
+                         "unknown")
+
+    def test_explicit_gguf_error_hides_the_path(self):
+        missing = self.tmp / "private" / "x.gguf"
+        for model_id in ("S", "XL"):
+            with self.assertRaises(ModelError) as ctx:
+                models.resolve(model_id, "llamacpp", self.cfg(gguf={model_id: missing}))
+            self.assertNotIn(str(self.tmp), str(ctx.exception))
+
+    def test_wrong_size_error_hides_the_path(self):
+        entries = models.catalog()
+        entries["F"]["gguf"].update(size_bytes=99)
+        self.model_dir.mkdir()
+        (self.model_dir / "Flint-Q4_K_M.gguf").write_bytes(b"partial")
+        with self.assertRaises(ModelError) as ctx:
+            models.resolve("F", "llamacpp", self.cfg(), entries=entries)
+        self.assertNotIn(str(self.tmp), str(ctx.exception))
 
     def test_large_download_needs_consent(self):
         with FakeServer({}) as server:
