@@ -21,6 +21,7 @@ class FakeEngine:
         self.fraction = 1.0
         self.always_cached = always_cached
         self.attempts = 0
+        self.parallels: list[int] = []  # parallel argument of every load
 
     # engine interface
     def start(self): pass
@@ -30,6 +31,7 @@ class FakeEngine:
 
     def load(self, model, ctx, parallel=1):
         self.calls.append(f"load:{ctx}")
+        self.parallels.append(parallel)
         if self.fail_on is not None:
             err = self.fail_on("load", ctx)
             if err:
