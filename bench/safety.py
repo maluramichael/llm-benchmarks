@@ -14,7 +14,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Sequence
 
@@ -36,6 +36,8 @@ WATCHDOG_DIR = Path(r"C:\Windows\LiveKernelReports\WATCHDOG")
 EVENT_NS = "{http://schemas.microsoft.com/win/2004/08/events/event}"
 _CTX_KEY = re.compile(r"ctx-(\d+)$")
 
+# PowerShell scripts are always passed as a -Command argument, never via stdin
+# (`-Command -`): multi-line pipes break there.
 ADAPTER_SCRIPT = (
     "Get-Counter '\\GPU Adapter Memory(*)\\Shared Usage','\\GPU Adapter Memory(*)\\Dedicated Usage' "
     "-ErrorAction SilentlyContinue | ForEach-Object { $_.CounterSamples } | "
@@ -111,34 +113,52 @@ class Guard:
                 return False, f"swap grew by {grown} MB (limit {MAX_SWAP_GROWTH_MB} MB)"
         return True, "ok"
 
-    def driver_reset_since(self, ts: datetime) -> bool:
-        """True if Windows logged a GPU driver reset (TDR) after `ts`. False elsewhere or if unknown."""
+    def driver_reset_since(self, ts: datetime) -> bool | None:
+        """Tri-state: True if Windows logged a GPU driver reset (TDR) after `ts`,
+        False if it checked and found none (or this is not Windows), None if the
+        check itself failed (command error, unparsable output). Callers must not
+        treat None as "no reset"; the runner should stop or warn on None.
+        """
         if not IS_WINDOWS:
             return False
         try:
-            return _events_since(ts) or _watchdog_dump_since(ts)
+            events = _events_since(ts)
+            if events or _watchdog_dump_since(ts):
+                return True
+            return events  # False, or None when the event query failed
         except Exception:
-            return False
+            return None
 
 
-def _events_since(ts: datetime) -> bool:
-    stamp = _to_utc(ts).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+def _events_since(ts: datetime) -> bool | None:
+    """True/False for events found/not found, None when the query failed."""
+    utc = _to_utc(ts)
+    if utc.microsecond:  # round up so an event up to 1 s before ts does not count
+        utc = utc.replace(microsecond=0) + timedelta(seconds=1)
+    stamp = utc.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     query = ("*[System[((Provider[@Name='nvlddmkm'] and EventID=153) or "
              "(Provider[@Name='Display'] and EventID=4101)) and "
              f"TimeCreated[@SystemTime>='{stamp}']]]")
-    out = run_text(["wevtutil", "qe", "System", f"/q:{query}", "/rd:true", "/f:xml"],
+    # /c:1: only existence matters. "" means no events, None means the command failed.
+    out = run_text(["wevtutil", "qe", "System", f"/q:{query}", "/c:1", "/rd:true", "/f:xml"],
                    timeout=PROBE_TIMEOUT_S)
-    return bool(parse_events(out))
+    if out is None:
+        return None
+    events = parse_events(out)
+    return None if events is None else bool(events)
 
 
-def parse_events(text: str | None) -> list[tuple[str, int]]:
-    """Parse wevtutil /f:xml output (events concatenated, no root) into (provider, id) pairs."""
+def parse_events(text: str | None) -> list[tuple[str, int]] | None:
+    """Parse wevtutil /f:xml output (events concatenated, no root) into (provider, id) pairs.
+
+    [] for empty output, None when the output cannot be parsed.
+    """
     if not text or not text.strip():
         return []
     try:
         root = ET.fromstring("<Events>" + text.strip() + "</Events>")
     except ET.ParseError:
-        return []
+        return None
     found = []
     for system in root.iter(f"{EVENT_NS}System"):
         provider = system.find(f"{EVENT_NS}Provider")
@@ -235,6 +255,9 @@ def ladder_start(store, key_prefix: str, steps: Sequence[int] | None = None) -> 
     driver reset. `steps` default to the configured ctx_steps, normalised
     ascending and deduplicated.
     """
+    # Note: once any step is blocked (below), None is returned, so a lower step
+    # with status `error` is intentionally not retried either: another run of
+    # the ladder after a crash risks a second driver reset.
     ladder = _normalise_steps(steps)
     base = key_prefix + "ctx-"
     stored = {}
@@ -246,8 +269,11 @@ def ladder_start(store, key_prefix: str, steps: Sequence[int] | None = None) -> 
     if blockers:
         first = blockers[0]
         if stored[first] != "does_not_fit":
+            old = store.get(base + str(first)) or {}
             store.save(base + str(first), "does_not_fit",
-                       {"reason": f"step {first} crashed or was aborted in an earlier run"})
+                       {**old.get("values", {}), "previous_status": stored[first],
+                        "reason": f"step {first} crashed or was aborted in an earlier run"},
+                       old.get("meta") or None)
         for step in ladder:
             if step > first and stored.get(step) not in ("ok", "does_not_fit", "skipped"):
                 store.save(base + str(step), "skipped",
@@ -285,10 +311,16 @@ def _row(check: str, status: str, text: str) -> dict:
 
 
 def doctor(cfg, platform: str | None = None,
-           probe: Callable[[], dict | None] | None = None) -> list[dict]:
-    """Read-only environment checks. Rows: {check, status: ok|warn|info, text}."""
+           probe: Callable[[], dict | None] | None = None,
+           reset_probe: Callable[[], bool | None] | None = None) -> list[dict]:
+    """Read-only environment checks. Rows: {check, status: ok|warn|info, text[, detail]}.
+
+    Only `check`, `status` and `text` may ever be stored or published. `detail`
+    (full process list) is for the console only and may contain personal data.
+    """
     platform = platform or sys.platform
-    names = ("uptime", "processes", "monitors", "tdr", "sysmem_fallback", "power_supply")
+    names = ("uptime", "processes", "monitors", "tdr", "sysmem_fallback", "power_supply",
+             "reset_detection")
     if platform != "win32":
         return [_row(n, "info", "not available on this platform (Windows only)") for n in names]
     try:
@@ -300,6 +332,7 @@ def doctor(cfg, platform: str | None = None,
     rows.append(_check_processes(data))
     rows.append(_check_monitors(data))
     rows.append(_check_tdr(data))
+    rows.append(_check_reset_detection(reset_probe, cfg))
     rows.append(_row("sysmem_fallback", "info",
                      "NVIDIA 'CUDA - Sysmem Fallback Policy' can silently spill VRAM into system RAM "
                      "and distort results. Set it to 'Prefer No Sysmem Fallback' in the NVIDIA "
@@ -336,11 +369,15 @@ def _check_processes(data: dict | None) -> dict:
     procs = sorted(procs, key=lambda p: -p[1])[:TOP_PROCESSES]
     if not procs:
         return _missing("processes")
-    listing = ", ".join(f"{name} {mb} MB" for name, mb in procs)
-    big = [name for name, mb in procs if mb >= BIG_PROCESS_MB]
+    detail = ", ".join(f"{name} {mb} MB" for name, mb in procs)  # console only, never stored
+    big = [(name, mb) for name, mb in procs if mb >= BIG_PROCESS_MB]
     if big:
-        return _row("processes", "warn", f"large processes ({', '.join(big)}); top {len(procs)}: {listing}")
-    return _row("processes", "ok", f"top {len(procs)} by RAM: {listing}")
+        text = "large processes: " + ", ".join(f"{name} {mb} MB" for name, mb in big)
+        row = _row("processes", "warn", text)
+    else:
+        row = _row("processes", "ok", f"no process above {BIG_PROCESS_MB} MB")
+    row["detail"] = detail
+    return row
 
 
 def _check_monitors(data: dict | None) -> dict:
@@ -352,13 +389,26 @@ def _check_monitors(data: dict | None) -> dict:
 
 
 def _check_tdr(data: dict | None) -> dict:
-    tdr = (data or {}).get("tdr")
     if data is None or "tdr" not in data:
         return _missing("tdr")
-    tdr = tdr if isinstance(tdr, dict) else {}
+    tdr = data["tdr"] if isinstance(data["tdr"], dict) else {}
     delay, ddi = tdr.get("TdrDelay"), tdr.get("TdrDdiDelay")
     parts = [f"TdrDelay {delay if delay is not None else 'not set (default 2 s)'}",
              f"TdrDdiDelay {ddi if ddi is not None else 'not set (default 5 s)'}"]
-    text = ", ".join(parts) + ". Windows defaults reset the driver quickly under heavy load; " \
-                              "this tool does not change them."
-    return _row("tdr", "info", text)
+    low = (not isinstance(delay, (int, float)) or delay < 10
+           or not isinstance(ddi, (int, float)) or ddi < 10 * 2)
+    verdict = ("Windows defaults reset the driver quickly under heavy load" if low
+               else "timeouts are raised above the Windows defaults")
+    return _row("tdr", "info", ", ".join(parts) + f". {verdict}; this tool does not change them.")
+
+
+def _check_reset_detection(reset_probe, cfg) -> dict:
+    try:
+        probe = reset_probe or (lambda: Guard(cfg, 0, 0).driver_reset_since(datetime.now(timezone.utc)))
+        result = probe()
+    except Exception:
+        result = None
+    if result is None:
+        return _row("reset_detection", "info",
+                    "reset detection unavailable (event log query failed); driver resets would not be noticed")
+    return _row("reset_detection", "ok", "driver reset detection works (event log readable)")

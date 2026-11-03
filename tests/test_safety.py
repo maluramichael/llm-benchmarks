@@ -73,11 +73,44 @@ class GuardTest(unittest.TestCase):
     def test_driver_reset_none_or_failure(self):
         guard = Guard(Config(), 0, 8192)
         ts = datetime(2026, 10, 1, tzinfo=timezone.utc)
-        for out in ("", None, "<garbage"):
+        for out, expected in (("", False), (None, None), ("<garbage", None)):
             with mock.patch.object(safety, "IS_WINDOWS", True), \
                     mock.patch.object(safety, "run_text", return_value=out), \
                     mock.patch.object(safety, "WATCHDOG_DIR", Path("/nonexistent")):
-                self.assertFalse(guard.driver_reset_since(ts))
+                self.assertIs(guard.driver_reset_since(ts), expected)
+
+    def test_driver_reset_dump_wins_over_failed_query(self):
+        ts = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "WATCHDOG-1.dmp").write_bytes(b"x")
+            with mock.patch.object(safety, "IS_WINDOWS", True), \
+                    mock.patch.object(safety, "run_text", return_value=None), \
+                    mock.patch.object(safety, "WATCHDOG_DIR", Path(tmp)):
+                self.assertIs(Guard(Config(), 0, 8192).driver_reset_since(ts), True)
+
+    def _query(self, ts):
+        with mock.patch.object(safety, "IS_WINDOWS", True), \
+                mock.patch.object(safety, "run_text", return_value="") as run, \
+                mock.patch.object(safety, "WATCHDOG_DIR", Path("/nonexistent")):
+            Guard(Config(), 0, 8192).driver_reset_since(ts)
+        return run.call_args[0][0]
+
+    def test_query_has_count_limit(self):
+        self.assertIn("/c:1", self._query(datetime(2026, 10, 1, tzinfo=timezone.utc)))
+
+    def test_since_stamp_rounds_up(self):
+        args = " ".join(self._query(datetime(2026, 10, 1, 12, 0, 0, 400000, tzinfo=timezone.utc)))
+        self.assertIn("'2026-10-01T12:00:01.000Z'", args)
+        args = " ".join(self._query(datetime(2026, 10, 1, 12, 0, 0, tzinfo=timezone.utc)))
+        self.assertIn("'2026-10-01T12:00:00.000Z'", args)
+
+    def test_since_stamp_offset_and_naive(self):
+        from datetime import timedelta
+        plus2 = datetime(2026, 10, 1, 14, 0, 0, tzinfo=timezone(timedelta(hours=2)))
+        self.assertIn("'2026-10-01T12:00:00.000Z'", " ".join(self._query(plus2)))
+        naive = datetime(2026, 10, 1, 14, 0, 0)
+        expected = naive.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        self.assertIn(f"'{expected}'", " ".join(self._query(naive)))
 
     def test_driver_reset_watchdog_dump(self):
         ts = datetime(2026, 10, 1, tzinfo=timezone.utc)
@@ -141,6 +174,7 @@ class LadderTest(unittest.TestCase):
             self.assertEqual(entry["status"], "skipped")
             self.assertTrue(entry["values"]["reason"])
         self.assertIsNone(self.store.get("m/ctx-16384"))
+        self.assertEqual(self.store.get("m/ctx-32768")["values"]["previous_status"], "aborted")
         # second call stays blocked and is stable
         self.assertIsNone(ladder_start(self.store, "m/", steps))
 
@@ -181,12 +215,46 @@ class DoctorTest(unittest.TestCase):
         self.assertIn("big", rows["processes"]["text"])
         self.assertEqual(rows["tdr"]["status"], "info")
         self.assertIn("default", rows["tdr"]["text"])
+        self.assertIn("reset_detection", rows)
         self.assertIn("monitors", rows)
         self.assertIn("sysmem_fallback", rows)
         self.assertIn("power_supply", rows)
         for row in rows.values():
             self.assertIn(row["status"], ("ok", "warn", "info"))
             self.assertNotIn("\u2014", row["text"])
+
+    def test_tdr_raised_values(self):
+        def probe():
+            data = win_probe()
+            data["tdr"] = {"TdrDelay": 10, "TdrDdiDelay": 20}
+            return data
+        text = self.by_check(doctor(Config(), platform="win32", probe=probe))["tdr"]["text"]
+        self.assertIn("raised above the Windows defaults", text)
+        self.assertNotIn("reset the driver quickly", text)
+        self.assertIn("does not change", text)
+
+    def test_processes_text_has_no_small_names(self):
+        row = self.by_check(doctor(Config(), platform="win32", probe=win_probe))["processes"]
+        self.assertIn("big", row["text"])
+        self.assertNotIn("small", row["text"])
+        self.assertIn("small", row["detail"])
+        def probe():
+            data = win_probe()
+            data["processes"] = [{"ProcessName": "Spotify", "WorkingSet64": 1024 ** 2}]
+            return data
+        row = self.by_check(doctor(Config(), platform="win32", probe=probe))["processes"]
+        self.assertEqual(row["status"], "ok")
+        self.assertNotIn("Spotify", row["text"])
+        self.assertIn("4096", row["text"])
+
+    def test_reset_detection_row(self):
+        rows = self.by_check(doctor(Config(), platform="win32", probe=win_probe,
+                                    reset_probe=lambda: None))
+        self.assertEqual(rows["reset_detection"]["status"], "info")
+        self.assertIn("unavailable", rows["reset_detection"]["text"])
+        rows = self.by_check(doctor(Config(), platform="win32", probe=win_probe,
+                                    reset_probe=lambda: False))
+        self.assertEqual(rows["reset_detection"]["status"], "ok")
 
     def test_probe_failure_is_info(self):
         for probe in (lambda: None, mock.Mock(side_effect=RuntimeError("boom"))):
