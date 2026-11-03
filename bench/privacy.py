@@ -16,6 +16,7 @@ HOME = "<home>"
 REDACTED = "<redacted>"
 IP = "<ip>"
 MAC = "<mac>"
+UNC = "<unc>"
 
 # Profile folders that are shared by all users and not personal.
 _SHARED = {"public", "default", "all users", "shared", "default user"}
@@ -30,6 +31,9 @@ _IPV6 = re.compile(
     r"|(?<![\w:])::(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4}(?![\w:])"
     r"|(?<![\w:])(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}(?![\w:])")
 _MAC = re.compile(r"(?<![0-9A-Fa-f:-])(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}(?![0-9A-Fa-f:-])")
+# \\host\share and //host/share (also JSON-escaped, with doubled backslashes): network paths
+# name machines. Not matched after a word character or colon, so URLs and a//b stay clean.
+_UNC = re.compile(r"(?<![\w\\/:.])(?:\\{2,}|//)[A-Za-z0-9][A-Za-z0-9._-]*(?:\\+|/)[^\\/\s\"'<>|]+(?:(?:\\+|/)[^\\/\s\"'<>|]+)*")
 # Names that are not worth redacting everywhere (too generic).
 _GENERIC_USERS = {"root"}
 
@@ -85,6 +89,7 @@ def _scrub_text(text: str, paths: list[re.Pattern], words: list[re.Pattern]) -> 
     text = _USER_PATH.sub(lambda m: m.group(0) if _is_shared(m.group("name")) else HOME, text)
     for pattern in words:
         text = pattern.sub(REDACTED, text)
+    text = _UNC.sub(UNC, text)
     text = _MAC.sub(MAC, text)
     text = _IPV4.sub(IP, text)
     text = _IPV6.sub(lambda m: IP if _has_digit_ipv6(m) else m.group(0), text)
@@ -137,6 +142,8 @@ def find_leaks(text: str, secrets: list[str]) -> list[str]:
     for match in _IPV6.finditer(text):
         if _has_digit_ipv6(match) and not _is_loopback(match.group(0)):
             report("ip", match.group(0))
+    for match in _UNC.finditer(text):
+        report("unc path", match.group(0))
     for match in _MAC.finditer(text):
         report("mac", match.group(0))
     return list(leaks.values())

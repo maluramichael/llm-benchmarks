@@ -21,22 +21,23 @@ Either give the [agent prompt](README.md#agent-prompt) to Claude Code or a simil
 On Windows use `.\bench.ps1`. Lists are comma separated (`--models S,M`), and PowerShell users can type them without quotes. Restart the machine first and close other programs. `doctor` tells you what it finds.
 
 - A run continues where it stopped. If it was interrupted, start the same command again.
-- `--force-test <pattern>` measures matching tests again, for example `--force-test "llamacpp/S/speed/*"`.
+- A new run on the same device continues the newest folder of that device and skips tests that are finished. To measure again, use `--force-test <pattern>` or `--force`. A new folder with `-2` at the end appears only when the old folder cannot be continued (unreadable or an old hand-made run).
+- `--force-test <pattern>` measures matching tests again (`--force` measures everything again), for example `--force-test "llamacpp/S/speed/*"`.
 - Run `bench --help` and `bench run --help` for all options.
 
-The results are in `runs/<date>-<device>/`. It holds `results.json` (the data) and `README.md` (the report, written by `bench run` and `bench report`).
+The results are in `runs/<date>-<device>/`. It holds `results.json` (the data), `README.md` (the report, written by `bench run` and `bench report`) and `raw/` (the raw answers the report links to).
 
 ## 2. Send the run folder
 
 1. Fork the repository and create a branch.
-2. Add your run folder from `runs/`. Do not rename it. A second run of the same device on the same day gets `-2` at the end automatically.
+2. Add your whole run folder from `runs/`, including `raw/`. The report links to it. Do not rename the folder.
 3. Open a pull request. The template has a short checklist.
 
 **Do not edit the charts or the run list in the README.** They are generated from `runs/*/results.json` after the merge. To preview them, run `python3 scripts/build.py` and then discard the generated changes with `git checkout README.md charts/`, otherwise they conflict with other pull requests.
 
 ## Privacy
 
-`bench report` refuses to write a report when it finds private data, for example user names, host names, IP addresses, user paths or serial numbers. If it does, fix the file it names and run it again.
+`bench report` refuses to write a report when it finds private data, for example user names, host names, IP addresses, network paths or user paths. It does not look for serial numbers, so check for those yourself. If it does, fix the file it names and run it again.
 
 Engine logs stay in `.bench/logs` on your machine. Do not add them to the pull request. Do not add anything from `.bench/` at all.
 

@@ -37,7 +37,7 @@ class TaskFilesTest(unittest.TestCase):
         import json
         for t in load_tasks(None):
             text = json.dumps(t, ensure_ascii=False)
-            self.assertNotIn("—", text, t["id"])
+            self.assertNotIn("\u2014", text, t["id"])
             self.assertTrue(text.isascii(), t["id"])
 
     def test_check_parameters_present(self):

@@ -179,3 +179,21 @@ class LocalSecretsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UncPathTest(unittest.TestCase):
+    def test_unc_paths_are_found(self):
+        for text in (r"loaded \\vault\ai\llm\blobs\sha256-1", "loaded //vault/ai/llm/x.gguf",
+                     r"\\192.168.2.2\share\x", "json \\\\\\\\vault\\\\ai\\\\x"):
+            self.assertTrue(find_leaks(text, []), text)
+
+    def test_unc_paths_are_scrubbed(self):
+        for text in (r"loaded \\vault\ai\llm\blobs\sha256-1", "loaded //vault/ai/llm/x.gguf"):
+            out = scrub(text, [])
+            self.assertNotIn("vault", out)
+            self.assertEqual(find_leaks(out, []), [], out)
+
+    def test_urls_and_plain_paths_are_not_unc(self):
+        for text in ("see https://example.com/a/b", "usr//lib/x", "a // b/c", "http://localhost/x",
+                     "std::path a//b"):
+            self.assertEqual([x for x in find_leaks(text, []) if x.startswith("unc")], [], text)

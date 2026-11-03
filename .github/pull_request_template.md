@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] One new folder `runs/<date>-<device>/` created by `bench run`, with `results.json` and `README.md`
+- [ ] One new folder `runs/<date>-<device>/` created by `bench run`, with `results.json`, `README.md` and `raw/`
 - [ ] `bench report` ran without a privacy error
 - [ ] No changes to the generated parts of `README.md` or to `charts/`
 - [ ] Nothing from `.bench/` (logs, caches) is included

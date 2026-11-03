@@ -1,6 +1,6 @@
 # LLM Benchmarks
 
-Local language models on real hardware, measured the same way on every device. The input is English text from 25 pinned Wikipedia articles, the answer is 256 tokens long, and every value is the median of three runs. **Prompt processing** shows how fast a document is read. **Generation** shows how fast the answer is written. Other suites measure memory use per context size, small quality checks (smoke tests) and parallel requests.
+Local language models on real hardware, measured the same way on every device. The input is English text from 25 pinned Wikipedia articles, the answer is 256 tokens long, and the speed values are the median of three runs. **Prompt processing** shows how fast a document is read. **Generation** shows how fast the answer is written. Other suites measure memory use per context size, small quality checks (smoke tests) and parallel requests.
 
 Everything runs through one program, `bench`. It starts the engines itself (Ollama and llama.cpp), checks that the model fits, saves after every single test, and writes a report you can send as a pull request.
 
@@ -54,13 +54,14 @@ On Windows use `.\bench.ps1` instead of `./bench.sh`.
 - `doctor` checks uptime, open programs, monitors and driver settings. It changes nothing.
 - `plan` shows which models fit into GPU memory, how long the run takes and which combinations are new.
 - `run` measures. A run continues where it stopped: tests that are done are skipped. `--force-test <pattern>` measures matching tests again, for example `--force-test "llamacpp/S/speed/*"`.
+- `--no-code-exec` skips the smoke tasks that run code written by the model. To measure them later, run again without it and add `--force-test "*/smoke/code-*"`.
 - `report` writes `README.md` from `results.json` in the run folder. `run` does this at the end too.
 
 Lists are comma separated: `--engines ollama,llamacpp`, `--models S,M,L`, `--suites speed,memory,smoke`. In PowerShell you can type them without quotes.
 
 The results go to `runs/<date>-<device>/`. Engine logs stay in `.bench/logs` and never leave the machine. `bench report` refuses to write when it finds private data such as user names, host names, IP addresses or paths. Fix the file it names and run it again.
 
-`bench` only stops processes it started itself. It never deletes models and never changes system settings. If free GPU memory gets too low or the GPU driver resets, it ends the run and keeps what was saved.
+`bench` only stops processes it started itself. It never deletes models and never changes system settings. If a model does not fit into free GPU memory, that test is stored as `does_not_fit` and the run goes on. Only a GPU driver reset ends the run. What was saved stays.
 
 ## Contributing
 
