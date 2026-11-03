@@ -3,9 +3,9 @@
 Shared by the code runner of the smoke tests (bench.checkers) and the engine processes
 (bench.proc). POSIX: the process is its own session and group leader, `killpg` reaches the
 whole group, also when the leader is already gone. Windows: a Job Object with
-kill-on-close (ctypes); `taskkill /F /T` is the fallback when the job API fails. A child
-started in the first microseconds after the spawn could escape the job (subprocess cannot
-start suspended); that race is accepted.
+kill-on-close (ctypes); `taskkill /F /T` is the fallback when the job API fails. The child is
+created suspended (CREATE_SUSPENDED), assigned to the job and then resumed with
+NtResumeProcess, so it cannot start a child that escapes the job.
 """
 
 from __future__ import annotations
@@ -98,25 +98,69 @@ class WinJob:
             return False
 
 
-def spawn_kwargs() -> dict:
+CREATE_SUSPENDED = 0x4
+
+
+def spawn_kwargs(suspended: bool = False) -> dict:
+    """Popen options. Windows with `suspended`: the child is created suspended, so that
+    `attach_job(proc, suspended=True)` can put it into the job before it runs a single
+    instruction (it cannot start a child that escapes the job)."""
     if IS_WINDOWS:
         # numeric fallbacks: CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW
-        return {"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
-                | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+        flags = (getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200)
+                 | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
+        return {"creationflags": flags | (CREATE_SUSPENDED if suspended else 0)}
     return {"start_new_session": True}  # own process group, killed as a whole
 
 
-def attach_job(proc: subprocess.Popen):
-    """Windows: put the new process into a kill-on-close job. None elsewhere or on failure."""
+def resume_process(proc: subprocess.Popen, ntdll=None) -> bool:
+    """Windows: resume a process created with CREATE_SUSPENDED (NtResumeProcess on its
+    process handle; subprocess does not expose the thread handle). True on success."""
+    try:
+        if ntdll is None:
+            import ctypes
+            ntdll = ctypes.WinDLL("ntdll")
+        import ctypes
+        status = ntdll.NtResumeProcess(ctypes.c_void_p(int(proc._handle)))
+        return status == 0
+    except (OSError, AttributeError, ValueError, TypeError):
+        return False
+
+
+def attach_job(proc: subprocess.Popen, suspended: bool = False):
+    """Windows: put the new process into a kill-on-close job. None elsewhere or when the job
+    API is unavailable (callers then fall back to `taskkill /T`).
+
+    With `suspended` the process was created suspended: it is assigned first and resumed
+    afterwards. If assigning or resuming fails, the process (and the job) is killed and
+    OSError is raised, so a child never runs outside the job it was meant to be in. When the
+    job API itself is unavailable the child is resumed (the taskkill fallback applies)."""
     if not IS_WINDOWS:
         return None
     job = WinJob.open()
     if job is None:
+        if suspended and not resume_process(proc):
+            _kill_quietly(proc)
+            raise OSError("cannot resume the suspended process")
         return None
     if not job.assign(int(proc._handle)):
         job.kill()
+        if suspended:
+            _kill_quietly(proc)
+            raise OSError("cannot assign the process to its job")
         return None
+    if suspended and not resume_process(proc):
+        job.kill()
+        _kill_quietly(proc)
+        raise OSError("cannot resume the suspended process")
     return job
+
+
+def _kill_quietly(proc: subprocess.Popen) -> None:
+    try:
+        proc.kill()
+    except OSError:
+        pass
 
 
 def kill_tree(proc: subprocess.Popen, job=None) -> None:

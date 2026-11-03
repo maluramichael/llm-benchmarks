@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from typing import Callable, Sequence
 
-from bench.proctree import attach_job
+from bench.proctree import CREATE_SUSPENDED, attach_job
 
 IS_WINDOWS = os.name == "nt"
 TAIL_CHARS = 800
@@ -89,7 +89,8 @@ class Owned:
         options: dict = {}
         if IS_WINDOWS:
             options["creationflags"] = (subprocess.CREATE_NEW_PROCESS_GROUP
-                                        | getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                                        | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                                        | CREATE_SUSPENDED)  # joins its job before it runs
         else:
             options["start_new_session"] = True  # own process group, killable as a unit
         try:
@@ -104,8 +105,14 @@ class Owned:
                 cwd=self.cwd, **options)
             self._stopped = False
             if IS_WINDOWS:
-                self._job = attach_job(self._proc)
+                self._job = attach_job(self._proc, suspended=True)
         except (OSError, ValueError) as err:  # ValueError: for example a NUL in an argument
+            if self._proc is not None:  # spawned, but not in its job: it must not run on
+                try:
+                    self._proc.kill()
+                except OSError:
+                    pass
+                self._proc = None
             self._close_log()
             raise ProcError(
                 f"cannot start {self.argv[0]}: {getattr(err, 'strerror', None) or err}") from None

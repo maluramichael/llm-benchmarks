@@ -311,8 +311,14 @@ def _run_python(workdir: str, token: str, timeout: float) -> tuple[int | None, s
     proc = subprocess.Popen(
         [sys.executable, "-I", "runner.py"], cwd=workdir, env=_minimal_env(workdir),
         stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        **_spawn_kwargs())
-    job = _attach_job(proc)
+        **_spawn_kwargs(suspended=True))
+    try:
+        job = _attach_job(proc, suspended=True)
+    except OSError as err:  # the child was killed, it never ran outside its job
+        proc.wait()
+        for stream in (proc.stdout, proc.stderr):
+            stream.close()
+        return -1, f"could not start the code runner: {err}"
     out: list = []
     err: list = []
     threads = [threading.Thread(target=_drain, args=(proc.stdout, out), daemon=True),

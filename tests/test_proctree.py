@@ -73,5 +73,88 @@ class WindowsJobTest(unittest.TestCase):
             self.assertEqual(proctree.spawn_kwargs(), {"start_new_session": True})
 
 
+class SuspendedStartTest(unittest.TestCase):
+    """The child starts suspended, joins the job, and only then runs (no escape race)."""
+
+    def child(self):
+        child = mock.Mock(pid=77)
+        child._handle = 1234
+        return child
+
+    def test_suspended_flag_is_added_to_the_creation_flags(self):
+        with mock.patch.object(proctree, "IS_WINDOWS", True), \
+                mock.patch.object(proctree.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200,
+                                  create=True):
+            self.assertFalse(proctree.spawn_kwargs()["creationflags"] & 0x4)
+            flags = proctree.spawn_kwargs(suspended=True)["creationflags"]
+        self.assertTrue(flags & 0x4)
+        self.assertTrue(flags & 0x200)  # the other flags stay
+
+    def test_assign_happens_before_resume(self):
+        order = []
+        job = mock.Mock()
+        job.assign.side_effect = lambda handle: order.append(("assign", handle)) or True
+        child = self.child()
+        with mock.patch.object(proctree, "IS_WINDOWS", True), \
+                mock.patch.object(proctree.WinJob, "open", return_value=job), \
+                mock.patch.object(proctree, "resume_process",
+                                  side_effect=lambda p: order.append(("resume", p)) or True):
+            self.assertIs(proctree.attach_job(child, suspended=True), job)
+        self.assertEqual(order, [("assign", 1234), ("resume", child)])
+
+    def test_failed_assign_kills_the_suspended_child_and_raises(self):
+        job = mock.Mock()
+        job.assign.return_value = False
+        child = self.child()
+        with mock.patch.object(proctree, "IS_WINDOWS", True), \
+                mock.patch.object(proctree.WinJob, "open", return_value=job), \
+                mock.patch.object(proctree, "resume_process") as resume:
+            with self.assertRaises(OSError):
+                proctree.attach_job(child, suspended=True)
+        resume.assert_not_called()  # it never runs outside the job
+        child.kill.assert_called_once()
+        job.kill.assert_called_once()
+
+    def test_failed_resume_kills_job_and_child_and_raises(self):
+        job = mock.Mock()
+        job.assign.return_value = True
+        child = self.child()
+        with mock.patch.object(proctree, "IS_WINDOWS", True), \
+                mock.patch.object(proctree.WinJob, "open", return_value=job), \
+                mock.patch.object(proctree, "resume_process", return_value=False):
+            with self.assertRaises(OSError):
+                proctree.attach_job(child, suspended=True)
+        job.kill.assert_called_once()
+        child.kill.assert_called_once()
+
+    def test_without_the_job_api_the_child_is_resumed_and_taskkill_stays_the_fallback(self):
+        child = self.child()
+        with mock.patch.object(proctree, "IS_WINDOWS", True), \
+                mock.patch.object(proctree.WinJob, "open", return_value=None), \
+                mock.patch.object(proctree, "resume_process", return_value=True) as resume:
+            self.assertIsNone(proctree.attach_job(child, suspended=True))
+        resume.assert_called_once_with(child)
+
+    def test_unsuspended_use_is_unchanged(self):
+        job = mock.Mock()
+        job.assign.return_value = True
+        with mock.patch.object(proctree, "IS_WINDOWS", True), \
+                mock.patch.object(proctree.WinJob, "open", return_value=job), \
+                mock.patch.object(proctree, "resume_process") as resume:
+            self.assertIs(proctree.attach_job(self.child()), job)
+        resume.assert_not_called()
+
+    def test_resume_calls_ntresumeprocess_with_the_process_handle(self):
+        ntdll = mock.Mock()
+        ntdll.NtResumeProcess.return_value = 0  # STATUS_SUCCESS
+        self.assertTrue(proctree.resume_process(self.child(), ntdll=ntdll))
+        ntdll.NtResumeProcess.assert_called_once()
+        self.assertEqual(ntdll.NtResumeProcess.call_args.args[0].value, 1234)
+        ntdll.NtResumeProcess.return_value = 0xC0000008  # an error status
+        self.assertFalse(proctree.resume_process(self.child(), ntdll=ntdll))
+        ntdll.NtResumeProcess.side_effect = OSError
+        self.assertFalse(proctree.resume_process(self.child(), ntdll=ntdll))
+
+
 if __name__ == "__main__":
     unittest.main()

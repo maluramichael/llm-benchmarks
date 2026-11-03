@@ -189,11 +189,33 @@ class OwnedTest(ProcTestCase):
                 mock.patch("bench.proc.attach_job", return_value=job) as attach, \
                 mock.patch("bench.proc.subprocess.run") as run:
             owned = proc.Owned(SLEEP, log_path=self.log).start()
-            attach.assert_called_once_with(child)
+            attach.assert_called_once_with(child, suspended=True)
             owned.stop()
             owned.stop()
         job.kill.assert_called_once()  # grandchildren die with the job, once
         run.assert_not_called()
+
+    def test_windows_child_is_started_suspended(self):
+        child = mock.Mock(pid=4242)
+        child.poll.return_value = 0
+        with mock.patch.object(proc, "IS_WINDOWS", True), \
+                mock.patch.object(proc.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                mock.patch("bench.proc.subprocess.Popen", return_value=child) as popen, \
+                mock.patch("bench.proc.attach_job", return_value=mock.Mock()):
+            proc.Owned(SLEEP, log_path=self.log).start()
+        self.assertTrue(popen.call_args.kwargs["creationflags"] & 0x4)
+
+    def test_windows_job_failure_ends_the_suspended_child_and_raises(self):
+        child = mock.Mock(pid=4242)
+        with mock.patch.object(proc, "IS_WINDOWS", True), \
+                mock.patch.object(proc.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                mock.patch("bench.proc.subprocess.Popen", return_value=child), \
+                mock.patch("bench.proc.attach_job", side_effect=OSError("no job")):
+            owned = proc.Owned(SLEEP, log_path=self.log)
+            with self.assertRaises(proc.ProcError):
+                owned.start()
+        self.assertIsNone(owned._log)
+        self.assertIsNone(owned.pid)
 
     def test_windows_without_a_job_falls_back_to_taskkill_only_while_running(self):
         child = mock.Mock(pid=4242)

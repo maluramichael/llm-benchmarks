@@ -228,6 +228,22 @@ class CodeHardeningTest(unittest.TestCase):
         self.assertEqual(check_code(self.SPEC, self.code(body), Config())[0], "pass")
 
 
+class SuspendedRunnerTest(unittest.TestCase):
+    def test_runner_is_started_suspended_and_a_job_failure_is_a_clean_fail(self):
+        seen = {}
+        real = checkers._spawn_kwargs
+
+        def spy(suspended=False):
+            seen["suspended"] = suspended
+            return real(suspended)
+        with mock.patch.object(checkers, "_spawn_kwargs", spy), \
+                mock.patch.object(checkers, "_attach_job", side_effect=OSError("no job")):
+            code, text = checkers._run_python(tempfile.mkdtemp(), "tok", 5)
+        self.assertTrue(seen["suspended"])
+        self.assertNotEqual(code, 0)
+        self.assertIn("could not start", text)
+
+
 class FixTest(unittest.TestCase):
     def test_malformed_numbers_fail(self):
         spec = {"type": "number", "answer": "12"}
