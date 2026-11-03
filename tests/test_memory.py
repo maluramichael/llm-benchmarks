@@ -139,6 +139,17 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-16384"))["status"], "does_not_fit")
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-32768"))["status"], "skipped")
 
+    def test_missing_model_is_error_not_does_not_fit(self):
+        def fail(kind, arg):
+            if kind == "load":
+                return EngineError('ollama /api/generate: HTTP 404: {"error":"model \'qwen3.5:4b\' not found"}')
+        ctx = self.ctx(FakeEngine(fail_on=fail))
+        memory.run_memory(ctx)
+        entry = ctx.store.get(key(ctx, "memory", "ctx-8192"))
+        self.assertEqual(entry["status"], "error")
+        self.assertIn("not found", entry["values"]["error"])
+        self.assertIsNone(ctx.store.get(key(ctx, "memory", "ctx-16384")))  # retried later
+
     def test_unexpected_exception_is_error_and_stops(self):
         def fail(kind, arg):
             if kind == "complete" and arg == 1:

@@ -18,6 +18,7 @@ engine caches is written, no system setting is changed.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 import sys
@@ -287,6 +288,40 @@ def _record_engine(state: _State, engine) -> None:
     state.store.set_section("engines", state.engines_info)
 
 
+def _resolve(state: _State, label: str, model_id: str, engine_name: str, dry: bool):
+    """`models.resolve` with every failure turned into a problem and a note; None then."""
+    cfg = dataclasses.replace(state.cfg, dry_run=True) if dry else state.cfg
+    try:
+        return state.env.resolve(model_id, engine_name, cfg, say=state.say)
+    except models.NeedsConsent as err:
+        state.fail(f"{label}: {err}")
+    except models.ModelError as err:
+        state.fail(f"{label}: {_clean(str(err))}")
+    except RunAborted:
+        raise
+    except Exception as err:  # e.g. the NAS share is gone
+        state.fail(f"{label}: cannot resolve the model: {clean_error(err)}")
+    return None
+
+
+def _model_available(state: _State, engine, ref) -> bool:
+    """Ollama only: does the server we talk to know the tag? (It never pulls by itself, a
+    missing tag would fail every step with a 404.) Any other answer lets the run go on."""
+    show = getattr(engine, "show", None)
+    if show is None:
+        return True
+    try:
+        show(ref)
+    except Exception as err:
+        text = str(err).lower()
+        if "404" in text and "not found" in text:
+            tag = ref.ollama_tag or ref.id
+            state.fail(f"{engine.name}/{ref.id}: model {tag} not available "
+                       "(give --mirror or pull it)")
+            return False
+    return True
+
+
 def _resolve_models(state: _State, engine_name: str) -> list:
     cfg, store = state.cfg, state.store
     resolved = []
@@ -294,18 +329,10 @@ def _resolve_models(state: _State, engine_name: str) -> list:
     total = int(gpu.get("vram_total_mb") or 0)
     for model_id in cfg.models:
         label = f"{engine_name}/{model_id}"
-        try:
-            ref = state.env.resolve(model_id, engine_name, cfg, say=state.say)
-        except models.NeedsConsent as err:
-            state.fail(f"{label}: {err}")
-            continue
-        except models.ModelError as err:
-            state.fail(f"{label}: {_clean(str(err))}")
-            continue
-        except RunAborted:
-            raise
-        except Exception as err:  # e.g. the NAS share is gone
-            state.fail(f"{label}: cannot resolve the model: {clean_error(err)}")
+        # 1. Dry run: size and quant only. Nothing is copied or downloaded, so a model that
+        #    cannot fit never costs a multi-GB copy.
+        ref = _resolve(state, label, model_id, engine_name, dry=True)
+        if ref is None:
             continue
         weights = (ref.size_bytes or 0) / MIB
         reserve = state.guard.reserve_mb()
@@ -318,7 +345,10 @@ def _resolve_models(state: _State, engine_name: str) -> list:
                 store.save(key, "does_not_fit", {"reason": reason})
             state.say(f"{label}: does not fit, not run ({reason})")
             continue
-        resolved.append(ref)
+        # 2. It will run: now import, copy or download for real.
+        ref = _resolve(state, label, model_id, engine_name, dry=False)
+        if ref is not None:
+            resolved.append(ref)
     return resolved
 
 
@@ -367,6 +397,8 @@ def _run_engine(state: _State, engine_name: str) -> None:
             state.fail(f"{engine_name}: cannot start: {clean_error(err)}")
             return
         for ref in refs:
+            if not _model_available(state, engine, ref):
+                continue
             if not _run_model(state, engine, ref):
                 break
     finally:

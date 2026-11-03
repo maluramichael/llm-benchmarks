@@ -52,7 +52,7 @@ from threading import Event
 from bench.engines.base import EngineError, Sampling
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, median,
-                          now, prepare_counting, reset_state, step_meta)
+                          model_missing, now, prepare_counting, reset_state, step_meta)
 
 MIB = 1024 * 1024
 DEFAULT_LEVELS = [1, 2, 4, 8]
@@ -193,6 +193,9 @@ def _level(ctx: RunContext, n: int, base_slot: int, meta: dict) -> str:
                             "error": clean_error(err)}, meta)
                 raise RunAborted(f"GPU driver reset detected during {test_key}") from None
             values["driver_reset_check"] = check
+            if model_missing(err):  # not a fit problem: retried by the next run
+                store.save(test_key, "error", {**values, "error": clean_error(err)}, meta)
+                return "error"
             if isinstance(err, EngineError) or check == "unknown":
                 store.save(test_key, "does_not_fit", {**values, "reason": clean_error(err)}, meta)
                 return "does_not_fit"

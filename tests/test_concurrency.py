@@ -266,6 +266,15 @@ class ConcurrencyTest(unittest.TestCase):
         self.assertEqual(self.entry(ctx, 4)["status"], "does_not_fit")
         self.assertEqual(self.entry(ctx, 8)["status"], "skipped")
 
+    def test_missing_model_is_error_not_does_not_fit(self):
+        class Missing(ConcurrencyEngine):
+            def load(self, model, ctx, parallel=1):
+                raise EngineError('ollama /api/generate: HTTP 404: {"error":"model \'qwen3.5:4b\' not found"}')
+
+        ctx = self.run_levels(Missing(), [1, 2])
+        self.assertEqual(self.entry(ctx, 1)["status"], "error")
+        self.assertIsNone(self.entry(ctx, 2))
+
     def test_request_failure_does_not_hang_and_is_error(self):
         def fail(kind, index):
             if kind == "complete" and index == 1:

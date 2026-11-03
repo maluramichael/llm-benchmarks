@@ -805,6 +805,69 @@ class RunnerTest(unittest.TestCase):
         self.assertIn("suite broke", self.text)
         self.assertTrue((self.run_dir() / "README.md").is_file())
 
+    # real-run fixes
+    def test_a_model_that_does_not_fit_is_never_copied_or_downloaded(self):
+        calls = []
+
+        def resolve(model_id, engine, cfg, say=None):
+            calls.append((model_id, cfg.dry_run))
+            size = 30 * 1024**3 if model_id == "L" else 2 * 1024**3
+            return ModelRef(model_id, model_id, "Q4_K_M", "t", None, None, size)
+        seen = []
+        env = self.env(resolve=resolve)
+        env.suites = {"memory": lambda ctx: seen.append(ctx.model.id)}
+        runner.run(self.cfg(models=["S", "L"], suites=["memory"]), env)
+        self.assertEqual(seen, ["S"])
+        self.assertNotIn(("L", False), calls)  # no real resolve = no copy, no download
+        self.assertIn(("L", True), calls)
+        self.assertIn(("S", False), calls)
+        self.assertEqual(self.results()["tests"]["ollama/L/memory/fit"]["status"], "does_not_fit")
+
+    def test_model_missing_on_the_server_is_skipped_with_one_note(self):
+        def make(name, cfg):
+            engine = self.make_engine(name, cfg)
+
+            def show(model):
+                raise EngineError('ollama /api/show: HTTP 404: {"error":"model not found"}')
+            engine.show = show
+            return engine
+        seen = []
+        env = self.env(make_engine=make)
+        env.suites = {"memory": lambda ctx: seen.append(1), "speed": lambda ctx: seen.append(2)}
+        code = runner.run(self.cfg(), env)
+        self.assertEqual((code, seen), (1, []))
+        self.assertEqual(self.results()["tests"], {})
+        notes = [n for n in self.results()["notes"] if "not available" in n]
+        self.assertEqual(len(notes), 1)
+        self.assertIn("give --mirror or pull it", notes[0])
+        self.assertIn("tag", notes[0])
+        self.assertEqual(self.engines["ollama"][0].stopped, 1)
+
+    def test_model_present_on_the_server_runs(self):
+        def make(name, cfg):
+            engine = self.make_engine(name, cfg)
+            engine.show = lambda model: {"details": {}}
+            return engine
+        seen = []
+        env = self.env(make_engine=make)
+        env.suites = {"memory": lambda ctx: seen.append(1)}
+        self.assertEqual(runner.run(self.cfg(suites=["memory"]), env), 0)
+        self.assertEqual(seen, [1])
+
+    def test_other_show_errors_do_not_block_the_run(self):
+        def make(name, cfg):
+            engine = self.make_engine(name, cfg)
+
+            def show(model):
+                raise EngineError("ollama /api/show: timed out")
+            engine.show = show
+            return engine
+        seen = []
+        env = self.env(make_engine=make)
+        env.suites = {"memory": lambda ctx: seen.append(1)}
+        runner.run(self.cfg(suites=["memory"]), env)
+        self.assertEqual(seen, [1])
+
     def test_run_summary_is_printed(self):
         runner.run(self.cfg(), self.env())
         self.assertIn("results.json", self.text)

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from bench import VERSION
-from bench.engines.base import PromptTruncated
+from bench.engines.base import EngineError, PromptTruncated
 from bench.corpus import cut_to_tokens
 from bench.privacy import local_secrets, scrub
 
@@ -64,6 +64,13 @@ def clean_error(err: BaseException) -> str:
     """Error text safe to store: personal data scrubbed, length limited."""
     text = f"{type(err).__name__}: {err}"
     return scrub(text, local_secrets())[:ERROR_LIMIT]
+
+
+def model_missing(err: BaseException) -> bool:
+    """An engine error that says the model is not there (Ollama: HTTP 404, "not found").
+    That is no fit problem: the step is stored `error` (retried), never `does_not_fit`."""
+    text = str(err).lower()
+    return isinstance(err, EngineError) and "404" in text and "not found" in text
 
 
 def now() -> datetime:

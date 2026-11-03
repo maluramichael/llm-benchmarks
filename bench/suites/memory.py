@@ -29,8 +29,8 @@ from bench.gguf import attention_layer_count, kv_bytes_per_token, memory_curve, 
 from bench.safety import ladder_start, take_reading
 from bench.engines.base import PromptTruncated
 from bench.suites import (RunAborted, RunContext, SHRINK_UNKNOWN, TRUNCATED_REASON, clean_error,
-                          exact_counts, forced, fresh_prompt, key, now, reset_state,
-                          retry_truncated, step_meta)
+                          exact_counts, forced, fresh_prompt, key, model_missing, now,
+                          reset_state, retry_truncated, step_meta)
 
 MIB = 1024 * 1024
 OUTPUT_TOKENS = 128
@@ -177,6 +177,9 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
                 # The prompt was cut twice: nothing was measured, the rung is retried later.
                 store.save(test_key, "error",
                            {**values, "reason": TRUNCATED_REASON, "error": clean_error(err)}, meta)
+                return "error"
+            if model_missing(err):  # not a fit problem: retried by the next run
+                store.save(test_key, "error", {**values, "error": clean_error(err)}, meta)
                 return "error"
             if isinstance(err, EngineError) or check == "unknown":
                 # unknown: never retry a rung that may have reset the driver
