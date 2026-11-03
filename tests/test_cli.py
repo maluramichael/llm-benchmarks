@@ -16,12 +16,12 @@ from bench.privacy import find_leaks, local_secrets
 from bench.store import ResultStore
 
 ROOT = Path(__file__).resolve().parent.parent
-COMMANDS = ["system", "doctor", "plan", "setup", "run", "report"]
+COMMANDS = ["system", "doctor", "plan", "run", "report"]
 
 
 class CliTest(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(bench.VERSION, "1.0.0")
+        self.assertEqual(bench.VERSION, "1.1.0")
 
     def test_help_lists_all_commands(self):
         out = io.StringIO()
@@ -32,12 +32,15 @@ class CliTest(unittest.TestCase):
         for command in COMMANDS:
             self.assertIn(command, out.getvalue())
 
-    def test_setup_is_not_implemented_yet(self):
+    def test_setup_is_not_a_command(self):
         out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            code = main(["setup"])
-        self.assertEqual(code, 0)
-        self.assertIn("not implemented yet", out.getvalue())
+        with contextlib.redirect_stderr(out), self.assertRaises(SystemExit) as raised:
+            main(["setup"])
+        self.assertEqual(raised.exception.code, 2)
+        help_text = io.StringIO()
+        with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
+            main(["--help"])
+        self.assertNotIn("setup", help_text.getvalue())
 
     def run_main(self, argv, **patches):
         out = io.StringIO()
@@ -168,8 +171,9 @@ class CliTest(unittest.TestCase):
     def test_stdout_is_line_buffered_at_start(self):
         stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
         self.assertFalse(stream.line_buffering)
-        with mock.patch.object(sys, "stdout", stream):
-            main(["setup"])
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(sys, "stdout", stream):
+            ResultStore(Path(tmp) / "results.json").save("ollama/S/speed/warm", "ok", {})
+            main(["report", "--output", tmp])
             self.assertTrue(stream.line_buffering)
 
     def test_launchers_run_python_unbuffered(self):

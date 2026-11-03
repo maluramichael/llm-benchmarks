@@ -2,8 +2,10 @@
 
 `Owned` wraps exactly one child process (started by us, in its own process group or
 session) and stops exactly that process tree. It never looks up processes by name or
-port, and it does nothing when the child is already gone, because its pid may belong to
-somebody else by then.
+port. POSIX: the child leads its own session, `stop` signals the whole group, also when
+the leader has exited already (grandchildren such as Ollama's runner processes survive a
+dead leader). Windows: the child is put into a kill-on-close Job Object. `stop` acts once;
+a second call does nothing, because the group id or pid may belong to somebody else by then.
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ import subprocess
 import time
 from pathlib import Path
 from typing import Callable, Sequence
+
+from bench.proctree import attach_job
 
 IS_WINDOWS = os.name == "nt"
 TAIL_CHARS = 800
@@ -29,6 +33,18 @@ def free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+DEFAULT_PORTS = (11434, 8080)  # Ollama and llama-server: never ours, a foreign server may sit there
+
+
+def pick_port() -> int:
+    """A free port that is neither Ollama's nor llama-server's default port."""
+    for _ in range(20):
+        port = free_port()
+        if port not in DEFAULT_PORTS:
+            return port
+    raise ProcError("no free port found")
 
 
 def dropped(name: str, patterns: Sequence[str]) -> bool:
@@ -62,6 +78,8 @@ class Owned:
         self._proc: subprocess.Popen | None = None
         self._log = None
         self._out = None
+        self._job = None
+        self._stopped = False
 
     def start(self) -> "Owned":
         if self._proc is not None:
@@ -84,6 +102,9 @@ class Owned:
                 self.argv, stdin=subprocess.DEVNULL, stdout=self._out or self._log,
                 stderr=self._log if self._out else subprocess.STDOUT, env=child_env,
                 cwd=self.cwd, **options)
+            self._stopped = False
+            if IS_WINDOWS:
+                self._job = attach_job(self._proc)
         except (OSError, ValueError) as err:  # ValueError: for example a NUL in an argument
             self._close_log()
             raise ProcError(
@@ -137,12 +158,13 @@ class Owned:
             time.sleep(interval)
 
     def stop(self, grace: float = 5.0) -> None:
-        """End the process tree. Idempotent; does nothing if the child already exited."""
+        """End the process tree. Idempotent: only the first call signals anything."""
         proc = self._proc
         if proc is None:
             return
         try:
-            if proc.poll() is None:
+            if not self._stopped:
+                self._stopped = True
                 if IS_WINDOWS:
                     self._stop_windows(proc, grace)
                 else:
@@ -151,6 +173,16 @@ class Owned:
             self._close_log()
 
     def _stop_windows(self, proc: subprocess.Popen, grace: float) -> None:
+        job, self._job = self._job, None
+        if job is not None and job.kill():  # every process of the job, leader gone or not
+            if proc.poll() is None:
+                try:
+                    proc.wait(grace)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+            return
+        if proc.poll() is not None:
+            return  # no job and no leader: its pid may belong to someone else by now
         subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
                        capture_output=True, check=False)
         try:
@@ -161,12 +193,14 @@ class Owned:
 
     def _stop_posix(self, proc: subprocess.Popen, grace: float) -> None:
         group = proc.pid  # the child is its own group leader (start_new_session)
-        self._signal_group(group, signal.SIGTERM)
-        try:
-            proc.wait(grace)
-        except subprocess.TimeoutExpired:
-            pass
-        # Sweep what is left of the group (runner children that ignored SIGTERM).
+        if proc.poll() is None:
+            self._signal_group(group, signal.SIGTERM)
+            try:
+                proc.wait(grace)
+            except subprocess.TimeoutExpired:
+                pass
+        # Sweep what is left of the group: runner children that ignored SIGTERM, and
+        # grandchildren that outlived their leader.
         self._signal_group(group, signal.SIGKILL)
         proc.wait(grace)
 

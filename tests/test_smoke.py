@@ -156,6 +156,37 @@ class SmokeTest(unittest.TestCase):
         self.assertEqual(ctx.store.get(key(ctx, "smoke", "math-1"))["status"], "ok")
         self.assertEqual(len(engine.chats), 1)
 
+    def test_needle_tasks_are_skipped_when_the_scope_has_no_ladder(self):
+        for scope in ("no-context", "warm-only"):
+            with self.subTest(scope=scope):
+                (Path(self.tmp.name) / "results.json").unlink(missing_ok=True)
+                ctx = self.ctx(ChatEngine(), Config(tasks=["needle-*"], scope=scope))
+                smoke.run_smoke(ctx)
+                entry = ctx.store.get(key(ctx, "smoke", "needle-10"))
+                self.assertEqual(entry["status"], "skipped")
+                self.assertEqual(entry["values"]["reason"], f"not in scope {scope}")
+
+    def test_scope_skipped_needles_run_in_a_later_full_scope_run(self):
+        engine = ChatEngine(lambda i, m, t, s: "7391-QZ")
+        ctx = self.ctx(engine, Config(tasks=["needle-10"], scope="no-context"))
+        smoke.run_smoke(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "smoke", "needle-10"))["status"], "skipped")
+        ctx.cfg.scope = "full"
+        smoke.run_smoke(ctx)  # still no ladder: pending, the old scope skip is not final
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"ctx": 8192})
+        smoke.run_smoke(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "smoke", "needle-10"))["status"], "ok")
+
+    def test_a_real_skip_stays_final_in_every_scope(self):
+        ctx = self.ctx(ChatEngine(), Config(tasks=["needle-10"]),
+                       rungs=[(8192, "does_not_fit")])
+        smoke.run_smoke(ctx)
+        first = ctx.store.get(key(ctx, "smoke", "needle-10"))["finished_at"]
+        ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"ctx": 8192})
+        smoke.run_smoke(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "smoke", "needle-10"))["status"], "skipped")
+        self.assertEqual(ctx.store.get(key(ctx, "smoke", "needle-10"))["finished_at"], first)
+
     def test_long_context_pending_while_a_rung_is_retryable(self):
         ctx = self.ctx(ChatEngine(), Config(tasks=["needle-*"]),
                        rungs=[(8192, "does_not_fit"), (16384, "error")])

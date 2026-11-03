@@ -11,12 +11,12 @@ All text is plain English without em-dashes: dashes in data are replaced.
 from __future__ import annotations
 
 import json
-import os
 import re
 from pathlib import Path
 
 from bench import VERSION
 from bench.privacy import PrivacyError, find_leaks, local_secrets
+from bench.store import atomic_write_text
 
 ENGINE_ORDER = ("llamacpp", "ollama")  # the chart order
 CLASS_ORDER = ("S", "M", "L", "XL", "F")
@@ -124,7 +124,7 @@ def _system_section(results: dict) -> list[str]:
             ("CPU", system.get("cpu")),
             ("Cores / threads", f"{system['cores']} / {system.get('threads')}"
              if system.get("cores") else system.get("threads")),
-            ("RAM", f"{system['ram_gb']} GB" if system.get("ram_gb") else None),
+            ("RAM", f"{system['ram_gb']} GiB" if system.get("ram_gb") else None),
             ("RAM speed", f"{system['ram_speed_mts']} MT/s" if system.get("ram_speed_mts")
              else None)]
     for position, gpu in enumerate(g for g in system.get("gpus") or [] if isinstance(g, dict)):
@@ -134,13 +134,13 @@ def _system_section(results: dict) -> list[str]:
         if gpu.get("backend"):
             text += f", backend {gpu['backend']}"
         rows.append((f"GPU {position}", text))
-    rows += [("Memory usable for models", f"{system['memory_for_models_gb']} GB"
+    rows += [("Memory usable for models", f"{system['memory_for_models_gb']} GiB"
               if system.get("memory_for_models_gb") else None),
              ("Uptime at start", f"{system['uptime_min']} min"
               if system.get("uptime_min") is not None else None),
              ("Monitors on the GPU", system.get("monitors_on_gpu")),
              ("Power", system.get("power")), ("Laptop", system.get("laptop")),
-             ("Free disk", f"{system['disk_free_gb']} GB" if system.get("disk_free_gb")
+             ("Free disk", f"{system['disk_free_gb']} GiB" if system.get("disk_free_gb")
               else None)]
     return ["## System", ""] + _table(["Item", "Value"], [[k, v] for k, v in rows
                                                           if v not in (None, "")]) + [""]
@@ -193,16 +193,30 @@ def _memory_section(steps: dict) -> list[str]:
                     if k.startswith("ctx-") and k[4:].isdigit()))
     if rungs:
         out += ["Measured context ladder:", ""]
+        with_baseline = any(isinstance(_dict(e.get("values")).get("vram_baseline_mb"),
+                                       (int, float)) for _, e in rungs)
         rows = []
         for ctx, entry in rungs:
             v = _dict(entry.get("values"))
-            rows.append([ctx, entry.get("status"), v.get("load_s"), v.get("vram_used_mb"),
+            used, base = v.get("vram_used_mb"), v.get("vram_baseline_mb")
+            memory = [used]
+            if with_baseline:
+                model = (used - base if isinstance(used, (int, float))
+                         and isinstance(base, (int, float)) else None)
+                memory = [used, base, model]
+            rows.append([ctx, entry.get("status"), v.get("load_s"), *memory,
                          v.get("kv_buffer_mb"), v.get("rs_buffer_mb"), v.get("prompt_tps"),
                          v.get("gen_tps"), v.get("ttft_s"), v.get("gpu_fraction"),
                          _note(entry)])
-        out += _table(["Context", "Status", "Load s", "VRAM used MB", "KV buffer MB",
-                       "RS buffer MB", "Prompt tok/s", "Gen tok/s", "TTFT s", "GPU share",
+        memory_header = (["VRAM used MiB", "Baseline MiB", "Model memory MiB"] if with_baseline
+                         else ["VRAM used MiB"])
+        out += _table(["Context", "Status", "Load s", *memory_header, "KV buffer MiB",
+                       "RS buffer MiB", "Prompt tok/s", "Gen tok/s", "TTFT s", "GPU share",
                        "Note"], rows)
+        out.append("")
+        out.append("VRAM used includes the desktop and every other program on the GPU"
+                   + ("; baseline is the VRAM in use before the model was loaded, model memory "
+                      "is used minus baseline." if with_baseline else "."))
         out.append("")
     return out
 
@@ -414,13 +428,6 @@ def render_run_readme(results: dict) -> str:
     return "\n".join(lines).replace(EM_DASH, "-").rstrip("\n") + "\n"
 
 
-def _write_text(path: Path, text: str) -> None:
-    from bench.store import retry_on_lock
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8", newline="\n")
-    retry_on_lock(lambda: os.replace(tmp, path))
-
-
 def write_report(run_dir: Path) -> None:
     """Render `<run_dir>/README.md` from `<run_dir>/results.json`.
 
@@ -449,4 +456,4 @@ def write_report(run_dir: Path) -> None:
                 leaks += [f"raw/{path.name}: {leak}" for leak in find_leaks(content, secrets)]
     if leaks:
         raise PrivacyError(leaks)
-    _write_text(run_dir / "README.md", readme)
+    atomic_write_text(run_dir / "README.md", readme)

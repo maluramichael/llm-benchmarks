@@ -252,6 +252,29 @@ class SpeedTest(unittest.TestCase):
         self.assertEqual(deep["status"], "ok")
         self.assertEqual(deep["values"]["depth"], 8192)
 
+    def test_deep_is_skipped_for_scopes_without_a_ladder_and_runs_later(self):
+        for scope in ("no-context", "warm-only"):
+            with self.subTest(scope=scope):
+                (Path(self.tmp.name) / "results.json").unlink(missing_ok=True)
+                ctx = self.bench_ctx()
+                ctx.cfg.scope = scope
+                with mock.patch.object(speed, "run_llama_bench",
+                                       side_effect=self.fake_bench([])):
+                    speed.run_speed(ctx)
+                entry = ctx.store.get(key(ctx, "speed", "llama-bench-deep"))
+                self.assertEqual(entry["status"], "skipped")
+                self.assertEqual(entry["values"]["reason"], f"not in scope {scope}")
+        (Path(self.tmp.name) / "results.json").unlink(missing_ok=True)
+        ctx = self.bench_ctx()
+        ctx.cfg.scope = "no-context"
+        calls = []
+        with mock.patch.object(speed, "run_llama_bench", side_effect=self.fake_bench(calls)):
+            speed.run_speed(ctx)
+            ctx.cfg.scope = "full"
+            ctx.store.save(key(ctx, "memory", "ctx-8192"), "ok", {"vram_used_mb": 5000})
+            speed.run_speed(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "speed", "llama-bench-deep"))["status"], "ok")
+
     def test_deep_pending_when_ladder_has_error(self):
         ctx = self.bench_ctx()
         ctx.store.save(key(ctx, "memory", "ctx-8192"), "error", {"error": "x"})

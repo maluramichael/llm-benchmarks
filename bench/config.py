@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -17,7 +18,6 @@ COMMANDS = {
     "system": "Collect and show system information, suggest a device name",
     "doctor": "Check prerequisites (uptime, open programs, monitors, driver settings)",
     "plan": "Check what fits into memory, estimate duration, mark missing combinations",
-    "setup": "Find or fetch engines and models, measure nothing",
     "run": "Run the suites, saving after every single test",
     "report": "Render results.json to the run's README.md, with privacy check",
 }
@@ -158,9 +158,19 @@ def _bool(value) -> bool:
     return value
 
 
+MODEL_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _model_id(model_id: str) -> str:
+    if not MODEL_ID.match(model_id):
+        raise ConfigError(f"invalid model id {model_id!r} "
+                          "(letters, digits, dot, dash and underscore only)")
+    return model_id
+
+
 def _gguf(value) -> dict[str, Path]:
     if isinstance(value, dict):
-        return {str(k): _path(v) for k, v in value.items()}
+        return {_model_id(str(k)): _path(v) for k, v in value.items()}
     if isinstance(value, str):
         value = [value]
     if not isinstance(value, list):
@@ -170,7 +180,7 @@ def _gguf(value) -> dict[str, Path]:
         model_id, sep, path = _text(entry).partition("=")
         if not sep or not model_id or not path:
             raise ConfigError(f"expected <id>=<path>, got {entry!r}")
-        result[model_id] = Path(path)
+        result[_model_id(model_id)] = Path(path)
     return result
 
 

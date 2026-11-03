@@ -61,6 +61,9 @@ class RunnerTest(unittest.TestCase):
                                         lambda idx, frac=None: Reading(20000, frac, None, None))
             patcher.start()
             self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(runner, "LOG_DIR", self.root / "logs")
+        patcher.start()
+        self.addCleanup(patcher.stop)
         patcher = mock.patch.object(runner, "local_secrets", return_value=[])
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -195,7 +198,7 @@ class RunnerTest(unittest.TestCase):
         data = self.results()
         self.assertEqual(data["system"]["os"], "Test OS")
         self.assertEqual(data["run"]["device"], DEVICE)
-        self.assertEqual(data["run"]["bench_version"], "1.0.0")
+        self.assertEqual(data["run"]["bench_version"], "1.1.0")
         self.assertRegex(data["run"]["started_at"], r"^\d{4}-\d\d-\d\dT")
         engine = data["engines"]["ollama"]
         self.assertEqual(engine["version"], "fake-1")
@@ -867,6 +870,57 @@ class RunnerTest(unittest.TestCase):
         env.suites = {"memory": lambda ctx: seen.append(1)}
         runner.run(self.cfg(suites=["memory"]), env)
         self.assertEqual(seen, [1])
+
+    def test_every_step_records_bench_version_and_where_the_weights_came_from(self):
+        def resolve(model_id, engine, cfg, say=None):
+            return ModelRef(model_id, model_id, "Q4_K_M", "t", None, "sha256:x", 2_000_000_000,
+                            weights_source="mirror copy")
+        runner.run(self.cfg(), self.env(resolve=resolve))
+        tests = self.results()["tests"]
+        self.assertTrue(tests)
+        for key, entry in tests.items():
+            self.assertEqual(entry["meta"]["bench_version"], runner.VERSION, key)
+            self.assertEqual(entry["meta"]["weights_source"], "mirror copy", key)
+
+    def test_old_logs_are_pruned_at_the_start_of_a_run(self):
+        import os
+        import time
+        logs = self.root / "logs"
+        logs.mkdir()
+        old, fresh = logs / "ollama-1-1.log", logs / "ollama-2-2.log"
+        for path in (old, fresh):
+            path.write_text("x", encoding="utf-8")
+        long_ago = time.time() - 15 * 86400
+        os.utime(old, (long_ago, long_ago))
+        (logs / "notes.txt").write_text("keep", encoding="utf-8")
+        os.utime(logs / "notes.txt", (long_ago, long_ago))
+        with mock.patch.object(runner, "LOG_DIR", logs):
+            runner.run(self.cfg(), self.env())
+        self.assertFalse(old.exists())
+        self.assertTrue(fresh.exists())
+        self.assertTrue((logs / "notes.txt").exists())  # only *.log files
+
+    def test_dry_run_prunes_nothing(self):
+        import os
+        import time
+        logs = self.root / "logs"
+        logs.mkdir()
+        old = logs / "a.log"
+        old.write_text("x", encoding="utf-8")
+        long_ago = time.time() - 30 * 86400
+        os.utime(old, (long_ago, long_ago))
+        with mock.patch.object(runner, "LOG_DIR", logs):
+            runner.run(self.cfg(dry_run=True), self.env())
+        self.assertTrue(old.exists())
+
+    def test_fit_reason_uses_binary_units(self):
+        env = self.env(resolve=lambda model_id, engine, cfg, say=None: ModelRef(
+            model_id, model_id, "Q4_K_M", "t", None, None, 30 * 1024**3))
+        env.suites = {"memory": lambda ctx: None}
+        runner.run(self.cfg(suites=["memory"]), env)
+        reason = self.results()["tests"]["ollama/S/memory/fit"]["values"]["reason"]
+        self.assertIn("30.0 GiB", reason)
+        self.assertIn("24.0 GiB", reason)
 
     def test_run_summary_is_printed(self):
         runner.run(self.cfg(), self.env())

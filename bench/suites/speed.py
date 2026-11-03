@@ -19,6 +19,8 @@ while no rung is ok and a rung is retryable (error, aborted); a later run fills 
 stored `skipped` with a reason when all rungs are does_not_fit/skipped ("no context step
 fits"), when no VRAM figure exists for the depth ("no memory figure for depth N", taken
 from the rung, else from memory/computed), or when the guard refuses.
+With --scope no-context or warm-only the deep step is stored `skipped` ("not in scope
+<scope>", flag `scope_skipped`); a later --scope full run measures it.
 A step stored `aborted` (driver reset, or a crash recovered as aborted) is not repeated
 automatically; only --force / --force-test run it again.
 Every run_speed call uses a fresh prompt nonce, so a rerun against a warm server stays cold.
@@ -38,7 +40,7 @@ from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
                           make_prompt, median, now, prepare_counting, reset_state, retry_truncated,
-                          fresh_prompt, step_meta)
+                          fresh_prompt, scope_skip, step_meta, wants_run)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -221,19 +223,26 @@ def run_speed(ctx: RunContext) -> None:
     steps = ["warm"] if ctx.cfg.scope == "warm-only" else list(STEPS)
     if ctx.engine.name != "llamacpp":
         steps = [s for s in steps if not s.startswith("llama-bench")]
+    if ctx.cfg.scope != "full" and ctx.engine.name == "llamacpp" and "llama-bench-deep" not in steps:
+        steps.append("llama-bench-deep")  # only to be stored as out of scope below
     state = {"loaded": False}
     ctx.prompts.clear()
     ctx.nonce = secrets.token_hex(3)  # fresh prompts even if this is a rerun on a warm server
     meta = step_meta(ctx)
     for step in steps:
         test_key = key(ctx, "speed", step)
-        if not ctx.store.should_run(test_key, ctx.cfg.force, ctx.cfg.force_tests):
+        if not wants_run(ctx, test_key):
             continue
         entry = ctx.store.get(test_key)
         if entry and entry["status"] == "aborted" and not forced(ctx, test_key):
             continue  # may have reset the driver: only --force/--force-test repeats it
+        if step == "llama-bench-deep" and ctx.cfg.scope == "warm-only":
+            scope_skip(ctx, test_key, meta=meta)
+            continue
         if step == "llama-bench-deep" and _deep_plan(ctx)[0] == "pending":
-            continue  # stays pending until the memory ladder gives a depth
+            if ctx.cfg.scope != "full":  # the ladder will not run in this scope
+                scope_skip(ctx, test_key, meta=meta)
+            continue  # else pending until the memory ladder gives a depth
         ctx.store.mark_running(test_key, meta)
         started = now()
         try:

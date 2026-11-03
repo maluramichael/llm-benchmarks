@@ -52,7 +52,8 @@ class PlanTest(unittest.TestCase):
         self.assertTrue(small["S"]["fits"])
         self.assertFalse(small["M"]["fits"])
         self.assertIn("8k", small["M"]["reason"])
-        self.assertIn("8 GB", small["M"]["reason"])  # what the card has
+        self.assertIn("8 GiB", small["M"]["reason"])  # what the card has (binary unit)
+        self.assertNotIn(" GB", small["M"]["reason"].replace("23.4 GB", ""))
         self.assertIn("reserve", small["M"]["reason"])
 
     def test_reserve_decides_the_edge(self):

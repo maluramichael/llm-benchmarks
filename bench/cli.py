@@ -1,4 +1,4 @@
-"""Command line interface: bench system|doctor|plan|setup|run|report."""
+"""Command line interface: bench system|doctor|plan|run|report."""
 
 from __future__ import annotations
 
@@ -107,5 +107,4 @@ def main(argv: list[str] | None = None) -> int:
     except StoreError as err:
         print(f"error: {scrub(str(err), local_secrets())}")
         return 1
-    print(f"bench {command}: not implemented yet")
-    return 0
+    raise AssertionError(f"command {command!r} is not wired")

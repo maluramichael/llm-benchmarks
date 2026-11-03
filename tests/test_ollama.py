@@ -87,6 +87,20 @@ class ProcessOwnershipTestBase(EngineTestCase):
 class ProcessOwnershipTest(ProcessOwnershipTestBase):
 
     @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
+    def test_every_start_gets_its_own_log_file(self):
+        os.environ["FAKE_OUT"] = str(self.dir / "env.json")
+        self.addCleanup(os.environ.pop, "FAKE_OUT", None)
+        logs = self.dir / "logs"
+        with mock.patch("bench.engines.ollama.pick_port", return_value=54321):
+            for _ in range(2):
+                engine = OllamaEngine(config(ollama_bin=self.fake_binary()), log_dir=logs)
+                engine.start()
+                engine.stop()
+        found = sorted(p.name for p in logs.glob("ollama-*.log"))
+        self.assertEqual(len(found), 2, found)
+        self.assertTrue(all(n.startswith("ollama-54321-") for n in found))
+
+    @unittest.skipIf(os.name == "nt", "the fake binary is a POSIX script")
     def test_own_server_on_free_port(self):
         # Something else already listens on the default port (best effort: if the port
         # is taken by a real server, that is the same situation).

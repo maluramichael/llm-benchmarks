@@ -152,9 +152,18 @@ class ConfigTest(unittest.TestCase):
     def test_gguf_repeatable(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg_path = write_toml(tmp, "")
-            _, cfg = load_config(["setup", "--config", cfg_path,
+            _, cfg = load_config(["run", "--config", cfg_path,
                                   "--gguf", "S=/m/s.gguf", "--gguf", "M=/m/m.gguf"])
         self.assertEqual(cfg.gguf, {"S": Path("/m/s.gguf"), "M": Path("/m/m.gguf")})
+
+    def test_gguf_ids_are_validated(self):
+        for bad in ("a/b=/m/x.gguf", "a b=/m/x.gguf", "a:b=/m/x.gguf", "..\\x=/m/x.gguf",
+                    "x;y=/m/x.gguf"):
+            with self.subTest(bad=bad), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    load_config(["run", "--gguf", bad])
+        _, cfg = load_config(["run", "--gguf", "XL.v2_a-b=/m/x.gguf"])
+        self.assertIn("XL.v2_a-b", cfg.gguf)
 
     def test_flags_and_comma_lists(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -6,7 +6,7 @@
     available                     the model could be found or resolved at all
     source                        local, mirror (copied by the run) or download
     fits, reason                  fits at 8k (None: unknown, VRAM figure unreliable) context plus the safety reserve? and why
-    need_gb, available_gb         the numbers behind it (None when unknown)
+    need_gb, available_gb         the numbers behind it in GiB (None when unknown)
     download_gb                   0 when the file is there, None when it cannot be resolved
     needs_consent                 download above 20 GB and no --yes
     minutes_low, minutes_high     time estimate for the selected suites (rough)
@@ -53,11 +53,12 @@ CONCURRENCY_LOW, CONCURRENCY_HIGH = 2.0, 8.0
 PER_GB_LOW, PER_GB_HIGH = 0.05, 0.3  # extra minutes per GB of weights for speed and smoke
 
 
-def _gb(value) -> str:
+def _gib(value) -> str:
+    """A size in binary units (GiB, 1024^3 bytes). Download sizes stay decimal GB."""
     if value is None:
         return "unknown"
     text = f"{value:.1f}"
-    return (text[:-2] if text.endswith(".0") else text) + " GB"
+    return (text[:-2] if text.endswith(".0") else text) + " GiB"
 
 
 def vram_is_reliable(gpu: dict | None) -> bool:
@@ -177,15 +178,15 @@ def make_plan(cfg, system: dict, *, store=None,
             need_bytes = curve[FIT_CTX] if curve else weights
             need_gb = need_bytes / GIB
             entry["need_gb"] = round(need_gb, 1)
-            what = (f"{_gb(need_gb)} at 8k context (weights {_gb(weights_gb)} plus KV cache "
-                    f"{_gb(need_gb - weights_gb)})") if curve else (
-                f"{_gb(weights_gb)} (weights only, KV cache unknown)")
+            what = (f"{_gib(need_gb)} at 8k context (weights {_gib(weights_gb)} plus KV cache "
+                    f"{_gib(need_gb - weights_gb)})") if curve else (
+                f"{_gib(weights_gb)} (weights only, KV cache unknown)")
             gpu = _gpu(system, index)
             if available is not None and gpu and not vram_is_reliable(gpu):
                 entry["fits"] = None
                 entry["available_gb"] = round(available / 1024, 1)
                 entry["reason"] = (f"unknown: needs {what}, but the VRAM figure of this card "
-                                   f"({_gb(available / 1024)}) is unreliable on Windows; the run "
+                                   f"({_gib(available / 1024)}) is unreliable on Windows; the run "
                                    "finds out")
                 rungs = list(cfg.ctx_steps)
             elif available is None:
@@ -197,8 +198,8 @@ def make_plan(cfg, system: dict, *, store=None,
                 fits = need_bytes / MIB + reserve <= available
                 entry["fits"] = fits
                 verdict = "fits" if fits else "does not fit"
-                entry["reason"] = (f"{verdict}: needs {what} plus {_gb(reserve / 1024)} safety "
-                                   f"reserve, {_gb(available / 1024)} available")
+                entry["reason"] = (f"{verdict}: needs {what} plus {_gib(reserve / 1024)} safety "
+                                   f"reserve, {_gib(available / 1024)} available")
                 rungs = [c for c in cfg.ctx_steps
                          if ((curve[c] if curve and c in curve else need_bytes) / MIB
                              + reserve <= available)] if curve else (

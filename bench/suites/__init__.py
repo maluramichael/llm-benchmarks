@@ -57,7 +57,8 @@ def step_meta(ctx: RunContext) -> dict:
     except Exception:
         version = None
     return {"engine_version": version, "model_digest": ctx.model.digest,
-            "bench_version": VERSION}
+            "bench_version": VERSION,
+            "weights_source": getattr(ctx.model, "weights_source", None)}
 
 
 def clean_error(err: BaseException) -> str:
@@ -178,6 +179,29 @@ def median(values) -> float | int | None:
     import statistics
     present = [v for v in values if v is not None]
     return statistics.median(present) if present else None
+
+
+def scope_skip(ctx: RunContext, test_key: str, extra: dict | None = None, meta=None) -> None:
+    """Store a step that the chosen --scope leaves out (no memory ladder, so the context size
+    it needs will never exist). The entry is `skipped` with `scope_skipped` True: unlike a
+    real skip it is not final, a later run with --scope full measures the step."""
+    ctx.store.save(test_key, "skipped",
+                   {**(extra or {}), "reason": f"not in scope {ctx.cfg.scope}",
+                    "scope_skipped": True}, meta)
+
+
+def wants_run(ctx: RunContext, test_key: str) -> bool:
+    """store.should_run, except that a step skipped only because of the scope runs again
+    once the scope is full."""
+    entry = ctx.store.get(test_key)
+    if (entry and entry["status"] == "skipped" and ctx.cfg.scope == "full"
+            and _dict_of(entry.get("values")).get("scope_skipped") is True):
+        return True
+    return ctx.store.should_run(test_key, ctx.cfg.force, ctx.cfg.force_tests)
+
+
+def _dict_of(value) -> dict:
+    return value if isinstance(value, dict) else {}
 
 
 def context_plan(ctx: RunContext) -> tuple[str, int | str | None]:

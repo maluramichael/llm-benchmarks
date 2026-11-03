@@ -263,12 +263,11 @@ def _sets_flash_attn(args: list[str]) -> bool:
 
 
 def pick_port() -> int:
-    """A free port that is not llama-server's default port."""
-    for _ in range(20):
-        port = proc.free_port()
-        if port != DEFAULT_PORT:
-            return port
-    raise EngineError("no free port found")
+    """A free port that is neither default port (see bench.proc.pick_port)."""
+    try:
+        return proc.pick_port()
+    except proc.ProcError as err:
+        raise EngineError(str(err)) from None
 
 
 class _StartFailed(EngineError):

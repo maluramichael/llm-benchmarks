@@ -147,6 +147,26 @@ def find_run_dir(output: Path, device: str, today: date) -> Path:
 
 # --- helpers -------------------------------------------------------------------------------
 
+LOG_MAX_AGE_DAYS = 14
+
+
+def prune_logs(directory: Path, days: int = LOG_MAX_AGE_DAYS) -> int:
+    """Delete engine logs (*.log) older than `days` days; returns how many. Never raises."""
+    removed = 0
+    limit = time.time() - days * 86400
+    try:
+        for path in Path(directory).glob("*.log"):
+            try:
+                if path.is_file() and path.stat().st_mtime < limit:
+                    path.unlink()
+                    removed += 1
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return removed
+
+
 def _clean(value):
     return scrub(value, local_secrets())
 
@@ -337,8 +357,8 @@ def _resolve_models(state: _State, engine_name: str) -> list:
         weights = (ref.size_bytes or 0) / MIB
         reserve = state.guard.reserve_mb()
         if total and weights and plan.vram_is_reliable(gpu) and weights + reserve > total:
-            reason = (f"the weights alone ({weights / 1024:.1f} GB) plus the {reserve / 1024:.1f} "
-                      f"GB safety reserve exceed the {total / 1024:.1f} GB of the card")
+            reason = (f"the weights alone ({weights / 1024:.1f} GiB) plus the {reserve / 1024:.1f} "
+                      f"GiB safety reserve exceed the {total / 1024:.1f} GiB of the card")
             key = f"{engine_name}/{ref.id}/memory/fit"
             entry = store.get(key)
             if entry is None or entry["status"] != "does_not_fit":
@@ -459,6 +479,7 @@ def _run(cfg: Config, env: Env) -> int:
         say("\nDry run: nothing was measured, copied or downloaded.")
         return EXIT_OK
 
+    prune_logs(LOG_DIR)
     findings = env.preflight(cfg, gpu_index)
     for finding in findings:
         say(f"warning: {finding['text']}")

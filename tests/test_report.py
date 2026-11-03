@@ -98,7 +98,7 @@ class RenderTest(unittest.TestCase):
         self.assertIn("2026-11-03", first)
 
     def test_system_table(self):
-        for expected in ("Windows 11", "AMD Ryzen 9", "64 GB", "NVIDIA GeForce RTX 3090",
+        for expected in ("Windows 11", "AMD Ryzen 9", "64 GiB", "NVIDIA GeForce RTX 3090",
                          "24576", "591.59", "10.0.26100"):
             self.assertIn(expected, self.text)
 
@@ -110,6 +110,18 @@ class RenderTest(unittest.TestCase):
         for expected in ("8192", "32768", "65536", "does_not_fit", "only 900 MB would stay free",
                          "3100", "1024"):
             self.assertIn(expected, self.text)
+
+    def test_memory_columns_name_their_units_and_baseline(self):
+        self.assertIn("VRAM used MiB", self.text)
+        self.assertIn("KV buffer MiB", self.text)
+        self.assertNotRegex(self.text, r"VRAM used MB|KV buffer MB")
+        data = sample_results()
+        for step, baseline in (("ctx-8192", 600), ("ctx-32768", 650)):
+            data["tests"]["llamacpp/S/memory/" + step]["values"]["vram_baseline_mb"] = baseline
+        text = report.render_run_readme(data)
+        self.assertIn("Model memory MiB", text)
+        self.assertRegex(text, r"\| 8192 \| ok \| 3\.2 \| 3100 \| 600 \| 2500 \|")
+        self.assertIn("includes the desktop", text)
 
     def test_computed_curve_is_marked_as_upper_bound(self):
         self.assertIn("upper bound", self.text)
@@ -270,6 +282,22 @@ class WriteReportTest(unittest.TestCase):
         self.write(data)
         with self.assertRaises(PrivacyError):
             report.write_report(self.run_dir)
+        self.assertEqual((self.run_dir / "README.md").read_text(encoding="utf-8"), "old")
+
+    def test_readme_is_written_atomically_and_synced(self):
+        self.write(sample_results())
+        with mock.patch("bench.store.os.fsync") as fsync:
+            report.write_report(self.run_dir)
+        fsync.assert_called()
+        self.assertEqual([p.name for p in self.run_dir.iterdir() if p.name.endswith(".tmp")], [])
+
+    def test_failed_readme_write_leaves_no_tmp_and_keeps_the_old_file(self):
+        self.write(sample_results())
+        (self.run_dir / "README.md").write_text("old", encoding="utf-8")
+        with mock.patch("bench.store.os.replace", side_effect=OSError("disk")):
+            with self.assertRaises(OSError):
+                report.write_report(self.run_dir)
+        self.assertEqual([p.name for p in self.run_dir.iterdir() if p.name.endswith(".tmp")], [])
         self.assertEqual((self.run_dir / "README.md").read_text(encoding="utf-8"), "old")
 
     def test_missing_results_is_a_clear_error(self):

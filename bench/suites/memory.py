@@ -116,6 +116,37 @@ def _optional(call):
         return None
 
 
+FOREIGN_VRAM_MB = 1024  # baseline growth since the first rung that points to a foreign process
+
+
+def _first_baseline(ctx: RunContext, n: int) -> int | None:
+    """vram_baseline_mb of the lowest other rung of this ladder that has one."""
+    prefix = key(ctx, "memory", "ctx-")
+    found = {}
+    for test_key, entry in ctx.store.data["tests"].items():
+        rest = test_key[len(prefix):]
+        if test_key.startswith(prefix) and rest.isdigit() and int(rest) != n:
+            baseline = (entry.get("values") or {}).get("vram_baseline_mb")
+            if isinstance(baseline, (int, float)):
+                found[int(rest)] = baseline
+    return found[min(found)] if found else None
+
+
+def _refused(ctx: RunContext, n: int, test_key: str, values: dict, why: str, meta: dict) -> str:
+    """The guard said no. If the VRAM in use before the load (baseline) grew a lot since the
+    first rung, a foreign process took it: that is no limit of this model, so the rung is a
+    retryable `error`. Otherwise it is a final `does_not_fit`."""
+    first, baseline = _first_baseline(ctx, n), values.get("vram_baseline_mb")
+    if first is not None and baseline is not None and baseline - first > FOREIGN_VRAM_MB:
+        ctx.store.save(test_key, "error",
+                       {**values, "reason": f"VRAM taken by another process (in use before the "
+                                            f"load: {baseline} MiB, {first} MiB at the first "
+                                            f"rung); guard said: {why}"}, meta)
+        return "error"
+    ctx.store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
+    return "does_not_fit"
+
+
 def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> str:
     """Run one rung. Returns ok, stop (ok, but do not climb), does_not_fit or error."""
     engine, guard, store = ctx.engine, ctx.guard, ctx.store
@@ -134,8 +165,7 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
                 values["vram_baseline_mb"] = guard.vram_total_mb - before.vram_free_mb
             allowed, why = guard.before_step(int(estimates.get(n, 0) // MIB), before)
             if not allowed:
-                store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
-                return "does_not_fit"
+                return _refused(ctx, n, test_key, values, why, meta)
             values["load_s"] = engine.load(ctx.model, n)
             fill = fill_target
             slot = MEMORY_SLOT + index
@@ -160,8 +190,7 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
                 "gen_tps": timing.gen_tps, "cached_tokens": timing.cached_tokens})
             allowed, why = guard.after_step(before, after)
             if not allowed:
-                store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
-                return "does_not_fit"
+                return _refused(ctx, n, test_key, values, why, meta)
         except RunAborted:
             raise
         except Exception as err:

@@ -111,12 +111,11 @@ def gpu_backend(cfg: Config) -> str | None:
 
 
 def pick_port() -> int:
-    """A free port that is not Ollama's default port."""
-    for _ in range(20):
-        port = proc.free_port()
-        if port != DEFAULT_PORT:
-            return port
-    raise EngineError("no free port found")
+    """A free port that is neither default port (see bench.proc.pick_port)."""
+    try:
+        return proc.pick_port()
+    except proc.ProcError as err:
+        raise EngineError(str(err)) from None
 
 
 def parse_runner_start(log_text: str) -> tuple[int, int] | None:
@@ -256,7 +255,7 @@ class OllamaEngine:
         kept = tuple(n for n in KEPT_ENV if n != "OLLAMA_MODELS" or not self.cfg.ollama_models_dir)
         drop = [name for name in os.environ
                 if proc.dropped(name, DROPPED_ENV) and not proc.dropped(name, kept)]
-        log_path = self.log_dir / f"ollama-{port}.log"
+        log_path = self.log_dir / f"ollama-{port}-{time.time_ns()}.log"  # one log per start
         owned = proc.Owned([binary, "serve"], env=env, log_path=log_path, drop_env=drop)
         # Owned from here on: whatever happens next (Ctrl-C included), the child is in its
         # own process group and only stop() can end it. stop() does nothing if the

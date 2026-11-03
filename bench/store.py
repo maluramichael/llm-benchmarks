@@ -186,37 +186,45 @@ class ResultStore:
         self._persist()
 
     def _persist(self) -> None:
-        """Atomically replace the file: write `.tmp`, flush, fsync, os.replace.
+        """Atomically replace the file (see `atomic_write_text`)."""
+        atomic_write_text(self.path, _dumps(self.data))
 
-        Transient lock errors (PermissionError, Windows sharing violations) are
-        retried with backoff; the last error is raised after LOCK_ATTEMPTS tries.
-        """
-        text = _dumps(self.data)
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
 
-        def write_tmp() -> None:
-            with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(text)
-                handle.flush()
-                os.fsync(handle.fileno())
-
+def _sync_directory(directory: Path) -> None:
+    """Make a rename itself durable. Best effort, not possible on Windows."""
+    if os.name == "nt":
+        return
+    with contextlib.suppress(OSError):
+        fd = os.open(directory, os.O_RDONLY)
         try:
-            _retry_on_lock(write_tmp)
-            _retry_on_lock(lambda: os.replace(tmp, self.path))
-        except BaseException:
-            with contextlib.suppress(OSError):
-                tmp.unlink()
-            raise
-        self._sync_directory()
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
-    def _sync_directory(self) -> None:
-        """Make the rename itself durable. Best effort, not possible on Windows."""
-        if os.name == "nt":
-            return
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Write `text` to `path`: `<path>.tmp` is written, flushed and fsynced, then os.replace
+    swaps it in, so a crash leaves the old or the new complete file, never half of one.
+
+    Transient lock errors (PermissionError, Windows sharing violations) are retried with
+    backoff; the last error is raised after LOCK_ATTEMPTS tries. A failed write removes the
+    temporary file.
+    """
+    path = Path(path)
+    tmp = path.with_name(path.name + ".tmp")
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    def write_tmp() -> None:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    try:
+        _retry_on_lock(write_tmp)
+        _retry_on_lock(lambda: os.replace(tmp, path))
+    except BaseException:
         with contextlib.suppress(OSError):
-            fd = os.open(self.path.parent, os.O_RDONLY)
-            try:
-                os.fsync(fd)
-            finally:
-                os.close(fd)
+            tmp.unlink()
+        raise
+    _sync_directory(path.parent)

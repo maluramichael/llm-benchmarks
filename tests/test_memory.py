@@ -139,6 +139,24 @@ class MemoryTest(unittest.TestCase):
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-16384"))["status"], "does_not_fit")
         self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-32768"))["status"], "skipped")
 
+    def test_refusal_after_another_process_grabbed_vram_is_a_retryable_error(self):
+        readings = iter([23000, 23000, 17000, 17000, 17000, 17000])  # baseline 1000, then 7000
+        patch = mock.patch.object(memory, "take_reading",
+                                  lambda idx, frac=None: Reading(next(readings), frac, None, None))
+        with patch:
+            ctx = self.ctx(guard=Guard(refuse_at=1), cfg=Config(ctx_steps=[8192, 16384, 32768]))
+            memory.run_memory(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-8192"))["status"], "ok")
+        entry = ctx.store.get(key(ctx, "memory", "ctx-16384"))
+        self.assertEqual(entry["status"], "error")
+        self.assertIn("VRAM taken by another process", entry["values"]["reason"])
+        self.assertIsNone(ctx.store.get(key(ctx, "memory", "ctx-32768")))  # retried together
+
+    def test_refusal_with_an_unchanged_baseline_is_still_does_not_fit(self):
+        ctx = self.ctx(guard=Guard(refuse_at=1), cfg=Config(ctx_steps=[8192, 16384]))
+        memory.run_memory(ctx)
+        self.assertEqual(ctx.store.get(key(ctx, "memory", "ctx-16384"))["status"], "does_not_fit")
+
     def test_missing_model_is_error_not_does_not_fit(self):
         def fail(kind, arg):
             if kind == "load":

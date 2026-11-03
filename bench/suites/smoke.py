@@ -22,7 +22,9 @@ needle document gets that minus 512 (question, template) minus the answer's max_
 truncated is rebuilt once, truncated again it is stored `error` (never judged). The needle tasks stay pending (not stored) while
 no `memory/ctx-*` entry exists or a rung is still retryable, so the runner order is
 memory -> speed -> smoke; a later run fills them in. When all rungs are does_not_fit or
-skipped the needle tasks are stored `skipped`.
+skipped the needle tasks are stored `skipped`. With --scope no-context or warm-only there
+is no ladder: the needle tasks are stored `skipped` ("not in scope <scope>", flag
+`scope_skipped`) and a later run with --scope full measures them after all.
 
 Code tasks execute model generated Python (not a sandbox, see bench.checkers).
 """
@@ -40,7 +42,8 @@ from bench.corpus import needle_text
 from bench.engines.base import Sampling
 from bench.privacy import local_secrets, scrub
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, exact_counts,
-                          forced, key, now, reset_state, retry_truncated, step_meta)
+                          forced, key, now, reset_state, retry_truncated, scope_skip, step_meta,
+                          wants_run)
 
 TASKS_DIR = Path(__file__).resolve().parent.parent / "data" / "tasks"
 CATEGORY_COUNTS = {"math": 8, "code": 6, "json": 5, "tool_calls": 5, "long_context": 3,
@@ -129,7 +132,7 @@ def run_smoke(ctx: RunContext) -> None:
     state = {"ctx": None}
     for task in tasks:
         test_key = key(ctx, "smoke", task["id"])
-        if not ctx.store.should_run(test_key, cfg.force, cfg.force_tests):
+        if not wants_run(ctx, test_key):
             continue
         entry = ctx.store.get(test_key)
         if entry and entry["status"] == "aborted" and not forced(ctx, test_key):
@@ -143,7 +146,9 @@ def run_smoke(ctx: RunContext) -> None:
         if task["category"] == "long_context":
             kind, detail = context_plan(ctx)
             if kind == "pending":
-                continue  # stays pending until the memory ladder gives a context size
+                if cfg.scope != "full":  # the ladder will not run in this scope
+                    scope_skip(ctx, test_key, {"category": task["category"]}, meta)
+                continue  # else pending until the memory ladder gives a context size
             if kind == "skip":
                 ctx.store.save(test_key, "skipped",
                                {"reason": detail, "category": task["category"]}, meta)

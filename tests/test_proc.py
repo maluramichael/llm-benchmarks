@@ -1,4 +1,5 @@
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -111,6 +112,13 @@ class OwnedTest(ProcTestCase):
     def test_drop_env_ignores_case_on_windows(self):
         self.assertTrue(proc.dropped("llama_arg_ctx_size", ("LLAMA_ARG_*",)))
 
+    def test_pick_port_avoids_both_default_ports(self):
+        with mock.patch.object(proc, "free_port", side_effect=[11434, 8080, 8080, 5555]):
+            self.assertEqual(proc.pick_port(), 5555)
+        with mock.patch.object(proc, "free_port", return_value=8080):
+            with self.assertRaises(proc.ProcError):
+                proc.pick_port()
+
     def test_context_manager_stops(self):
         with proc.Owned(SLEEP, log_path=self.log) as owned:
             pid = owned.pid
@@ -141,15 +149,64 @@ class OwnedTest(ProcTestCase):
         owned.stop()
         proc.Owned(SLEEP, log_path=self.log).stop()  # never started
 
-    def test_stop_after_process_died_on_its_own(self):
+    @unittest.skipIf(os.name == "nt", "process groups are POSIX only")
+    def test_stop_kills_grandchildren_after_the_leader_exited(self):
+        script = "sleep 300 & echo $!; exit 0"
+        owned = proc.Owned(["sh", "-c", script], log_path=self.log).start()
+        owned._proc.wait(10)
+        deadline = time.monotonic() + 5
+        while not self.log.read_text(encoding="utf-8").strip():
+            self.assertLess(time.monotonic(), deadline)
+            time.sleep(0.05)
+        grandchild = int(self.log.read_text(encoding="utf-8").split()[0])
+        self.assertTrue(alive(grandchild))
+        owned.stop()
+        deadline = time.monotonic() + 5
+        while alive(grandchild) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertFalse(alive(grandchild))
+
+    def test_stop_signals_the_group_once_only(self):
         owned = proc.Owned([PY, "-c", "pass"], log_path=self.log).start()
         owned._proc.wait(10)
-        with mock.patch("bench.proc.os.killpg", create=True) as killpg, \
+        with mock.patch.object(proc, "IS_WINDOWS", False), \
+                mock.patch("bench.proc.os.killpg", create=True) as killpg, \
                 mock.patch("bench.proc.subprocess.run") as run:
             owned.stop()
+            owned.stop()  # the group id may belong to someone else by now
+        self.assertEqual(killpg.call_count, 1)
+        self.assertEqual(killpg.call_args.args[1], signal.SIGKILL)
+        run.assert_not_called()
+
+    def test_windows_child_goes_into_a_kill_on_close_job(self):
+        job = mock.Mock()
+        job.kill.return_value = True
+        child = mock.Mock(pid=4242)
+        child.poll.return_value = 0  # the leader is gone already
+        with mock.patch.object(proc, "IS_WINDOWS", True), \
+                mock.patch.object(proc.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                mock.patch("bench.proc.subprocess.Popen", return_value=child), \
+                mock.patch("bench.proc.attach_job", return_value=job) as attach, \
+                mock.patch("bench.proc.subprocess.run") as run:
+            owned = proc.Owned(SLEEP, log_path=self.log).start()
+            attach.assert_called_once_with(child)
             owned.stop()
-        killpg.assert_not_called()
-        run.assert_not_called()  # no taskkill either: the pid may belong to someone else now
+            owned.stop()
+        job.kill.assert_called_once()  # grandchildren die with the job, once
+        run.assert_not_called()
+
+    def test_windows_without_a_job_falls_back_to_taskkill_only_while_running(self):
+        child = mock.Mock(pid=4242)
+        child.poll.return_value = None
+        child.wait.return_value = 0
+        with mock.patch.object(proc, "IS_WINDOWS", True), \
+                mock.patch.object(proc.subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200, create=True), \
+                mock.patch("bench.proc.subprocess.Popen", return_value=child), \
+                mock.patch("bench.proc.attach_job", return_value=None), \
+                mock.patch("bench.proc.subprocess.run") as run:
+            owned = proc.Owned(SLEEP, log_path=self.log).start()
+            owned.stop()
+        self.assertEqual(run.call_args.args[0], ["taskkill", "/T", "/F", "/PID", "4242"])
 
     def test_windows_uses_taskkill_for_the_tree(self):
         owned = proc.Owned(SLEEP, log_path=self.log).start()
