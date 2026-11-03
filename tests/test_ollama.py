@@ -15,7 +15,8 @@ from unittest import mock
 
 from bench import proc
 from bench.config import Config
-from bench.engines.base import ChatResult, Completion, EngineError, ModelRef, Sampling, Timing
+from bench.engines.base import (ChatResult, Completion, EngineError, ModelRef, PromptTruncated,
+                                Sampling, Timing)
 from bench.engines.ollama import OllamaEngine
 from fake_http import FakeServer
 
@@ -801,6 +802,42 @@ class RobustnessTest(ProcessOwnershipTestBase):
             engine.start()
         self.assertLess(time.monotonic() - started, 5)
 
+    def test_connection_closed_mid_response_is_an_engine_error(self):
+        # 200 with a promised body of 1000 bytes, 5 sent, then the connection closes
+        port = raw_server(self, b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n"
+                                b"Connection: close\r\n\r\nabcde", close=True)
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir)
+        engine.base_url = f"http://127.0.0.1:{port}"
+        for call in (engine.version, lambda: engine.load(MODEL, 2048),
+                     lambda: engine.complete(MODEL, "x", Sampling()),
+                     lambda: engine.chat(MODEL, [{"role": "user", "content": "x"}], Sampling()),
+                     lambda: engine.count_tokens(MODEL, "x")):
+            with self.assertRaises(EngineError):
+                call()
+
+    def test_inference_timeout_is_an_engine_error(self):
+        port = silent_server(self)
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir,
+                              timeout=0.3, quick_timeout=0.3)
+        engine.base_url = f"http://127.0.0.1:{port}"
+        started = time.monotonic()
+        for call in (lambda: engine.complete(MODEL, "x", Sampling()),
+                     lambda: engine.chat(MODEL, [{"role": "user", "content": "x"}], Sampling()),
+                     lambda: engine.load(MODEL, 2048)):
+            with self.assertRaises(EngineError):
+                call()
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_timeout_while_streaming_is_an_engine_error(self):
+        head = (b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+                b'1d\r\n{"response":"a","done":false}\n\r\n')
+        port = raw_server(self, head)  # then silence
+        engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir,
+                              timeout=0.5)
+        engine.base_url = f"http://127.0.0.1:{port}"
+        with self.assertRaises(EngineError):
+            engine.complete(MODEL, "x", Sampling())
+
     def test_truncated_error_body_becomes_engine_error(self):
         port = truncated_500_server(self)
         engine = OllamaEngine(config(ollama_url=f"http://127.0.0.1:{port}"), log_dir=self.dir)
@@ -1077,3 +1114,114 @@ class OwnedServerFailureTest(ProcessOwnershipTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TruncationTest(EngineTestCase):
+    """Ollama 0.40.13 silently cuts a prompt longer than num_ctx to num_ctx/2+2 tokens and
+    only says so in its log: `msg="truncating input prompt" limit=L prompt=N keep=4 new=L`."""
+
+    TEXT = "The Rhine flows north through many cities. " * 400  # 16800 chars
+
+    @staticmethod
+    def warn(limit, prompt):
+        return (f'time=2026-11-03T10:00:00 level=WARN source=llama_server.go:344 '
+                f'msg="truncating input prompt" limit={limit} prompt={prompt} keep=4 '
+                f'new={limit}\n')
+
+    def ready(self, server, ctx=8192, ratio_count=4000):
+        engine = self.engine_for(server)
+        engine.load(MODEL, ctx)
+        engine.count_tokens(MODEL, self.TEXT)  # calibrate (server answers ratio_count)
+        engine._log_path = self.dir / "ollama.log"
+        engine._log_path.write_text("old " + self.warn(10, 999999), encoding="utf-8")
+        return engine
+
+    def generate_route(self, engine_box, count, log_line=None):
+        def route(body):
+            if body.get("prompt") and not str(body["prompt"]).startswith("Calibration") \
+                    and log_line:
+                with engine_box[0]._log_path.open("a", encoding="utf-8") as handle:
+                    handle.write(log_line)
+            if body.get("stream"):
+                return json.dumps({"response": "x", "done": True,
+                                   "prompt_eval_count": count}) + "\n"
+            return {"done": True, "response": "x", "prompt_eval_count": count}
+        return route
+
+    def test_log_line_written_during_the_request_raises_with_the_real_count(self):
+        box = []
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            server.routes["/api/generate"] = lambda body: {"done": True, "prompt_eval_count": 4000}
+            engine = self.ready(server)
+            box.append(engine)
+            server.routes["/api/generate"] = self.generate_route(
+                box, 4098, self.warn(4098, 9000))
+            with self.assertRaises(PromptTruncated) as caught:
+                engine.complete(MODEL, self.TEXT, Sampling())
+        self.assertEqual(caught.exception.real_tokens, 9000)  # not the old line's 999999
+        self.assertEqual(caught.exception.kept_tokens, 4098)
+        self.assertIsInstance(caught.exception, EngineError)
+
+    def test_real_count_is_fed_back_into_the_ratio(self):
+        box = []
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            server.routes["/api/generate"] = lambda body: {"done": True, "prompt_eval_count": 4000}
+            engine = self.ready(server)
+            box.append(engine)
+            before = engine.count_tokens(MODEL, self.TEXT)
+            server.routes["/api/generate"] = self.generate_route(
+                box, 4098, self.warn(4098, 8000))
+            with self.assertRaises(PromptTruncated):
+                engine.complete(MODEL, self.TEXT, Sampling())
+            after = engine.count_tokens(MODEL, self.TEXT)
+        self.assertNotEqual(before, after)
+        self.assertEqual(after, 8000)
+
+    def test_small_count_without_a_log_line_is_truncation_too(self):
+        # fallback: the reply has fewer than 90 % of the tokens we expect
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            server.routes["/api/generate"] = lambda body: {"done": True, "prompt_eval_count": 4000}
+            engine = self.ready(server)
+            expected = engine.count_tokens(MODEL, self.TEXT)
+            server.routes["/api/generate"] = self.generate_route([engine], int(expected * 0.8))
+            with self.assertRaises(PromptTruncated) as caught:
+                engine.complete(MODEL, self.TEXT, Sampling())
+        self.assertIsNone(caught.exception.real_tokens)
+
+    def test_good_reply_passes_and_teaches_the_ratio(self):
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            server.routes["/api/generate"] = lambda body: {"done": True, "prompt_eval_count": 4000}
+            engine = self.ready(server)
+            expected = engine.count_tokens(MODEL, self.TEXT)
+            server.routes["/api/generate"] = self.generate_route([engine], int(expected * 1.05))
+            result = engine.complete(MODEL, self.TEXT, Sampling())
+            after = engine.count_tokens(MODEL, self.TEXT)
+        self.assertEqual(result.timing.prompt_tokens, int(expected * 1.05))
+        self.assertEqual(after, int(expected * 1.05))
+
+    def test_short_prompts_are_never_checked(self):
+        with FakeServer({"/api/version": fixture("version.json"),
+                         "/api/generate": {"done": True, "response": "x",
+                                           "prompt_eval_count": 3}}) as server:
+            engine = self.engine_for(server)
+            engine.load(MODEL, 4096)
+            server.routes["/api/generate"] = [json.dumps(
+                {"response": "x", "done": True, "prompt_eval_count": 3}) + "\n"]
+            engine.complete(MODEL, "Hi there", Sampling())
+
+    def test_chat_is_checked_too(self):
+        box = []
+        with FakeServer({"/api/version": fixture("version.json")}) as server:
+            server.routes["/api/generate"] = lambda body: {"done": True, "prompt_eval_count": 4000}
+            engine = self.ready(server)
+            box.append(engine)
+
+            def chat(body):
+                with engine._log_path.open("a", encoding="utf-8") as handle:
+                    handle.write(self.warn(4098, 9500))
+                return {"message": {"content": "x"}, "done": True, "prompt_eval_count": 4098}
+
+            server.routes["/api/chat"] = chat
+            with self.assertRaises(PromptTruncated) as caught:
+                engine.chat(MODEL, [{"role": "user", "content": self.TEXT}], Sampling())
+        self.assertEqual(caught.exception.real_tokens, 9500)

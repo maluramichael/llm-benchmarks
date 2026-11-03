@@ -37,7 +37,8 @@ from bench.engines.base import Sampling
 from bench.engines.llamacpp import run_llama_bench
 from bench.safety import take_reading
 from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key,
-                          make_prompt, median, now, prepare_counting, reset_state, step_meta)
+                          make_prompt, median, now, prepare_counting, reset_state, retry_truncated,
+                          fresh_prompt, step_meta)
 
 SPEED_CTX = 10240  # holds an 8,192 token prompt plus 256 output tokens
 COLD_TOKENS = 512
@@ -68,6 +69,14 @@ def _summary(runs: list[dict], exclude: tuple[str, ...] = ()) -> dict:
     return values
 
 
+def _send(ctx: RunContext, tokens: int, slot: int):
+    """One measured request with its own prompt; a prompt the engine truncated is rebuilt
+    once (see bench.suites.retry_truncated). Returns (completion, prompt)."""
+    return retry_truncated(
+        lambda scale, retry: fresh_prompt(ctx, tokens, slot, scale, retry),
+        lambda prompt: ctx.engine.complete(ctx.model, prompt, _sampling()))
+
+
 def _ensure_loaded(ctx: RunContext, state: dict) -> None:
     if not state["loaded"]:
         state["load_s"] = ctx.engine.load(ctx.model, SPEED_CTX)
@@ -83,14 +92,15 @@ def _cold(ctx: RunContext, state: dict) -> dict:
     # with an unload. Unloading an engine that holds nothing is a no-op.
     reps = ctx.cfg.reps
     prepare_counting(ctx, SPEED_CTX)
-    prompts = [make_prompt(ctx, COLD_TOKENS, COLD_SLOT + i) for i in range(reps)]
+    for i in range(reps):  # built first, while the model is loaded for counting
+        make_prompt(ctx, COLD_TOKENS, COLD_SLOT + i)
     runs = []
-    for prompt in prompts:
+    for i in range(reps):
         state["loaded"] = False
         ctx.engine.unload(ctx.model)
         load_s = ctx.engine.load(ctx.model, SPEED_CTX)
         state["loaded"] = True
-        timing = ctx.engine.complete(ctx.model, prompt, _sampling()).timing
+        timing = _send(ctx, COLD_TOKENS, COLD_SLOT + i)[0].timing
         run = _run_fields(timing)
         run["load_s"] = load_s
         run["ttft_incl_load_s"] = load_s + timing.ttft_s
@@ -104,8 +114,8 @@ def _cold(ctx: RunContext, state: dict) -> dict:
 
 def _warm(ctx: RunContext, state: dict) -> dict:
     _ensure_loaded(ctx, state)
-    prompts = [make_prompt(ctx, WARM_TOKENS, WARM_SLOT + i) for i in range(ctx.cfg.reps)]
-    runs = [_run_fields(ctx.engine.complete(ctx.model, p, _sampling()).timing) for p in prompts]
+    runs = [_run_fields(_send(ctx, WARM_TOKENS, WARM_SLOT + i)[0].timing)
+            for i in range(ctx.cfg.reps)]
     values = _summary(runs)
     values["cache_contaminated"] = _contaminated(runs)
     return values
@@ -113,10 +123,10 @@ def _warm(ctx: RunContext, state: dict) -> dict:
 
 def _cache(ctx: RunContext, state: dict) -> dict:
     _ensure_loaded(ctx, state)
-    prompts = [make_prompt(ctx, WARM_TOKENS, CACHE_SLOT + i) for i in range(ctx.cfg.reps)]
     runs, firsts = [], []
-    for prompt in prompts:
-        first = ctx.engine.complete(ctx.model, prompt, _sampling()).timing
+    for i in range(ctx.cfg.reps):
+        first_result, prompt = _send(ctx, WARM_TOKENS, CACHE_SLOT + i)
+        first = first_result.timing
         second = ctx.engine.complete(ctx.model, prompt, _sampling()).timing
         firsts.append(first.ttft_s)
         run = _run_fields(second)

@@ -27,6 +27,13 @@ an estimate; the real figure is `Timing.prompt_tokens` from the measured respons
 `prepare_counting(model, ctx)` loads an unloaded model at the context the caller needs;
 a loaded model is never reloaded at another context.
 
+Truncation: Ollama 0.40.13 silently cuts a prompt longer than num_ctx to num_ctx/2+2 tokens
+(first 4 tokens plus the tail) and only logs `msg="truncating input prompt" ... prompt=<N>`.
+`complete` and `chat` raise `PromptTruncated` (an EngineError) when that line appears in the
+log of a server we started during the request (N = real length), or, for any server, when
+prompt_eval_count is below 90 % of the estimate. The chars-per-token ratio is corrected from
+N, and from prompt_eval_count of every good `complete` reply.
+
 Timeouts: quick calls (version, ps, show, unload, the readiness probe) use a short
 timeout so a server that accepts connections but never answers cannot hang the harness;
 only inference requests use the long one.
@@ -47,8 +54,8 @@ from pathlib import Path
 
 from bench import proc
 from bench.config import Config
-from bench.engines.base import (ChatResult, Completion, EngineError, ModelRef, Sampling,
-                                Timing)
+from bench.engines.base import (ChatResult, Completion, EngineError, ModelRef,
+                                PromptTruncated, Sampling, Timing)
 
 DEFAULT_PORT = 11434
 NS = 1e9
@@ -74,6 +81,8 @@ BACKENDS = {"cuda", "rocm", "metal", "vulkan", "cpu"}
 LIBRARY_RE = re.compile(r"\blibrary=(\w+)")
 CONFIG_LINE_RE = re.compile(r'msg="server config" env="map\[(.*?)\]"')
 CONFIG_VALUE_RE = r"(?<![A-Z_]){}:(\S*)"
+TRUNCATION_RE = re.compile(r'msg="truncating input prompt"[^\n]*?\bprompt=(\d+)')
+TRUNCATION_FLOOR = 0.9  # fewer evaluated tokens than this share of the estimate = truncated
 FLASH_ON = {"1", "true", "on", "yes"}
 FLASH_OFF = {"0", "false", "off", "no"}
 KV_RES = (
@@ -93,6 +102,8 @@ def pick_port() -> int:
 
 class OllamaEngine:
     name = "ollama"
+    # Token counts are estimates (see count_tokens): suites keep wider safety margins.
+    exact_token_counts = False
 
     def __init__(self, cfg: Config, log_dir: Path | None = None,
                  timeout: float = REQUEST_TIMEOUT_S, quick_timeout: float = QUICK_TIMEOUT_S,
@@ -346,6 +357,7 @@ class OllamaEngine:
         parts: list[str] = []
         ttft = None
         final = None
+        mark = self._log_size()
         sent = time.perf_counter()
         with self._open("/api/generate", payload) as response:
             try:
@@ -371,7 +383,9 @@ class OllamaEngine:
             raise EngineError("ollama /api/generate: stream ended without a final chunk")
         if ttft is None:
             ttft = time.perf_counter() - sent
-        return Completion("".join(parts), self._timing(final, ttft), final)
+        timing = self._timing(final, ttft)
+        self._check_prompt(model, len(prompt), timing.prompt_tokens, mark)
+        return Completion("".join(parts), timing, final)
 
     def chat(self, model: ModelRef, messages: list[dict], sampling: Sampling,
              tools: list[dict] | None = None, json_schema: dict | None = None,
@@ -383,7 +397,10 @@ class OllamaEngine:
             payload["tools"] = tools
         if json_schema is not None:
             payload["format"] = json_schema
+        mark = self._log_size()
         reply = self._post("/api/chat", payload)
+        self._check_prompt(model, sum(len(str(m.get("content") or "")) for m in messages),
+                           reply.get("prompt_eval_count", 0), mark, learn=False)
         message = reply.get("message") or {}
         calls = [self._tool_call(c) for c in message.get("tool_calls") or []]
         # Not streamed: first token latency is approximated by the server's own numbers.
@@ -469,6 +486,33 @@ class OllamaEngine:
             raise EngineError("ollama /api/generate: no prompt_eval_count in the reply")
         return count
 
+    # -- truncation --------------------------------------------------------------------
+
+    def _check_prompt(self, model: ModelRef, chars: int, kept: int, mark: int,
+                      learn: bool = True) -> None:
+        """Raise PromptTruncated when Ollama cut the prompt; else learn the exact ratio.
+
+        Truncation shows in two ways: the server log of a server we started has a
+        `truncating input prompt ... prompt=<N>` line written since `mark` (N is the real
+        length), and, for any server, `kept` (prompt_eval_count) is below 90 % of what the
+        calibrated ratio expects. Texts too short to estimate are not checked.
+        The ratio is corrected from N, or from `kept` after a good reply, so later prompts
+        are estimated better. `chars` is the length of the text that was sent.
+        """
+        ctx = self._ctx.get(model.id)
+        found = TRUNCATION_RE.findall(self._log_text_from(mark))
+        real = int(found[-1]) if found else None
+        ratio = self._ratios.get((model.id, ctx)) if ctx else None
+        expected = chars / ratio if ratio and chars >= MIN_CALIBRATION_CHARS else None
+        truncated = real is not None or (expected and kept < TRUNCATION_FLOOR * expected)
+        if ctx and chars >= MIN_CALIBRATION_CHARS:
+            if real:
+                self._ratios[(model.id, ctx)] = chars / real
+            elif not truncated and kept > 0 and learn:
+                self._ratios[(model.id, ctx)] = chars / kept
+        if truncated:
+            raise PromptTruncated(real_tokens=real, kept_tokens=kept)
+
     def gpu_fraction(self, model: ModelRef) -> float | None:
         """Share of the loaded model that sits in GPU memory (1.0 = fully on the GPU)."""
         tag = self._normalize(self._tag(model))
@@ -505,6 +549,15 @@ class OllamaEngine:
             return self._log_path.stat().st_size
         except OSError:
             return 0
+
+    def _log_text_from(self, mark: int) -> str:
+        if self._log_path is None:
+            return ""
+        try:
+            data = self._log_path.read_bytes()
+        except OSError:
+            return ""
+        return data[mark:].decode("utf-8", errors="replace")
 
     def _log_text(self, whole: bool = False) -> str:
         if self._log_path is None:

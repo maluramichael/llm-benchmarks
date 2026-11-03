@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from bench import VERSION
+from bench.engines.base import PromptTruncated
 from bench.corpus import cut_to_tokens
 from bench.privacy import local_secrets, scrub
 
@@ -100,6 +101,47 @@ def make_prompt(ctx: RunContext, n_tokens: int, slot: int) -> str:
         raise ValueError(f"could only build a prompt of {used} tokens (wanted {n_tokens})")
     ctx.prompts[memo] = prompt
     return prompt
+
+
+TRUNCATED_REASON = "prompt truncated by the engine"
+SHRINK_UNKNOWN = 0.9  # new length share when the engine did not say how long the prompt was
+
+
+def exact_counts(ctx: RunContext) -> bool:
+    """True when the engine counts tokens exactly (llama.cpp), False for estimates (Ollama)."""
+    return bool(getattr(ctx.engine, "exact_token_counts", True))
+
+
+def fresh_prompt(ctx: RunContext, n_tokens: int, slot: int, scale: float, retry: bool) -> str:
+    """`make_prompt` for a `retry_truncated` builder: on a retry the memoised prompt of
+    this slot is dropped (the engine has learned a better ratio since) and `scale` applies."""
+    if retry:
+        ctx.prompts.pop((slot, n_tokens), None)
+    return make_prompt(ctx, max(1, int(n_tokens * scale)), slot)
+
+
+def retry_truncated(build, send):
+    """Send a prompt; if the engine truncated it, rebuild it once and send it again.
+
+    `build(scale, retry)` makes the payload (prompt or messages), `send(payload)` sends it
+    and returns the result; both are called as `build(1.0, False)` first. After a
+    PromptTruncated the engine has corrected its token estimate from the real count in the
+    error, so the payload is rebuilt at the same target (scale 1.0); when the real count is
+    unknown the target shrinks to 90 % (`SHRINK_UNKNOWN`). A second PromptTruncated is
+    raised with the reason "prompt truncated by the engine": callers store `error`
+    (retryable), never `ok` and never `does_not_fit`. Returns (result, payload).
+    """
+    scale, retry = 1.0, False
+    while True:
+        payload = build(scale, retry)
+        try:
+            return send(payload), payload
+        except PromptTruncated as err:
+            if retry:
+                raise PromptTruncated(TRUNCATED_REASON, err.real_tokens, err.kept_tokens) \
+                    from None
+            scale = 1.0 if err.real_tokens else SHRINK_UNKNOWN
+            retry = True
 
 
 def prepare_counting(ctx: RunContext, n_ctx: int) -> None:

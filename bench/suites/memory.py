@@ -27,13 +27,16 @@ from __future__ import annotations
 from bench.engines.base import EngineError, Sampling
 from bench.gguf import attention_layer_count, kv_bytes_per_token, memory_curve, read_metadata
 from bench.safety import ladder_start, take_reading
-from bench.suites import (RunAborted, RunContext, clean_error, forced, key, make_prompt, now,
-                          reset_state, step_meta)
+from bench.engines.base import PromptTruncated
+from bench.suites import (RunAborted, RunContext, SHRINK_UNKNOWN, TRUNCATED_REASON, clean_error,
+                          exact_counts, forced, fresh_prompt, key, now, reset_state,
+                          retry_truncated, step_meta)
 
 MIB = 1024 * 1024
 OUTPUT_TOKENS = 128
 FILL_MARGIN = 256  # tokens kept free for output and chat template
-MAX_FILL = 0.97  # the prompt never targets more than this share of the rung (estimates err)
+MAX_FILL = 0.97  # the prompt targets at most this share of the rung (exact token counts)
+MAX_FILL_ESTIMATED = 0.94  # the same for engines that estimate token counts (Ollama)
 MEMORY_SLOT = 1000
 CACHE_TYPE_BYTES = 2.0  # f16 KV cache
 FINAL_STATUSES = ("ok", "does_not_fit", "skipped")
@@ -42,9 +45,11 @@ NOTE_FLAGGED = ("upper bound: sliding-window attention keeps a smaller cache, an
                 "state of hybrid models is not included; " + NOTE_PLAIN)
 
 
-def _fill_tokens(n: int) -> int:
-    """Prompt length that fills rung `n`: leaves room for output and template, at most 97 %."""
-    return max(1, min(n - OUTPUT_TOKENS - FILL_MARGIN, int(n * MAX_FILL)))
+def _fill_tokens(n: int, exact: bool = True) -> int:
+    """Prompt length that fills rung `n`: leaves room for output and template, at most 97 %
+    (94 % when the engine only estimates token counts)."""
+    share = MAX_FILL if exact else MAX_FILL_ESTIMATED
+    return max(1, min(n - OUTPUT_TOKENS - FILL_MARGIN, int(n * share)))
 
 
 def _steps(ctx: RunContext) -> list[int]:
@@ -119,6 +124,7 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
     started = now()
     values: dict = {"ctx": n}
     status = "ok"
+    fill_target = _fill_tokens(n, exact_counts(ctx))
     try:
         try:
             engine.unload(ctx.model)
@@ -128,9 +134,13 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
                 store.save(test_key, "does_not_fit", {**values, "reason": why}, meta)
                 return "does_not_fit"
             values["load_s"] = engine.load(ctx.model, n)
-            prompt = make_prompt(ctx, _fill_tokens(n), MEMORY_SLOT + index)
-            timing = engine.complete(
-                ctx.model, prompt, Sampling(temperature=0.0, seed=42, max_tokens=OUTPUT_TOKENS)).timing
+            fill = fill_target
+            slot = MEMORY_SLOT + index
+            sampling = Sampling(temperature=0.0, seed=42, max_tokens=OUTPUT_TOKENS)
+            result, _ = retry_truncated(
+                lambda scale, retry: fresh_prompt(ctx, fill, slot, scale, retry),
+                lambda prompt: engine.complete(ctx.model, prompt, sampling))
+            timing = result.timing
             fraction = _optional(lambda: engine.gpu_fraction(ctx.model))
             after = take_reading(guard.gpu_index, fraction)
             values.update({
@@ -160,6 +170,11 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
                             "error": clean_error(err)}, meta)
                 raise RunAborted(f"GPU driver reset detected during {test_key}") from None
             values["driver_reset_check"] = check
+            if isinstance(err, PromptTruncated):
+                # The prompt was cut twice: nothing was measured, the rung is retried later.
+                store.save(test_key, "error",
+                           {**values, "reason": TRUNCATED_REASON, "error": clean_error(err)}, meta)
+                return "error"
             if isinstance(err, EngineError) or check == "unknown":
                 # unknown: never retry a rung that may have reset the driver
                 store.save(test_key, "does_not_fit", {**values, "reason": clean_error(err)}, meta)
@@ -175,7 +190,8 @@ def _rung(ctx: RunContext, n: int, index: int, estimates: dict, meta: dict) -> s
         store.save(test_key, status, values, meta)
         return "ok" if check == "none" else "stop"
     finally:
-        ctx.prompts.pop((MEMORY_SLOT + index, _fill_tokens(n)), None)
+        for scale in (1.0, SHRINK_UNKNOWN):
+            ctx.prompts.pop((MEMORY_SLOT + index, max(1, int(fill_target * scale))), None)
 
 
 def _skip_above(ctx: RunContext, n: int, steps: list[int], reason: str) -> None:

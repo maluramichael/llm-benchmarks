@@ -16,8 +16,10 @@ Thinking is off unless `--thinking on`: Ollama `think=false`, llama.cpp
 `chat_template_kwargs.enable_thinking=false` (both done by the engine adapters). The state is
 stored in `meta.thinking`. Only the adapter's content field is judged, never thinking text.
 
-Long context: the needle document is `min(32768, largest ok memory rung)` tokens long (the
-context is loaded with exactly that size). The needle tasks stay pending (not stored) while
+Long context: the context is loaded with `min(32768, largest ok memory rung)` tokens; the
+needle document gets that minus 512 (question, template) minus the answer's max_tokens, and
+94 % of it for engines that only estimate token counts (Ollama). A prompt the engine
+truncated is rebuilt once, truncated again it is stored `error` (never judged). The needle tasks stay pending (not stored) while
 no `memory/ctx-*` entry exists or a rung is still retryable, so the runner order is
 memory -> speed -> smoke; a later run fills them in. When all rungs are does_not_fit or
 skipped the needle tasks are stored `skipped`.
@@ -37,15 +39,16 @@ from bench.checkers import check, to_store
 from bench.corpus import needle_text
 from bench.engines.base import Sampling
 from bench.privacy import local_secrets, scrub
-from bench.suites import (RunAborted, RunContext, clean_error, context_plan, forced, key, now,
-                          reset_state, step_meta)
+from bench.suites import (RunAborted, RunContext, clean_error, context_plan, exact_counts,
+                          forced, key, now, reset_state, retry_truncated, step_meta)
 
 TASKS_DIR = Path(__file__).resolve().parent.parent / "data" / "tasks"
 CATEGORY_COUNTS = {"math": 8, "code": 6, "json": 5, "tool_calls": 5, "long_context": 3,
                    "creative": 2, "code_explain": 2}
 SMOKE_CTX = 8192  # context for all tasks except long context
 MAX_NEEDLE_CTX = 32768
-NEEDLE_MARGIN = 512  # tokens kept free for question, chat template and answer
+NEEDLE_MARGIN = 512  # tokens kept free for question and chat template (plus max_tokens)
+NEEDLE_SHARE_ESTIMATED = 0.94  # share of the document budget used when counts are estimates
 SEED = 42
 
 
@@ -91,12 +94,23 @@ def _ensure_loaded(ctx: RunContext, state: dict, wanted: int) -> None:
         state["ctx"] = wanted
 
 
-def _messages(ctx: RunContext, task: dict, length: int | None) -> list[dict]:
+def _document_tokens(ctx: RunContext, task: dict, length: int, scale: float = 1.0) -> int:
+    """Length of the needle document for a context of `length` tokens: the context holds
+    the document, NEEDLE_MARGIN for question and template, and the answer (max_tokens).
+    Engines that estimate token counts (Ollama) get a further 6 % off, `scale` shrinks it
+    after a truncation whose real length was unknown."""
+    room = length - NEEDLE_MARGIN - task["sampling"]["max_tokens"]
+    share = 1.0 if exact_counts(ctx) else NEEDLE_SHARE_ESTIMATED
+    return max(1, int(room * share * scale))
+
+
+def _messages(ctx: RunContext, task: dict, length: int | None,
+              scale: float = 1.0) -> list[dict]:
     messages = [dict(m) for m in task["messages"]]
     if task["category"] == "long_context":
         count = lambda t: ctx.engine.count_tokens(ctx.model, t)  # noqa: E731
-        document = needle_text(ctx.corpus_text, length - NEEDLE_MARGIN, task["depth"],
-                               task["needle"], count)
+        document = needle_text(ctx.corpus_text, _document_tokens(ctx, task, length, scale),
+                               task["depth"], task["needle"], count)
         messages[-1]["content"] = messages[-1]["content"].replace("{document}", document)
     return messages
 
@@ -144,10 +158,13 @@ def _run_task(ctx: RunContext, task: dict, test_key: str, length: int | None, st
     started = now()
     try:
         _ensure_loaded(ctx, state, length or SMOKE_CTX)
-        messages = _messages(ctx, task, length)
-        result = ctx.engine.chat(
-            ctx.model, messages, _sampling(task), tools=task.get("tools"),
-            json_schema=task.get("json_schema"), thinking=bool(ctx.cfg.thinking))
+        # A prompt the engine truncated is rebuilt once; truncated twice is an error, so
+        # a needle task is never judged on a document with its front part cut off.
+        result, _ = retry_truncated(
+            lambda scale, retry: _messages(ctx, task, length, scale),
+            lambda messages: ctx.engine.chat(
+                ctx.model, messages, _sampling(task), tools=task.get("tools"),
+                json_schema=task.get("json_schema"), thinking=bool(ctx.cfg.thinking)))
         check_state = reset_state(ctx, started)
     except RunAborted:
         raise

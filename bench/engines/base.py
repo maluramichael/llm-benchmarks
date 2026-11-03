@@ -32,6 +32,28 @@ class EngineError(RuntimeError):
     """An engine call failed (server not reachable, error reply, bad data)."""
 
 
+class PromptTruncated(EngineError):
+    """The engine cut the prompt because it did not fit the context (Ollama does that
+    silently: it keeps the first 4 tokens and the tail, and only logs a warning).
+
+    `real_tokens` is the length the prompt really had when the engine said so (from its
+    log), else None; `kept_tokens` is what the engine evaluated (prompt_eval_count). A
+    subclass of EngineError so that code that does not know it still treats it as a failed
+    call; suites that know it rebuild the prompt once (bench.suites.retry_truncated).
+    """
+
+    def __init__(self, message: str = "prompt truncated by the engine",
+                 real_tokens: int | None = None, kept_tokens: int | None = None):
+        detail = []
+        if real_tokens is not None:
+            detail.append(f"{real_tokens} tokens sent")
+        if kept_tokens is not None:
+            detail.append(f"{kept_tokens} kept")
+        super().__init__(message + (f" ({', '.join(detail)})" if detail else ""))
+        self.real_tokens = real_tokens
+        self.kept_tokens = kept_tokens
+
+
 @dataclass
 class ModelRef:
     id: str

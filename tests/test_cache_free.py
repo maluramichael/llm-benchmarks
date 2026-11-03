@@ -117,6 +117,11 @@ class CacheFreeTest(unittest.TestCase):
         cache = ctx.store.get(key(ctx, "speed", "cache"))["values"]
         self.assertGreater(cache["cached_tokens"], 0)  # the repeat is the point of this step
 
+    def test_fill_margin_is_wider_for_estimated_counts(self):
+        self.assertEqual(memory._fill_tokens(262144, exact=True), int(262144 * 0.97))
+        self.assertEqual(memory._fill_tokens(262144, exact=False), int(262144 * 0.94))
+        self.assertEqual(memory._fill_tokens(2048, exact=False), 2048 - 384)
+
     def test_cold_step_loads_the_unloaded_model_once_at_the_speed_context(self):
         ctx = self.ctx(reps=1)
         speed.run_speed(ctx)
@@ -133,7 +138,7 @@ class CacheFreeTest(unittest.TestCase):
             self.assertEqual(entry["status"], "ok", (n, entry["values"]))
             values = entry["values"]
             self.assertEqual(values["cached_tokens"], 0, n)
-            target = min(n - memory.OUTPUT_TOKENS - memory.FILL_MARGIN, 0.97 * n)
+            target = memory._fill_tokens(n, exact=False)
             self.assertAlmostEqual(values["prompt_tokens"] / target, 1.0, delta=0.03, msg=n)
             self.assertLess(values["prompt_tokens"] + memory.OUTPUT_TOKENS, n)
 
