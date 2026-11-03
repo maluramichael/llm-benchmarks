@@ -6,6 +6,7 @@ set -eu
 # Relative paths the user gives (--output, --mirror, ...) mean the directory bench was
 # started in, not the repository: hand it over before changing into the repository.
 BENCH_CWD="$(pwd)"
+export PYTHONUNBUFFERED=1  # progress lines appear live in logs
 export BENCH_CWD
 cd "$(dirname "$0")"
 

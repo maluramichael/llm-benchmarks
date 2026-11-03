@@ -5,7 +5,7 @@
 $ErrorActionPreference = 'Stop'
 
 # Snapshot of the variables this script or the uv installer may touch.
-$watched = @('BENCH_CWD') + @(Get-ChildItem Env: | Where-Object { $_.Name -like 'UV_*' } |
+$watched = @('BENCH_CWD', 'PYTHONUNBUFFERED') + @(Get-ChildItem Env: | Where-Object { $_.Name -like 'UV_*' } |
     ForEach-Object { $_.Name }) + @('UV_INSTALL_DIR', 'UV_NO_MODIFY_PATH')
 $saved = @{}
 foreach ($name in ($watched | Select-Object -Unique)) {
@@ -24,6 +24,7 @@ $startDirectory = (Get-Location -PSProvider FileSystem).ProviderPath
 Push-Location -LiteralPath $PSScriptRoot
 try {
     $env:BENCH_CWD = $startDirectory
+    $env:PYTHONUNBUFFERED = '1'  # progress lines appear live in logs
     $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
     $localUv = Join-Path $PSScriptRoot '.bench\uv\uv.exe'
 

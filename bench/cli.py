@@ -79,7 +79,19 @@ def _report_command(cfg) -> int:
     return 0
 
 
+def _line_buffered() -> None:
+    """Progress must show up live in a log file or over ssh, where stdout is a pipe."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(line_buffering=True)
+            except (OSError, ValueError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _line_buffered()
     command, cfg = load_config(sys.argv[1:] if argv is None else argv)
     try:
         if command == "system":

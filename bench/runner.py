@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -82,7 +83,7 @@ class Env:
     corpus: Callable[[Config], str] = default_corpus
     today: Callable[[], date] = lambda: datetime.now().date()
     keep_awake: Callable = awake.keep_awake
-    say: Callable[[str], None] = print
+    say: Callable[[str], None] = lambda message: print(message, flush=True)
     suites: dict = field(default_factory=default_suites)
 
 
@@ -216,6 +217,27 @@ def _warn_changes(state: _State, run_info: dict, first: dict, now: dict) -> None
     for message in changes:
         state.say(f"warning: {message}")
         state.note(message)
+
+
+def _announce(store: ResultStore, say: Callable[[str], None]) -> None:
+    """One line when a step starts and one when it ends ("<key> ... ok 12 s"), so a log
+    shows where the run is. Wraps the two methods of this store object only."""
+    started: dict[str, float] = {}
+    mark_running, save = store.mark_running, store.save
+
+    def marked(key, meta):
+        started[key] = time.monotonic()
+        say(f"{key} ...")
+        return mark_running(key, meta)
+
+    def saved(key, status, values, meta=None):
+        result = save(key, status, values, meta)
+        began = started.pop(key, None)
+        took = f" {time.monotonic() - began:.0f} s" if began is not None else ""
+        say(f"{key} ... {status}{took}")
+        return result
+
+    store.mark_running, store.save = marked, saved
 
 
 def _existing_notes(store: ResultStore) -> list[str]:
@@ -401,6 +423,7 @@ def _run(cfg: Config, env: Env) -> int:
         return EXIT_PROBLEMS
 
     store = ResultStore(run_dir / "results.json")
+    _announce(store, say)
     run_dir.mkdir(parents=True, exist_ok=True)
     raw_dir = run_dir / "raw"
     raw_dir.mkdir(exist_ok=True)

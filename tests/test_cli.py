@@ -165,6 +165,19 @@ class CliTest(unittest.TestCase):
         self.assertIn("Pop-Location", finally_block)
         self.assertIn("Push-Location", ps)
 
+    def test_stdout_is_line_buffered_at_start(self):
+        stream = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+        self.assertFalse(stream.line_buffering)
+        with mock.patch.object(sys, "stdout", stream):
+            main(["setup"])
+            self.assertTrue(stream.line_buffering)
+
+    def test_launchers_run_python_unbuffered(self):
+        self.assertIn("export PYTHONUNBUFFERED=1", (ROOT / "bench.sh").read_text(encoding="utf-8"))
+        ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
+        self.assertIn("$env:PYTHONUNBUFFERED = '1'", ps)
+        self.assertIn("'PYTHONUNBUFFERED'", ps.split("$saved = @{}")[0])  # restored afterwards
+
     def test_powershell_launcher_joins_array_arguments(self):
         ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
         self.assertIn("-is [array]", ps)

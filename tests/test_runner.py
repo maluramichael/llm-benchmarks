@@ -1,5 +1,6 @@
 import contextlib
 import json
+import re
 import tempfile
 import unittest
 from datetime import date
@@ -642,6 +643,26 @@ class RunnerTest(unittest.TestCase):
         runner.run(self.cfg(), self.env(preflight=lambda cfg, gpu: rows))
         self.assertIn("ComfyUI pid 5", self.text)
         self.assertNotIn("ComfyUI", json.dumps(self.results()))
+
+    def test_every_step_prints_a_start_and_an_end_line(self):
+        def steps(ctx):
+            ctx.store.mark_running("ollama/S/memory/ctx-8192", {})
+            ctx.store.save("ollama/S/memory/ctx-8192", "ok", {})
+            ctx.store.save("ollama/S/memory/ctx-16384", "does_not_fit", {"reason": "x"})
+        env = self.env()
+        env.suites = {"memory": steps}
+        runner.run(self.cfg(suites=["memory"]), env)
+        lines = self.messages
+        self.assertIn("ollama/S/memory/ctx-8192 ...", lines)
+        self.assertTrue(any(re.fullmatch(r"ollama/S/memory/ctx-8192 \.\.\. ok \d+ s", l)
+                            for l in lines), lines)
+        self.assertTrue(any(l.startswith("ollama/S/memory/ctx-16384 ... does_not_fit")
+                            for l in lines))
+
+    def test_default_output_is_flushed_per_line(self):
+        with mock.patch("builtins.print") as printed:
+            runner.Env().say("hello")
+        self.assertEqual(printed.call_args.kwargs.get("flush"), True)
 
     def test_run_summary_is_printed(self):
         runner.run(self.cfg(), self.env())
