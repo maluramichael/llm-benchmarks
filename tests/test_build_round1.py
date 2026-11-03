@@ -453,3 +453,55 @@ class PartialOffloadTest(unittest.TestCase):
         label = re.search(r'<text x="([\d.]+)" y="%s" class="note">llama.cpp S</text>' % re.escape(f"{marker_y:g}"), svg)
         self.assertIsNotNone(label)
         self.assertAlmostEqual(float(label.group(1)), marker_x + 12, delta=1.0)
+
+
+class BeyondModelContextTest(unittest.TestCase):
+    def runs(self, extra=None):
+        beyond = {"reason": "beyond the model's context length (40960)", "beyond_model_context": True,
+                  "context_length": 40960}
+        tests = {"llamacpp/S/memory/ctx-8192": ent("ok", {"vram_used_mb": 8192, "vram_baseline_mb": 1024}),
+                 "llamacpp/S/memory/ctx-32768": ent("ok", {"vram_used_mb": 12288, "vram_baseline_mb": 1024}),
+                 "llamacpp/S/memory/ctx-65536": ent("skipped", beyond),
+                 "llamacpp/S/memory/ctx-131072": ent("skipped", beyond),
+                 "llamacpp/S/speed/warm": ent("ok", {"gen_tps": 20.0, "prompt_tps": 300.0, "ttft_s": 1.0}),
+                 "ollama/S/speed/warm": ent("skipped", beyond),
+                 "llamacpp/S/concurrency/p2": ent("ok", {"total_tps": 30.0}),
+                 "ollama/S/concurrency/p2": ent("skipped", beyond),
+                 "ollama/S/smoke/math-1": ent("skipped", beyond)}
+        tests.update(extra or {})
+        root, runs = runs_from({"2026-12-01-a": run_doc("Dev", tests)})
+        self.addCleanup(shutil.rmtree, root, True)
+        return runs
+
+    def test_cell_shows_model_max_not_limit(self):
+        c = build.context_cell(build.Facts(self.runs()), "Dev", "S", "llamacpp", "", None)
+        self.assertEqual(c.value, 32768.0)
+        self.assertEqual(c.suffix, " (model max 40K)")
+
+    def test_model_max_with_real_error_keeps_star(self):
+        runs = self.runs({"llamacpp/S/memory/ctx-16384": ent("error", {"error": "boom"})})
+        # 16384 is below the top ok rung, so no star; an error above the top does get one
+        runs = self.runs({"llamacpp/S/memory/ctx-32768": ent("ok", {}), "llamacpp/S/memory/ctx-49152": ent("error", {})})
+        c = build.context_cell(build.Facts(runs), "Dev", "S", "llamacpp", "", None)
+        self.assertEqual(c.suffix, " (model max 40K)*")
+
+    def test_chart_text_and_no_does_not_fit(self):
+        svg = build.chart_max_context(self.runs(), "light")
+        self.assertIn("32K (model max 40K)", svg)
+        self.assertNotIn('class="note">does not fit', svg)
+        self.assertIn("trained context length", svg)
+        ET.fromstring(svg)
+        self.assertIn('width="960"', svg)
+
+    def test_beyond_steps_are_labelled_gaps(self):
+        runs = self.runs()
+        for fn in (build.chart_generation, build.chart_concurrency):
+            svg = fn(runs, "light")
+            self.assertIn("beyond model context", svg, fn.__name__)
+        self.assertEqual(build.gap_label(ent("skipped", {"beyond_model_context": True})), "beyond model context")
+        self.assertEqual(build.gap_label(ent("skipped", {"reason": "x"})), "skipped")
+
+    def test_memory_chart_has_no_marker_for_beyond_rungs(self):
+        svg = build.chart_memory(self.runs(), "light")
+        self.assertNotIn('class="nofit"', svg)
+        self.assertNotIn("128K", svg)

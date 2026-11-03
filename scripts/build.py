@@ -331,6 +331,8 @@ def number(value) -> float | None:
 def gap_label(entry) -> str:
     if entry is None:
         return "not measured"
+    if entry.get("status") == "skipped" and (entry.get("values") or {}).get("beyond_model_context") is True:
+        return "beyond model context"
     return STATUS_LABEL.get(entry.get("status"), "not measured")
 
 
@@ -375,6 +377,10 @@ def ttft_cell(facts: Facts, device, model, engine, variant="", tag=None):
     return (_CACHE_TTFT if variant == "cache" else _WARM_TTFT)(facts, device, model, engine)
 
 
+def is_beyond(entry) -> bool:
+    return bool(entry.get("status") == "skipped" and (entry.get("values") or {}).get("beyond_model_context") is True)
+
+
 def context_cell(facts: Facts, device, model, engine, variant="", tag=None):
     rungs = {}
     for step, entry in facts.steps(device, engine, model, "memory").items():
@@ -386,13 +392,22 @@ def context_cell(facts: Facts, device, model, engine, variant="", tag=None):
     if not ok:
         return Cell(label=gap_label(rungs[min(rungs)]))
     top = max(ok)
+    # Rungs above the model's trained context are no hardware limit: they say "model max" instead.
+    beyond = {n: e for n, e in rungs.items() if is_beyond(e)}
+    limits = [number((e.get("values") or {}).get("context_length")) for e in beyond.values()]
+    limits = [int(v) for v in limits if v]
+    rungs = {n: e for n, e in rungs.items() if n not in beyond}
     above = {e.get("status") for n, e in rungs.items() if n > top}
     # A rung that ladder_start turned into does_not_fit after a crash, or a rung skipped because the
     # driver reset check was unavailable, is not a measured limit.
     unsure = any(n > top and ((e.get("values") or {}).get("previous_status") in ("aborted", "running")
                               or "driver reset check unavailable" in str((e.get("values") or {}).get("reason", "")))
                  for n, e in rungs.items())
-    if unsure or above & {"error", "aborted", "running"}:
+    if beyond:
+        suffix = f" (model max {fmt_ctx(min(limits))})" if limits else " (model max)"
+        if unsure or above & {"error", "aborted", "running"}:
+            suffix += "*"
+    elif unsure or above & {"error", "aborted", "running"}:
         suffix = "*"  # the ladder stopped by accident: the real limit is unknown
     elif above:
         suffix = ""  # a rung above did not fit or was skipped: this is the limit
@@ -576,9 +591,10 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
 
     any_hatch = any(c.hatched for c in present)
     any_partial = any(c.partial for c in present)
-    cols = min(len(models), 3 if (any_hatch or any_partial) else 4)
+    long_suffix = max((len(c.suffix) for c in present), default=0)
+    cols = min(len(models), 3 if (any_hatch or any_partial or long_suffix > 2) else 4)
     panel_w = (WIDTH - 2 * PAD - LABEL_W - COL_GAP * (cols - 1)) / cols
-    value_room = (92 if any_hatch else 54) + (50 if any_partial else 0)
+    value_room = (92 if any_hatch else 54) + (50 if any_partial else 0) + (int(long_suffix * 5.6) if long_suffix > 2 else 0)
     block = len(series) * BAR_H + (len(series) - 1) * BAR_GAP
     row_h = max(block + 16, 40)
     has_sub = any(sub for _d, sub, _t in rows)
@@ -699,7 +715,7 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
 
     shown = []
     for suffix, text in (suffix_notes or {}).items():
-        if any(c.suffix == suffix for c in present):
+        if any(suffix in c.suffix for c in present):
             shown.append(text)
     foot, y = footer(list(notes) + shown, y, PAD, WIDTH)
     el += foot
@@ -754,6 +770,7 @@ def chart_max_context(runs: list[dict], theme: str) -> str:
                      subtitle="Highest context size in tokens that loaded and answered on this device.",
                      unit="tokens", cell_fn=context_cell, fmt=fmt_ctx, ctx_axis=True, notes=[],
                      suffix_notes={"+": "+ The context ladder ended on a working size, so the real limit is higher.",
+                                   "(model max": "(model max N) The model's trained context length is the limit here, not the hardware.",
                                    "*": "* The ladder stopped on an error or abort above this size, so the limit is unknown."},
                      aria="Largest context size that fits per device, model class and engine")
 
