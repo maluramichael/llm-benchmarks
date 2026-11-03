@@ -335,8 +335,17 @@ def gap_label(entry) -> str:
 
 
 class Cell:
-    def __init__(self, value=None, label="", hatched=False, suffix=""):
-        self.value, self.label, self.hatched, self.suffix = value, label, hatched, suffix
+    def __init__(self, value=None, label="", hatched=False, suffix="", partial: str | None = None):
+        # partial: None, or the text for a step that ran partly on the CPU ("62% GPU")
+        self.value, self.label, self.hatched, self.suffix, self.partial = value, label, hatched, suffix, partial
+
+
+def partial_text(values: dict) -> str | None:
+    """None for a step that ran fully on the GPU, else a short label such as '62% GPU'."""
+    if not isinstance(values, dict) or values.get("partial_offload") is not True:
+        return None
+    fraction = number(values.get("gpu_fraction"))
+    return f"{round(fraction * 100)}% GPU" if fraction is not None else "partial GPU"
 
 
 def fit_gap(facts: Facts, device, engine, model) -> Cell | None:
@@ -352,7 +361,9 @@ def speed_cell(field: str, step: str = "warm"):
         if entry is None:
             return fit_gap(facts, device, engine, model) if step == "warm" else None
         value = number((entry.get("values") or {}).get(field)) if entry.get("status") == "ok" else None
-        return Cell(value) if value is not None else Cell(label=gap_label(entry))
+        if value is None:
+            return Cell(label=gap_label(entry))
+        return Cell(value, partial=partial_text(entry.get("values")))
     return build
 
 
@@ -490,6 +501,9 @@ def legend_items(items: list[tuple[str, str, str]], x0: float, y: float, max_x: 
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="{color}"/>')
         elif kind == "faint":
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="{color}" fill-opacity="{FAINT}" stroke="{color}" stroke-width="1.5"/>')
+        elif kind == "partial":
+            el.append(f'<rect x="{x + 0.75}" y="{y - 8.25}" width="8.5" height="8.5" rx="2" fill="none" '
+                      f'stroke="{color}" stroke-width="1.5" stroke-dasharray="2 2"/>')
         elif kind == "hatch":
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="{color}"/>')
             el.append(f'<rect x="{x}" y="{y - 9}" width="10" height="10" rx="2" fill="url(#hatch)"/>')
@@ -561,9 +575,10 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
     series = [(e, v) for e in engines for v, _ in variants]
 
     any_hatch = any(c.hatched for c in present)
-    cols = min(len(models), 3 if any_hatch else 4)
+    any_partial = any(c.partial for c in present)
+    cols = min(len(models), 3 if (any_hatch or any_partial) else 4)
     panel_w = (WIDTH - 2 * PAD - LABEL_W - COL_GAP * (cols - 1)) / cols
-    value_room = 92 if any_hatch else 54
+    value_room = (92 if any_hatch else 54) + (50 if any_partial else 0)
     block = len(series) * BAR_H + (len(series) - 1) * BAR_GAP
     row_h = max(block + 16, 40)
     has_sub = any(sub for _d, sub, _t in rows)
@@ -598,6 +613,8 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
         items.append(("gap", "", "No bar: does not fit, skipped, failed or not measured"))
     if any_hatch:
         items.append(("hatch", t["muted"], "Hatched: requests were served one after another, not in parallel"))
+    if any_partial:
+        items.append(("partial", t["primary"], "Dotted outline: part of the model ran on the CPU (GPU share shown)"))
     y += 26
     leg, y = legend_items(items, PAD, y, WIDTH - PAD, t)
     el += leg
@@ -651,11 +668,16 @@ def bar_chart(runs: list[dict], theme: str, *, title: str, subtitle: str, unit: 
                     path = bar_path(px, by, w, BAR_H)
                     opacity = (f' fill-opacity="{FAINT}" stroke="{engine_color(engine, theme)}" stroke-width="1.5"'
                                if variant else "")
+                    if cell.partial:
+                        tip += f" (partial offload, {cell.partial})"
+                        opacity += (' stroke-dasharray="2 2"' if variant else
+                                    f' stroke="{t["primary"]}" stroke-width="1.5" stroke-dasharray="2 2"')
                     el.append(f'<path d="{path}" fill="{engine_color(engine, theme)}"{opacity}>'
                               f'<title>{esc(tip)}</title></path>')
                     if cell.hatched:
                         el.append(f'<path d="{path}" fill="url(#hatch)"/>')
-                    text = fmt(cell.value) + cell.suffix + (" serialized" if cell.hatched else "")
+                    text = (fmt(cell.value) + cell.suffix + (" serialized" if cell.hatched else "")
+                            + (f" ({cell.partial})" if cell.partial else ""))
                     el.append(f'<text x="{px + w + 6:.1f}" y="{by + BAR_H - 1}" class="value">{esc(text)}</text>')
         # row labels and separators of this band
         for kind, r, off, height in layout:
@@ -748,7 +770,7 @@ def _concurrency_cell(facts: Facts, device, model, engine, variant, level):
     value = number(values.get("total_tps")) if entry.get("status") == "ok" else None
     if value is None:
         return Cell(label=gap_label(entry))
-    return Cell(value, hatched=values.get("serialized") is True)
+    return Cell(value, hatched=values.get("serialized") is True, partial=partial_text(values))
 
 
 def chart_concurrency(runs: list[dict], theme: str) -> str:
@@ -766,7 +788,7 @@ def memory_series(facts: Facts, device: str) -> list[dict]:
     for (d, engine, model) in facts.combos():
         if d != device:
             continue
-        ok, nofit, nofigure = [], [], []
+        ok, nofit, nofigure, partial = [], [], [], []
         for step, entry in facts.steps(d, engine, model, "memory").items():
             if not (step.startswith("ctx-") and step[4:].isdigit()):
                 continue
@@ -783,11 +805,13 @@ def memory_series(facts: Facts, device: str) -> list[dict]:
                     continue
                 net = (used - base) / GIB_MB if base is not None else None
                 ok.append((n, used / GIB_MB, net))
+                if partial_text(values):
+                    partial.append(n)
             elif entry.get("status") == "does_not_fit":
                 nofit.append(n)
         if ok or nofit or nofigure:
             series.append({"engine": engine, "model": model, "points": sorted(ok),
-                           "nofit": sorted(nofit), "nofigure": sorted(nofigure)})
+                           "nofit": sorted(nofit), "nofigure": sorted(nofigure), "partial": sorted(partial)})
     return series
 
 
@@ -853,6 +877,11 @@ def chart_memory(runs: list[dict], theme: str) -> str:
     if any(ser["nofigure"] for _d, s, _n in panels for ser in s):
         el.append(f'<circle cx="{lx + 5}" cy="{y - 4}" r="4" fill="none" stroke="{t["primary"]}" stroke-width="1.5"/>')
         el.append(f'<text x="{lx + 16}" y="{y}" class="legend">ran, no memory figure</text>')
+        lx += 16 + text_width("ran, no memory figure", 12) + 22
+    if any(ser["partial"] for _d, s, _n in panels for ser in s):
+        el.append(f'<circle cx="{lx + 5}" cy="{y - 4}" r="5" fill="{t["muted"]}" stroke="{t["primary"]}" '
+                  f'stroke-width="1.5" stroke-dasharray="2 1.5"/>')
+        el.append(f'<text x="{lx + 18}" y="{y}" class="legend">part of the model on the CPU</text>')
 
     y += 34
     for device, series, net in panels:
@@ -890,9 +919,13 @@ def chart_memory(runs: list[dict], theme: str) -> str:
             el.append(f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2"{attr}>'
                       f'<title>{esc(device + ", " + name)}</title></polyline>')
             for p in ser["points"]:
-                el.append(f'<circle cx="{px(p[0]):.1f}" cy="{py(value(p, net), y0):.1f}" r="4" fill="{color}" '
-                          f'stroke="{t["surface"]}" stroke-width="2"><title>{esc(name)}: {fmt_ctx(p[0])}, '
-                          f'{value(p, net):.1f} GiB</title></circle>')
+                part = p[0] in ser["partial"]
+                ring = (f'stroke="{t["primary"]}" stroke-width="1.5" stroke-dasharray="2 1.5"' if part
+                        else f'stroke="{t["surface"]}" stroke-width="2"')
+                el.append(f'<circle cx="{px(p[0]):.1f}" cy="{py(value(p, net), y0):.1f}" r="{5 if part else 4}" '
+                          f'fill="{color}" {ring}{" class=" + chr(34) + "partial" + chr(34) if part else ""}>'
+                          f'<title>{esc(name)}: {fmt_ctx(p[0])}, {value(p, net):.1f} GiB'
+                          f'{", part of the model on the CPU" if part else ""}</title></circle>')
             last = ser["points"][-1]
             ends.append([py(value(last, net), y0), f"{engine_name(ser['engine'])} {ser['model']}", px(last[0])])
         ends.sort(key=lambda e: (e[0], e[1]))
@@ -915,10 +948,14 @@ def chart_memory(runs: list[dict], theme: str) -> str:
                 el.append(f'<circle cx="{px(n):.1f}" cy="{sy}" r="4" fill="{t["surface"]}" stroke="{color}" '
                           f'stroke-width="1.5" class="nofigure"><title>{esc(name)}: ran at {fmt_ctx(n)}, '
                           f'no memory figure</title></circle>')
-            el.append(f'<text x="{plot_r + 14}" y="{sy + 4}" class="note">{esc(engine_name(ser["engine"]))} {esc(ser["model"])}</text>')
+            last_x = max(px(n) for n in ser["nofit"] + ser["nofigure"])
+            el.append(f'<text x="{last_x + 12:.1f}" y="{sy + 4}" class="note">{esc(engine_name(ser["engine"]))} {esc(ser["model"])}</text>')
             sy += 14
         y = sy + panel_gap - 14
-    notes = ["Measured with the context ladder, f16 KV cache, whole model on the GPU."]
+    any_partial = any(ser["partial"] for _d, s, _n in panels for ser in s)
+    notes = ["Measured with the context ladder, f16 KV cache. "
+             + ("The whole model was on the GPU except at points with a dotted ring, where part of it ran on the CPU."
+                if any_partial else "The whole model was on the GPU.")]
     if not all(net for _d, _s, net in panels):
         notes.append("Total card usage includes the desktop and other programs.")
     foot, y = footer(notes, y - 24, PAD, WIDTH)
@@ -943,6 +980,17 @@ def smoke_table(runs: list[dict]) -> dict:
     return table
 
 
+def smoke_partial(runs: list[dict]) -> set:
+    """(device, engine, model, category) cells where at least one counted task ran partly on the CPU."""
+    found = set()
+    for (device, engine, model, suite, _task), entry in Facts(runs).entries.items():
+        values = entry.get("values") or {}
+        if (suite == "smoke" and entry.get("status") == "ok" and isinstance(values.get("passed"), bool)
+                and isinstance(values.get("category"), str) and partial_text(values)):
+            found.add((device, engine, model, values["category"]))
+    return found
+
+
 def ramp_step(done: int, total: int) -> int:
     """Five bins of pass rate: 0-19, 20-39, 40-59, 60-79, 80-100 percent."""
     return min(4, int(done / total * 5))
@@ -953,6 +1001,7 @@ def chart_smoke(runs: list[dict], theme: str) -> str:
     if not table:
         return ""
     t = THEMES[theme]
+    partial = smoke_partial(runs)
     facts = Facts(runs)
     order = {d: i for i, d in enumerate(facts.devices())}
     keys = sorted(table, key=lambda k: (order.get(k[0], len(order)), model_rank(k[2]), engine_rank(k[1])))
@@ -967,6 +1016,8 @@ def chart_smoke(runs: list[dict], theme: str) -> str:
                    "come from its newest run.", PAD, WIDTH)
     items = [("swatch", RAMP[theme][i], label) for i, label in enumerate(["0-19%", "20-39%", "40-59%", "60-79%", "80-100%"])]
     items.append(("gap", "", "No judged task in this category"))
+    if partial:
+        items.append(("partial", t["primary"], "Dot in a corner: a task ran with part of the model on the CPU"))
     y += 26
     leg, y = legend_items(items, PAD, y, WIDTH - PAD, t)
     el += leg
@@ -999,6 +1050,9 @@ def chart_smoke(runs: list[dict], theme: str) -> str:
                       f'<title>{esc(d)}, {esc(engine_name(engine))}, class {esc(model)}, {esc(cat)}: {done} of {total} passed</title></rect>')
             el.append(f'<text x="{cx + cw / 2}" y="{y + ch / 2 + 4:.1f}" class="cell" text-anchor="middle" '
                       f'style="fill:{ink}">{done}/{total}</text>')
+            if (d, engine, model, cat) in partial:
+                el.append(f'<circle cx="{cx + cw - 7}" cy="{y + 7}" r="3" fill="{ink}" class="partial">'
+                          f'<title>at least one task ran with part of the model on the CPU</title></circle>')
         y += ch + cg
     foot, y = footer(["Tasks the checker cannot judge, and tasks that were skipped or failed to run, are not counted."],
                      y + 6, PAD, WIDTH)

@@ -380,3 +380,76 @@ class FinalReviewTest(unittest.TestCase):
         svg = build.chart_memory(build.load_runs(root), "light")
         ET.fromstring(svg)
         self.assertGreaterEqual(svg.count("panel-title"), 2)
+
+
+class PartialOffloadTest(unittest.TestCase):
+    def runs(self):
+        part = {"gpu_fraction": 0.62, "partial_offload": True}
+        tests = {"llamacpp/S/speed/warm": ent("ok", {"gen_tps": 20.0, "prompt_tps": 300.0, "ttft_s": 5.0, **part}),
+                 "llamacpp/S/speed/cache": ent("ok", {"ttft_s": 0.5, **part}),
+                 "ollama/S/speed/warm": ent("ok", {"gen_tps": 40.0, "prompt_tps": 600.0, "ttft_s": 2.0, "gpu_fraction": 1.0}),
+                 "llamacpp/S/concurrency/p2": ent("ok", {"total_tps": 30.0, **part}),
+                 "llamacpp/S/smoke/math-1": ent("ok", {"passed": True, "category": "math", **part}),
+                 "llamacpp/S/smoke/math-2": ent("ok", {"passed": False, "category": "math"}),
+                 "llamacpp/S/smoke/code-1": ent("ok", {"passed": True, "category": "code"}),
+                 "llamacpp/S/memory/ctx-8192": ent("ok", {"vram_used_mb": 8192, "vram_baseline_mb": 1024, **part}),
+                 "llamacpp/S/memory/ctx-32768": ent("ok", {"vram_used_mb": 12288, "vram_baseline_mb": 1024}),
+                 "llamacpp/S/memory/ctx-262144": ent("does_not_fit", {"reason": "x"}),
+                 }
+        root, runs = runs_from({"2026-12-01-a": run_doc("Dev", tests)})
+        self.addCleanup(shutil.rmtree, root, True)
+        return runs
+
+    def test_partial_text(self):
+        self.assertEqual(build.partial_text({"partial_offload": True, "gpu_fraction": 0.62}), "62% GPU")
+        self.assertEqual(build.partial_text({"partial_offload": True}), "partial GPU")
+        self.assertIsNone(build.partial_text({"gpu_fraction": 1.0}))
+        self.assertIsNone(build.partial_text({"partial_offload": False, "gpu_fraction": 0.5}))
+
+    def test_bar_charts_mark_partial_bars_only(self):
+        runs = self.runs()
+        for fn in (build.chart_generation, build.chart_prompt_processing, build.chart_ttft, build.chart_concurrency):
+            svg = fn(runs, "light")
+            self.assertIn("62% GPU", svg, fn.__name__)
+            self.assertIn("Dotted outline", svg, fn.__name__)
+            self.assertEqual(svg.count("(62% GPU)") >= 1, True)
+            self.assertNotIn("100% GPU", svg)
+            ET.fromstring(svg)
+        gen = build.chart_generation(runs, "light")
+        self.assertEqual(gen.count('stroke-dasharray="2 2"'), 2)  # one bar plus the legend swatch
+        self.assertNotIn("url(#hatch)", build.chart_generation(runs, "light"))
+        self.assertIn('width="960"', gen)
+
+    def test_all_full_gpu_has_no_marking(self):
+        tests = {"llamacpp/S/speed/warm": ent("ok", {"gen_tps": 20.0, "gpu_fraction": 1.0})}
+        root, runs = runs_from({"2026-12-01-a": run_doc("Dev", tests)})
+        self.addCleanup(shutil.rmtree, root, True)
+        self.assertNotIn("Dotted outline", build.chart_generation(runs, "light"))
+
+    def test_smoke_marks_partial_cells(self):
+        runs = self.runs()
+        self.assertEqual(build.smoke_partial(runs), {("Dev", "llamacpp", "S", "math")})
+        svg = build.chart_smoke(runs, "light")
+        self.assertEqual(svg.count('class="partial"'), 1)
+        self.assertIn("part of the model on the CPU", svg)
+
+    def test_memory_marks_partial_points_and_footer(self):
+        svg = build.chart_memory(self.runs(), "light")
+        self.assertEqual(svg.count('class="partial"'), 1)
+        self.assertIn("except at points with a dotted ring", svg)
+        self.assertNotIn("The whole model was on the GPU.", svg)
+        ET.fromstring(svg)
+
+    def test_memory_footer_unchanged_without_partial(self):
+        tests = {"llamacpp/S/memory/ctx-8192": ent("ok", {"vram_used_mb": 8192, "vram_baseline_mb": 1024})}
+        root, runs = runs_from({"2026-12-01-a": run_doc("Dev", tests)})
+        self.addCleanup(shutil.rmtree, root, True)
+        self.assertIn("The whole model was on the GPU.", build.chart_memory(runs, "light"))
+
+    def test_nofit_label_sits_next_to_its_marker(self):
+        svg = build.chart_memory(self.runs(), "light")
+        m = re.search(r'<text x="([\d.]+)" y="([\d.]+)" class="nofit"', svg)
+        marker_x, marker_y = float(m.group(1)), float(m.group(2))
+        label = re.search(r'<text x="([\d.]+)" y="%s" class="note">llama.cpp S</text>' % re.escape(f"{marker_y:g}"), svg)
+        self.assertIsNotNone(label)
+        self.assertAlmostEqual(float(label.group(1)), marker_x + 12, delta=1.0)
