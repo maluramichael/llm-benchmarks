@@ -369,6 +369,10 @@ def _copy_gguf(src: Path, dest: Path, size: int, say) -> None:
         return
     dest.parent.mkdir(parents=True, exist_ok=True)
     _sweep_stale(dest.parent)
+    free = shutil.disk_usage(dest.parent).free
+    if free < size:
+        raise ModelError(f"not enough disk space for {dest.name}: need {size / 1e9:.1f} GB, "
+                         f"{free / 1e9:.1f} GB free")
     scratch = _scratch(dest)
     if say:
         say(f"copying {dest.name} from the mirror ({size / 1e9:.1f} GB)")
@@ -377,7 +381,7 @@ def _copy_gguf(src: Path, dest: Path, size: int, say) -> None:
         if scratch.stat().st_size != size:
             raise ModelError(f"copy of {dest.name} has {scratch.stat().st_size} bytes, "
                              f"expected {size}")
-        os.replace(scratch, dest)
+        retry_on_lock(lambda: os.replace(scratch, dest))
     except OSError as err:
         raise ModelError(f"cannot copy {dest.name} from the mirror: "
                          f"{getattr(err, 'strerror', None) or err}") from None

@@ -23,9 +23,11 @@ from __future__ import annotations
 
 import hashlib
 import html
+import http.client
 import json
 import os
 import re
+import ssl
 import sys
 import time
 import tomllib
@@ -35,6 +37,8 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
+
+from bench.store import retry_on_lock
 
 DEFAULT_MANIFEST = Path(__file__).resolve().parent / "data" / "corpus.toml"
 API_URL = "https://en.wikipedia.org/w/api.php"
@@ -336,8 +340,10 @@ def _api_get(params: dict, what: str, pause: float) -> dict:
             retry_after = (getattr(err, "headers", None) or {}).get("Retry-After", "")
             wait = float(retry_after) if retry_after.replace(".", "", 1).isdigit() else delay
             delay = min(delay * 2, BACKOFF_MAX)
-        except (urllib.error.URLError, TimeoutError, ConnectionError) as err:
-            last = str(getattr(err, "reason", err))
+        except (urllib.error.URLError, TimeoutError, ConnectionError, ssl.SSLError,
+                http.client.HTTPException) as err:
+            # also a read cut short (IncompleteRead) or a broken TLS stream: retried
+            last = str(getattr(err, "reason", None) or err or type(err).__name__)
             wait = delay
             delay = min(delay * 2, BACKOFF_MAX)
         except (ValueError, UnicodeDecodeError) as err:
@@ -363,7 +369,9 @@ def fetch_wikitext(title: str, revid: int, pause: float = REQUEST_PAUSE) -> str:
         raise CorpusError(f"{what}: revision does not exist (any more)")
     page = pages[0]
     if page.get("title") != title:
-        raise CorpusError(f"{what}: revision belongs to {page.get('title')!r}, not {title!r}")
+        # Not an error: revid and the sha256 of the text pin the content, and a page move
+        # only changes the title.
+        print(f"note: {what}: the page is now called {page.get('title')!r}", file=sys.stderr)
     try:
         revision = page["revisions"][0]
         content = revision["slots"]["main"]["content"]
@@ -402,23 +410,28 @@ def _digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _checked(article: Article, text: str, origin: str) -> str:
+def _checked(article: Article, text: str, origin: str, cached: bool = False) -> str:
     actual = _digest(text)
     if actual != article.sha256:
+        hint = (f"; delete the cache file {article.revid}.txt and run again" if cached else "")
         raise ValueError(
             f"corpus article {article.title!r} (revision {article.revid}): sha256 mismatch in "
-            f"{origin}: expected {article.sha256}, got {actual}")
+            f"{origin}: expected {article.sha256}, got {actual}{hint}")
     return text
 
 
 def _write_atomic(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
-    with open(tmp, "wb") as handle:
-        handle.write(text.encode("utf-8"))
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(tmp, path)
+
+    def write() -> None:
+        with open(tmp, "wb") as handle:
+            handle.write(text.encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    retry_on_lock(write)  # a virus scanner may hold the file for a moment on Windows
+    retry_on_lock(lambda: os.replace(tmp, path))
 
 
 def load_corpus(cache_dir: Path, offline: bool = False, *, manifest: Path | None = None,
@@ -445,7 +458,7 @@ def load_corpus(cache_dir: Path, offline: bool = False, *, manifest: Path | None
         except UnicodeDecodeError as err:
             raise ValueError(f"corpus article {article.title!r} (revision {article.revid}): "
                              f"{path} is not valid UTF-8") from err
-        bodies[article.revid] = _checked(article, text, str(path))
+        bodies[article.revid] = _checked(article, text, str(path), cached=True)
     if missing and offline:
         names = ", ".join(f"{a.title} ({a.revid}.txt)" for a in missing)
         raise CorpusError(f"corpus cache {cache_dir} is incomplete and offline mode is on; "
@@ -510,7 +523,9 @@ def cut_to_tokens(text: str, n_tokens: int, count: Callable[[str], int]) -> str:
         if step >= 8 and over_pos is not None:
             guess = (fit_pos + over_pos) // 2  # plain bisection as a safeguard
         elif over_pos is None:
-            guess = max(fit_pos + 1, int(fit_pos * target / fit_count))
+            # a counter that says 0 gives no ratio: just double the prefix
+            guess = max(fit_pos + 1, int(fit_pos * target / fit_count) if fit_count
+                        else fit_pos * 2)
         elif fit_pos == 0:
             guess = int(over_pos * target / over_count)
         else:

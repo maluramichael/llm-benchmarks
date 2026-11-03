@@ -450,6 +450,42 @@ class ResolveLlamacppTest(Base):
                                hf_base=server.url)
             self.assertEqual(len(server.requests), 1)
 
+    def flint_mirror(self, data=b"flint-bytes"):
+        entries = models.catalog()
+        entries["F"]["gguf"].update(size_bytes=len(data),
+                                    sha256=hashlib.sha256(data).hexdigest())
+        mirror_file = self.mirror / "gguf/flint/Flint-Q4_K_M.gguf"
+        mirror_file.parent.mkdir(parents=True)
+        mirror_file.write_bytes(data)
+        return entries
+
+    def test_gguf_copy_survives_a_transient_lock_on_the_final_rename(self):
+        entries = self.flint_mirror()
+        real = os.replace
+        calls = []
+
+        def replace(src, dst):
+            calls.append(1)
+            if len(calls) == 1:
+                raise PermissionError(13, "in use")
+            return real(src, dst)
+
+        with mock.patch("os.replace", replace), mock.patch("time.sleep"):
+            ref = models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror)),
+                                 entries=entries)
+        self.assertEqual(ref.gguf_path.read_bytes(), b"flint-bytes")
+        self.assertEqual(len(calls), 2)
+
+    def test_gguf_copy_checks_free_disk_space_first(self):
+        entries = self.flint_mirror()
+        usage = mock.Mock(free=3)
+        with mock.patch("bench.models.shutil.disk_usage", return_value=usage):
+            with self.assertRaises(ModelError) as caught:
+                models.resolve("F", "llamacpp", self.cfg(mirror=str(self.mirror)),
+                               entries=entries)
+        self.assertIn("disk space", str(caught.exception))
+        self.assertFalse(self.model_dir.exists() and any(self.model_dir.iterdir()))
+
     def test_mirror_gguf_of_wrong_size_is_refused(self):
         entries = models.catalog()
         entries["F"]["gguf"].update(size_bytes=99)

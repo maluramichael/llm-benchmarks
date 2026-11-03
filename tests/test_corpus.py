@@ -78,6 +78,11 @@ class CutTest(unittest.TestCase):
         self.assertEqual(cut_to_tokens("one two three", 100, count), "one two three")
         self.assertEqual(count.calls, 1)
 
+    def test_counter_that_returns_zero_does_not_divide_by_zero(self):
+        out = cut_to_tokens(self.text, 100, lambda t: 0)
+        self.assertTrue(self.text.startswith(out))
+        self.assertGreater(len(out), 0)
+
     def test_zero_budget(self):
         self.assertEqual(cut_to_tokens(self.text, 0, chars4), "")
 
@@ -273,11 +278,40 @@ class ApiTest(unittest.TestCase):
         self.assertTrue(request.full_url.startswith("https://en.wikipedia.org/w/api.php?"))
         self.assertIn("llm-benchmarks/1.0", request.get_header("User-agent"))
 
-    def test_title_mismatch_is_an_error(self):
+    def test_moved_page_is_only_a_note(self):
+        # revid and sha256 pin the content; after a page move the title differs
+        err = io.StringIO()
         with mock.patch("urllib.request.urlopen",
-                        self.fake_urlopen(self.payload(title="Danube"), [])):
-            with self.assertRaisesRegex(CorpusError, "Rhine"):
-                corpus.fetch_wikitext("Rhine", 7, pause=0)
+                        self.fake_urlopen(self.payload(title="Danube"), [])), \
+                mock.patch("sys.stderr", err):
+            self.assertEqual(corpus.fetch_wikitext("Rhine", 7, pause=0), "Text")
+        self.assertIn("Danube", err.getvalue())
+        self.assertIn("Rhine", err.getvalue())
+
+    def test_broken_reads_are_retried_and_then_wrapped(self):
+        import http.client
+        import ssl
+        good = self.fake_urlopen(self.payload(), [])
+        for exc in (http.client.IncompleteRead(b"ab"), ssl.SSLError("bad record mac"),
+                    ConnectionResetError("reset")):
+            calls = []
+
+            def flaky(request, timeout=None, exc=exc):
+                calls.append(1)
+                if len(calls) == 1:
+                    raise exc
+                return good(request)
+
+            with mock.patch("urllib.request.urlopen", flaky), mock.patch("time.sleep"):
+                self.assertEqual(corpus.fetch_wikitext("Rhine", 7, pause=0), "Text")
+            self.assertEqual(len(calls), 2, exc)
+
+            def broken(request, timeout=None, exc=exc):
+                raise exc
+
+            with mock.patch("urllib.request.urlopen", broken), mock.patch("time.sleep"):
+                with self.assertRaisesRegex(CorpusError, "Rhine"):
+                    corpus.fetch_wikitext("Rhine", 7, pause=0)
 
     def test_missing_revision_is_an_error(self):
         payload = {"batchcomplete": True, "query": {"badrevids": {"7": {"revid": 7}}}}
@@ -414,6 +448,23 @@ class LoadTest(CorpusTestCase):
                 with self.assertRaises(ValueError) as raised:
                     self.load(offline=offline)
                 self.assertIn("Beta River", str(raised.exception))
+                self.assertIn("delete", str(raised.exception))
+                self.assertIn("22.txt", str(raised.exception))
+
+    def test_atomic_write_survives_a_transient_lock(self):
+        real = os.replace
+        calls = []
+
+        def replace(src, dst):
+            calls.append(1)
+            if len(calls) == 1:
+                raise PermissionError(13, "in use")
+            return real(src, dst)
+
+        with mock.patch("os.replace", replace), mock.patch("time.sleep"):
+            self.load()
+        self.assertGreater(len(calls), 1)
+        self.assertTrue((self.cache / "11.txt").exists())
 
     def test_checksum_mismatch_on_download_caches_nothing(self):
         self.write_manifest({"Gamma": "0" * 64})
