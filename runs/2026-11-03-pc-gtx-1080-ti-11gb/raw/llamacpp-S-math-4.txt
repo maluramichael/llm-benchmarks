@@ -1,0 +1,28 @@
+To find the number of positive integers smaller than 1000 that are divisible by 7 but not divisible by 11, we can follow these steps:
+
+1.  **Define the range**: We are looking for integers $n$ such that $1 \le n < 1000$. This is equivalent to finding integers in the set $\{1, 2, \dots, 999\}$.
+
+2.  **Count integers divisible by 7**:
+    The number of positive integers less than or equal to $N$ that are divisible by $k$ is given by $\lfloor \frac{N}{k} \rfloor$.
+    Here, $N = 999$ and $k = 7$.
+    $$ \text{Count}_7 = \left\lfloor \frac{999}{7} \right\rfloor $$
+    Performing the division: $999 \div 7 = 142.71\dots$
+    So, $\text{Count}_7 = 142$.
+    These are the integers divisible by 7: $7, 14, 21, \dots, 994$.
+
+3.  **Count integers divisible by both 7 and 11**:
+    An integer is divisible by both 7 and 11 if and only if it is divisible by their least common multiple (LCM). Since 7 and 11 are prime, $\text{lcm}(7, 11) = 7 \times 11 = 77$.
+    We need to count integers less than 1000 that are divisible by 77.
+    $$ \text{Count}_{77} = \left\lfloor \frac{999}{77} \right\rfloor $$
+    Performing the division: $999 \div 77 \approx 12.97\dots$
+    So, $\text{Count}_{77} = 12$.
+    These are the integers divisible by 77: $77, 154, 231, \dots, 924$.
+
+4.  **Apply the Principle of Inclusion-Exclusion**:
+    We want the count of numbers divisible by 7 *minus* the count of numbers divisible by both 7 and 11.
+    $$ \text{Result} = \text{Count}_7 - \text{Count}_{77} $$
+    $$ \text{Result} = 142 - 12 = 130 $$
+
+The integers divisible by 7 but not by 11 are those in the set of multiples of 7 excluding the multiples of 77.
+
+ANSWER: 130

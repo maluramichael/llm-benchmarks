@@ -1,0 +1,12 @@
+```python
+def is_palindrome(s: str) -> bool:
+    """
+    Returns True if the string s reads the same forwards and backwards
+    when case and all non-alphanumeric characters are ignored.
+    """
+    # Filter to keep only alphanumeric characters and convert to lowercase
+    cleaned = ''.join(char.lower() for char in s if char.isalnum())
+    
+    # Check if the cleaned string is equal to its reverse
+    return cleaned == cleaned[::-1]
+```

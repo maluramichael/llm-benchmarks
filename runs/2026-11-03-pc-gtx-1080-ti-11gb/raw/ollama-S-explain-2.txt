@@ -1,0 +1,32 @@
+### What the Code Does
+
+This code defines a function called `fib` that calculates the **Fibonacci sequence**.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+- If you ask for `fib(0)` or `fib(1)`, it returns that number directly.
+- For any other number, it adds the result of `fib(n-1)` and `fib(n-2)`.
+
+**Example:** To find `fib(4)`:
+1. It needs `fib(3)` + `fib(2)`
+2. To get `fib(3)`, it needs `fib(2)` + `fib(1)`
+3. To get `fib(2)`, it needs `fib(1)` + `fib(0)`
+
+### Why It Is Faster Than Calling It Without the Cache
+
+Without the cache, this function is incredibly slow because of **repeated calculations**.
+
+#### The Problem (No Cache)
+Imagine you are calculating `fib(5)`. Here is what happens step-by-step without caching:
+1. Calculate `fib(4)` and `fib(3)`.
+2. To get `fib(3)`, you calculate `fib(2)` and `fib(1)`.
+3. To get `fib(2)`, you calculate `fib(1)` **again** and `fib(0)`.
+
+Notice that `fib(1)` is calculated twice, `fib(2)` is calculated multiple times, and as the number gets bigger, the same numbers are recalculated exponentially many times. For a large input like 40, this would take seconds or minutes.
+
+#### The Solution (With Cache)
+The `@lru_cache(maxsize=None)` decorator acts like a **smart notebook**.
+1. When you first call `fib(5)`, it calculates the answer and writes "fib(5) = 5" into the notebook.
+2. Later, if you need `fib(3)` again (perhaps while calculating `fib(4)`), the code checks the notebook first.
+3. It sees "fib(3)" is already written there as **3**, so it instantly uses that number instead of doing any math.
+
+By storing the results of previous calls and reusing them, the function avoids redundant calculations. Instead of exponential time complexity ($O(2^n)$), this version runs in linear time ($O(n)$), making it fast even for very large numbers.

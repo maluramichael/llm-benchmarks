@@ -1,0 +1,25 @@
+Let $L$ be the length and $W$ be the width of the rectangle.
+
+We are given two pieces of information:
+1. The perimeter is 54. The formula for the perimeter of a rectangle is $P = 2(L + W)$.
+   $$2(L + W) = 54$$
+   Dividing both sides by 2, we get:
+   $$L + W = 27$$
+
+2. The length is twice the width.
+   $$L = 2W$$
+
+Now, substitute the expression for $L$ from the second equation into the first equation:
+$$2W + W = 27$$
+$$3W = 27$$
+$$W = 9$$
+
+Now that we have the width, we can find the length:
+$$L = 2 \times 9 = 18$$
+
+To find the area ($A$) of the rectangle, we multiply the length by the width:
+$$A = L \times W$$
+$$A = 18 \times 9$$
+$$A = 162$$
+
+ANSWER: 162

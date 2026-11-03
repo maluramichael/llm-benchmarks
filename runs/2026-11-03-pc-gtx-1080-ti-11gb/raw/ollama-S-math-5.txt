@@ -1,0 +1,28 @@
+Let the two numbers be $x$ and $y$.
+We are given the following system of equations:
+1) $x + y = 58$
+2) $x - y = 14$
+
+To find the product $xy$, we can first solve for $x$ and $y$.
+Adding the two equations together:
+$(x + y) + (x - y) = 58 + 14$
+$2x = 72$
+$x = 36$
+
+Now, substitute the value of $x$ back into the first equation to find $y$:
+$36 + y = 58$
+$y = 58 - 36$
+$y = 22$
+
+Check with the second equation:
+$36 - 22 = 14$. This is correct.
+
+Now, calculate the product of the two numbers:
+Product $= x \times y = 36 \times 22$
+
+Calculation:
+$36 \times 20 = 720$
+$36 \times 2 = 72$
+$720 + 72 = 792$
+
+ANSWER: 792

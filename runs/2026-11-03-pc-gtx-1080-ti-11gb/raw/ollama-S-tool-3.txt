@@ -1,0 +1,11 @@
+
+
+[tool_calls]
+[
+  {
+    "arguments": {
+      "timezone": "Asia/Tokyo"
+    },
+    "name": "get_time"
+  }
+]

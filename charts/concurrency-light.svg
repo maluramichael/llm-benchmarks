@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="818" viewBox="0 0 960 818" role="img" aria-label="Total throughput with several parallel requests per device, model class and engine">
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="1016" viewBox="0 0 960 1016" role="img" aria-label="Total throughput with several parallel requests per device, model class and engine">
 <style>
     text { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #59636e; }
     .title { font-size: 20px; font-weight: 600; fill: #1f2328; }
@@ -21,7 +21,7 @@
     .gapbox { fill: none; stroke: #818b98; stroke-width: 1; stroke-dasharray: 3 2; }
     </style>
 <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#ffffff" stroke-width="2.5" opacity="0.75"/></pattern></defs>
-<rect x="0.5" y="0.5" width="959" height="817" rx="8" fill="#ffffff" stroke="#d1d9e0"/>
+<rect x="0.5" y="0.5" width="959" height="1015" rx="8" fill="#ffffff" stroke="#d1d9e0"/>
 <text x="28" y="42" class="title">Concurrent requests</text>
 <text x="28" y="64" class="sub">Total tokens per second across all requests at once. Higher is better.</text>
 <rect x="28" y="81" width="10" height="10" rx="2" fill="#2a78d6"/>
@@ -36,15 +36,15 @@
 <text x="198.0" y="144" class="panel">Class S</text>
 <text x="450.7" y="144" class="panel">Class M</text>
 <text x="703.3" y="144" class="panel">Class L</text>
-<text x="198.0" y="766" class="tick" text-anchor="start">0</text>
-<line x1="243.6" y1="156" x2="243.6" y2="750" class="grid"/>
-<text x="243.6" y="766" class="tick" text-anchor="middle">50</text>
-<line x1="289.1" y1="156" x2="289.1" y2="750" class="grid"/>
-<text x="289.1" y="766" class="tick" text-anchor="middle">100</text>
-<line x1="334.7" y1="156" x2="334.7" y2="750" class="grid"/>
-<text x="334.7" y="766" class="tick" text-anchor="middle">150</text>
-<line x1="198.0" y1="156" x2="198.0" y2="750" class="base"/>
-<text x="426.7" y="780" class="tick" text-anchor="end">tok/s</text>
+<text x="198.0" y="964" class="tick" text-anchor="start">0</text>
+<line x1="243.6" y1="156" x2="243.6" y2="948" class="grid"/>
+<text x="243.6" y="964" class="tick" text-anchor="middle">50</text>
+<line x1="289.1" y1="156" x2="289.1" y2="948" class="grid"/>
+<text x="289.1" y="964" class="tick" text-anchor="middle">100</text>
+<line x1="334.7" y1="156" x2="334.7" y2="948" class="grid"/>
+<text x="334.7" y="964" class="tick" text-anchor="middle">150</text>
+<line x1="198.0" y1="156" x2="198.0" y2="948" class="base"/>
+<text x="426.7" y="978" class="tick" text-anchor="end">tok/s</text>
 <path d="M198.0,186.0H280.6A4,4 0 0 1 284.6,190.0V194.0A4,4 0 0 1 280.6,198.0H198.0Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 1 at once, class S, llama.cpp: 95.0 tok/s</title></path>
 <text x="290.6" y="197.0" class="value">95.0</text>
 <path d="M198.0,202.0H276.1A4,4 0 0 1 280.1,206.0V210.0A4,4 0 0 1 276.1,214.0H198.0Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 1 at once, class S, Ollama: 90.1 tok/s</title></path>
@@ -102,15 +102,34 @@
 <path d="M198.0,730.0H235.2A4,4 0 0 1 239.2,734.0V738.0A4,4 0 0 1 235.2,742.0H198.0Z" fill="#eb6834"><title>PC RTX 4060 Ti 8 GB, 8 at once, class S, Ollama: 45.2 tok/s (serialized)</title></path>
 <path d="M198.0,730.0H235.2A4,4 0 0 1 239.2,734.0V738.0A4,4 0 0 1 235.2,742.0H198.0Z" fill="url(#hatch)"/>
 <text x="245.2" y="741.0" class="value">45.2 serialized</text>
-<text x="450.7" y="766" class="tick" text-anchor="start">0</text>
-<line x1="496.2" y1="156" x2="496.2" y2="750" class="grid"/>
-<text x="496.2" y="766" class="tick" text-anchor="middle">50</text>
-<line x1="541.8" y1="156" x2="541.8" y2="750" class="grid"/>
-<text x="541.8" y="766" class="tick" text-anchor="middle">100</text>
-<line x1="587.3" y1="156" x2="587.3" y2="750" class="grid"/>
-<text x="587.3" y="766" class="tick" text-anchor="middle">150</text>
-<line x1="450.7" y1="156" x2="450.7" y2="750" class="base"/>
-<text x="679.3" y="780" class="tick" text-anchor="end">tok/s</text>
+<path d="M198.0,780.0H218.3A4,4 0 0 1 222.3,784.0V788.0A4,4 0 0 1 218.3,792.0H198.0Z" fill="#2a78d6"><title>PC GTX 1080 Ti 11 GB, 1 at once, class S, llama.cpp: 26.7 tok/s</title></path>
+<text x="228.3" y="791.0" class="value">26.7</text>
+<path d="M198.0,796.0H217.7A4,4 0 0 1 221.7,800.0V804.0A4,4 0 0 1 217.7,808.0H198.0Z" fill="#eb6834"><title>PC GTX 1080 Ti 11 GB, 1 at once, class S, Ollama: 26.0 tok/s</title></path>
+<text x="227.7" y="807.0" class="value">26.0</text>
+<path d="M198.0,824.0H223.4A4,4 0 0 1 227.4,828.0V832.0A4,4 0 0 1 223.4,836.0H198.0Z" fill="#2a78d6"><title>PC GTX 1080 Ti 11 GB, 2 at once, class S, llama.cpp: 32.3 tok/s</title></path>
+<text x="233.4" y="835.0" class="value">32.3</text>
+<path d="M198.0,840.0H218.0A4,4 0 0 1 222.0,844.0V848.0A4,4 0 0 1 218.0,852.0H198.0Z" fill="#eb6834"><title>PC GTX 1080 Ti 11 GB, 2 at once, class S, Ollama: 26.3 tok/s (serialized)</title></path>
+<path d="M198.0,840.0H218.0A4,4 0 0 1 222.0,844.0V848.0A4,4 0 0 1 218.0,852.0H198.0Z" fill="url(#hatch)"/>
+<text x="228.0" y="851.0" class="value">26.3 serialized</text>
+<path d="M198.0,868.0H226.2A4,4 0 0 1 230.2,872.0V876.0A4,4 0 0 1 226.2,880.0H198.0Z" fill="#2a78d6"><title>PC GTX 1080 Ti 11 GB, 4 at once, class S, llama.cpp: 35.3 tok/s</title></path>
+<text x="236.2" y="879.0" class="value">35.3</text>
+<path d="M198.0,884.0H217.7A4,4 0 0 1 221.7,888.0V892.0A4,4 0 0 1 217.7,896.0H198.0Z" fill="#eb6834"><title>PC GTX 1080 Ti 11 GB, 4 at once, class S, Ollama: 26.0 tok/s (serialized)</title></path>
+<path d="M198.0,884.0H217.7A4,4 0 0 1 221.7,888.0V892.0A4,4 0 0 1 217.7,896.0H198.0Z" fill="url(#hatch)"/>
+<text x="227.7" y="895.0" class="value">26.0 serialized</text>
+<path d="M198.0,912.0H227.7A4,4 0 0 1 231.7,916.0V920.0A4,4 0 0 1 227.7,924.0H198.0Z" fill="#2a78d6"><title>PC GTX 1080 Ti 11 GB, 8 at once, class S, llama.cpp: 37.0 tok/s</title></path>
+<text x="237.7" y="923.0" class="value">37.0</text>
+<path d="M198.0,928.0H217.5A4,4 0 0 1 221.5,932.0V936.0A4,4 0 0 1 217.5,940.0H198.0Z" fill="#eb6834"><title>PC GTX 1080 Ti 11 GB, 8 at once, class S, Ollama: 25.8 tok/s (serialized)</title></path>
+<path d="M198.0,928.0H217.5A4,4 0 0 1 221.5,932.0V936.0A4,4 0 0 1 217.5,940.0H198.0Z" fill="url(#hatch)"/>
+<text x="227.5" y="939.0" class="value">25.8 serialized</text>
+<text x="450.7" y="964" class="tick" text-anchor="start">0</text>
+<line x1="496.2" y1="156" x2="496.2" y2="948" class="grid"/>
+<text x="496.2" y="964" class="tick" text-anchor="middle">50</text>
+<line x1="541.8" y1="156" x2="541.8" y2="948" class="grid"/>
+<text x="541.8" y="964" class="tick" text-anchor="middle">100</text>
+<line x1="587.3" y1="156" x2="587.3" y2="948" class="grid"/>
+<text x="587.3" y="964" class="tick" text-anchor="middle">150</text>
+<line x1="450.7" y1="156" x2="450.7" y2="948" class="base"/>
+<text x="679.3" y="978" class="tick" text-anchor="end">tok/s</text>
 <path d="M450.7,186.0H481.6A4,4 0 0 1 485.6,190.0V194.0A4,4 0 0 1 481.6,198.0H450.7Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 1 at once, class M, llama.cpp: 38.3 tok/s</title></path>
 <text x="491.6" y="197.0" class="value">38.3</text>
 <path d="M450.7,202.0H472.7A4,4 0 0 1 476.7,206.0V210.0A4,4 0 0 1 472.7,214.0H450.7Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 1 at once, class M, Ollama: 28.6 tok/s</title></path>
@@ -132,15 +151,19 @@
 <text x="458.7" y="644.0" class="note">not measured</text>
 <text x="458.7" y="688.0" class="note">not measured</text>
 <text x="458.7" y="732.0" class="note">not measured</text>
-<text x="703.3" y="766" class="tick" text-anchor="start">0</text>
-<line x1="748.9" y1="156" x2="748.9" y2="750" class="grid"/>
-<text x="748.9" y="766" class="tick" text-anchor="middle">50</text>
-<line x1="794.4" y1="156" x2="794.4" y2="750" class="grid"/>
-<text x="794.4" y="766" class="tick" text-anchor="middle">100</text>
-<line x1="840.0" y1="156" x2="840.0" y2="750" class="grid"/>
-<text x="840.0" y="766" class="tick" text-anchor="middle">150</text>
-<line x1="703.3" y1="156" x2="703.3" y2="750" class="base"/>
-<text x="932.0" y="780" class="tick" text-anchor="end">tok/s</text>
+<text x="458.7" y="798.0" class="note">does not fit</text>
+<text x="458.7" y="842.0" class="note">skipped</text>
+<text x="458.7" y="886.0" class="note">skipped</text>
+<text x="458.7" y="930.0" class="note">skipped</text>
+<text x="703.3" y="964" class="tick" text-anchor="start">0</text>
+<line x1="748.9" y1="156" x2="748.9" y2="948" class="grid"/>
+<text x="748.9" y="964" class="tick" text-anchor="middle">50</text>
+<line x1="794.4" y1="156" x2="794.4" y2="948" class="grid"/>
+<text x="794.4" y="964" class="tick" text-anchor="middle">100</text>
+<line x1="840.0" y1="156" x2="840.0" y2="948" class="grid"/>
+<text x="840.0" y="964" class="tick" text-anchor="middle">150</text>
+<line x1="703.3" y1="156" x2="703.3" y2="948" class="base"/>
+<text x="932.0" y="978" class="tick" text-anchor="end">tok/s</text>
 <path d="M703.3,186.0H720.3A4,4 0 0 1 724.3,190.0V194.0A4,4 0 0 1 720.3,198.0H703.3Z" fill="#2a78d6"><title>PC RTX 3090 24 GB, 1 at once, class L, llama.cpp: 23.0 tok/s</title></path>
 <text x="730.3" y="197.0" class="value">23.0</text>
 <path d="M703.3,202.0H726.4A4,4 0 0 1 730.4,206.0V210.0A4,4 0 0 1 726.4,214.0H703.3Z" fill="#eb6834"><title>PC RTX 3090 24 GB, 1 at once, class L, Ollama: 29.7 tok/s</title></path>
@@ -164,6 +187,10 @@
 <text x="711.3" y="644.0" class="note">not measured</text>
 <text x="711.3" y="688.0" class="note">not measured</text>
 <text x="711.3" y="732.0" class="note">not measured</text>
+<text x="711.3" y="798.0" class="note">not measured</text>
+<text x="711.3" y="842.0" class="note">not measured</text>
+<text x="711.3" y="886.0" class="note">not measured</text>
+<text x="711.3" y="930.0" class="note">not measured</text>
 <text x="28" y="171" class="device">PC RTX 3090 24 GB</text>
 <text x="40" y="204.0" class="note">1 at once</text>
 <text x="40" y="248.0" class="note">2 at once</text>
@@ -181,5 +208,11 @@
 <text x="40" y="644.0" class="note">2 at once</text>
 <text x="40" y="688.0" class="note">4 at once</text>
 <text x="40" y="732.0" class="note">8 at once</text>
-<text x="28" y="796" class="foot">Hatched bars: the engine served the requests one after another, so the figure is not parallel throughput.</text>
+<line x1="28" y1="750" x2="932" y2="750" class="row"/>
+<text x="28" y="765" class="device">PC GTX 1080 Ti 11 GB</text>
+<text x="40" y="798.0" class="note">1 at once</text>
+<text x="40" y="842.0" class="note">2 at once</text>
+<text x="40" y="886.0" class="note">4 at once</text>
+<text x="40" y="930.0" class="note">8 at once</text>
+<text x="28" y="994" class="foot">Hatched bars: the engine served the requests one after another, so the figure is not parallel throughput.</text>
 </svg>

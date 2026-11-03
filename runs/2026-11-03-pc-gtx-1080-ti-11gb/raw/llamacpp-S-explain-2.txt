@@ -1,0 +1,38 @@
+### What the Code Does
+
+This code defines a function called `fib` that calculates the **Fibonacci sequence**.
+
+The Fibonacci sequence is a series of numbers where each number is the sum of the two preceding ones (e.g., 0, 1, 1, 2, 3, 5, 8...).
+
+Here is the logic in plain English:
+1.  **Base Cases**: If you ask for `fib(0)` or `fib(1)`, it simply returns `0` or `1` immediately.
+2.  **Recursive Step**: If you ask for any other number (like `fib(5)`), it tells the function to calculate `fib(4)` and `fib(3)`, add them together, and return the result.
+
+**Example:**
+To find `fib(5)`:
+- It needs `fib(4)` and `fib(3)`.
+- To find `fib(4)`, it needs `fib(3)` and `fib(2)`.
+- To find `fib(3)`, it needs `fib(2)` and `fib(1)`.
+- ...and so on.
+
+### Why It Is Faster Than Calling It Without the Cache
+
+Without the cache, this function is incredibly slow because it **re-calculates the same numbers over and over again**.
+
+#### Scenario A: Without the Cache (The Slow Way)
+Imagine you want to calculate `fib(10)`.
+- The function calls `fib(9)` and `fib(8)`.
+- To get `fib(9)`, it calls `fib(8)` and `fib(7)`.
+- **Crucial Point**: It just calculated `fib(8)` a moment ago, but it calculates it **again** for `fib(9)`.
+- This creates a massive "tree" of repeated calculations. For `fib(10)`, you might do the math for `fib(5)` dozens of times. As `n` gets larger, the time it takes to explode exponentially.
+
+#### Scenario B: With the Cache (The Fast Way)
+The `@lru_cache(maxsize=None)` decorator acts like a **smart notebook**.
+- Every time the function `fib` is called with a specific number (e.g., `fib(5)`), it checks the notebook first.
+- **If the answer is already there**: It grabs the answer instantly and returns it without doing any math.
+- **If the answer is NOT there**: It calculates the answer, writes it down in the notebook, and then returns it.
+
+**The Result:**
+When calculating `fib(10)` with the cache:
+1. It calculates `fib(5)` and saves it.
+2. Later, when `fib(5)` is needed again, it finds the

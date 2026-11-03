@@ -1,0 +1,30 @@
+Let the two numbers be $x$ and $y$.
+We are given the following system of equations:
+1. $x + y = 58$
+2. $x - y = 14$
+
+To find the product $x \cdot y$, we can first solve for $x$ and $y$.
+Adding the two equations together:
+$(x + y) + (x - y) = 58 + 14$
+$2x = 72$
+$x = 36$
+
+Substituting $x = 36$ into the first equation:
+$36 + y = 58$
+$y = 58 - 36$
+$y = 22$
+
+Now, calculate the product of the two numbers:
+Product $= x \cdot y = 36 \cdot 22$
+
+Calculation:
+$36 \cdot 20 = 720$
+$36 \cdot 2 = 72$
+$720 + 72 = 792$
+
+Alternatively, using the algebraic identity $(x+y)(x-y) = x^2 - y^2$ is not directly the product, but we know $(x+y)^2 - (x-y)^2 = 4xy$.
+$58^2 - 14^2 = 3364 - 196 = 3168$
+$4xy = 3168$
+$xy = 3168 / 4 = 792$
+
+ANSWER: 792
