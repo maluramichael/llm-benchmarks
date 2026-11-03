@@ -1,8 +1,10 @@
 import contextlib
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from bench.config import Config, load_config
 
@@ -11,6 +13,63 @@ def write_toml(directory: str, text: str) -> str:
     path = Path(directory) / "bench.toml"
     path.write_text(text, encoding="utf-8")
     return str(path)
+
+
+class RelativePathTest(unittest.TestCase):
+    """Launchers cd into the repo; user given relative paths mean the user's directory."""
+
+    def load(self, argv, base, toml=None):
+        env = {"BENCH_CWD": str(base)}
+        with mock.patch.dict(os.environ, env):
+            return load_config(argv)[1]
+
+    def test_cli_paths_resolve_against_the_original_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            cfg = self.load(["run", "--output", "out", "--ollama-models-dir", "models/x",
+                             "--gguf", "S=ggufs/s.gguf", "--model-dir", "m",
+                             "--llama-server", "bin/llama-server", "--mirror", "mir"], base)
+        self.assertEqual(cfg.output, base / "out")
+        self.assertEqual(cfg.ollama_models_dir, base / "models" / "x")
+        self.assertEqual(cfg.gguf["S"], base / "ggufs" / "s.gguf")
+        self.assertEqual(cfg.model_dir, base / "m")
+        self.assertEqual(cfg.llama_server, base / "bin" / "llama-server")
+        self.assertEqual(cfg.mirror, str(base / "mir"))
+
+    def test_absolute_paths_urls_and_bare_commands_stay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            absolute = str(base / "abs")
+            cfg = self.load(["run", "--output", absolute, "--mirror", "https://example.org/m",
+                             "--llama-server", "llama-server"], base / "elsewhere")
+        self.assertEqual(cfg.output, Path(absolute))
+        self.assertEqual(cfg.mirror, "https://example.org/m")
+        self.assertEqual(cfg.llama_server, Path("llama-server"))
+
+    def test_default_output_is_not_touched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = self.load(["run"], Path(tmp))
+        self.assertEqual(cfg.output, Path("runs"))
+
+    def test_config_file_option_is_found_in_the_original_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            (base / "my.toml").write_text('reps = 7\noutput = "o"\n', encoding="utf-8")
+            cfg = self.load(["run", "--config", "my.toml"], base)
+        self.assertEqual(cfg.reps, 7)
+        self.assertEqual(cfg.output, Path("o"))  # paths inside the file stay as written
+
+    def test_without_launcher_variable_the_current_directory_is_used(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("BENCH_CWD", None)
+            _, cfg = load_config(["run", "--output", "o"])
+        self.assertEqual(cfg.output, Path.cwd() / "o")
+
+    def test_abort_if_busy_flag(self):
+        self.assertFalse(Config().abort_if_busy)
+        _, cfg = load_config(["run", "--abort-if-busy"])
+        self.assertTrue(cfg.abort_if_busy)
 
 
 class ConfigTest(unittest.TestCase):

@@ -104,6 +104,45 @@ class FindLeaksTest(unittest.TestCase):
                 self.assertEqual(find_leaks(path.read_text(encoding="utf-8"), SECRETS), [])
 
 
+class FindLeaksTask13Test(unittest.TestCase):
+    def test_loopback_is_not_a_leak(self):
+        text = "connect to http://127.0.0.1:11434/api/ps failed, [::1]:8080 and localhost:80"
+        self.assertEqual(find_leaks(text, SECRETS), [])
+
+    def test_other_addresses_next_to_loopback_are_still_leaks(self):
+        leaks = find_leaks("127.0.0.1 and 192.168.2.10", [])
+        self.assertEqual(len(leaks), 1, leaks)
+        self.assertIn("192.168.2.10", leaks[0])
+
+    def test_user_path_is_case_insensitive(self):
+        self.assertTrue(find_leaks(r"c:\users\bob\x", []))
+        self.assertTrue(find_leaks(r"C:\USERS\BOB\x", []))
+        self.assertTrue(find_leaks("/HOME/bob/x", []))
+        self.assertEqual(scrub(r"c:\users\bob\x", []), "<home>\\x")
+
+    def test_shared_profile_stays_clean_in_any_case(self):
+        self.assertEqual(find_leaks(r"c:\users\public\x", []), [])
+
+    def test_wsl_user_path(self):
+        leaks = find_leaks("/mnt/c/Users/bob/x.py", [])
+        self.assertEqual(len(leaks), 1, leaks)
+        self.assertIn("bob", leaks[0])
+        self.assertEqual(scrub("/mnt/d/Users/bob/x.py", []), "<home>/x.py")
+        self.assertEqual(find_leaks("/mnt/c/Users/Public/x", []), [])
+
+    def test_full_eight_group_ipv6(self):
+        self.assertTrue(find_leaks("addr 2001:db8:85a3:8d3:1319:8a2e:370:7348 end", []))
+        self.assertIn("<ip>", scrub("addr 2001:db8:85a3:8d3:1319:8a2e:370:7348 end", []))
+
+    def test_clock_times_are_not_ipv6(self):
+        self.assertEqual(find_leaks("started 2026-11-03T10:20:30Z, took 12:34:56", []), [])
+
+    def test_privacy_error_carries_the_leaks(self):
+        err = privacy.PrivacyError(["ip: 10.0.0.1"])
+        self.assertEqual(err.leaks, ["ip: 10.0.0.1"])
+        self.assertIn("10.0.0.1", str(err))
+
+
 class LocalSecretsTest(unittest.TestCase):
     def test_contains_host_user_and_home_in_both_spellings(self):
         with mock.patch.object(privacy.socket, "gethostname", return_value="Nero.example.lan"), \

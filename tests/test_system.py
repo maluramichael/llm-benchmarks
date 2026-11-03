@@ -264,6 +264,18 @@ class CollectSystemTest(unittest.TestCase):
                     info = system.collect_system()
                     self.assertEqual(sorted(info), sorted(KEYS))
 
+    def test_missing_working_directory_does_not_raise(self):
+        with mock.patch.object(system, "run_text", return_value=None), \
+                mock.patch.object(system, "list_gpus", return_value=[]), \
+                mock.patch.object(system, "read_text", return_value=None), \
+                mock.patch.object(system.Path, "cwd", side_effect=FileNotFoundError("gone")):
+            info = system.collect_system()
+        self.assertIsNone(info["disk_free_gb"])
+        self.assertEqual(sorted(info), sorted(KEYS))
+
+    def test_json_parser_strips_a_leading_bom(self):
+        self.assertEqual(system._json("\ufeff" + '{"a": 1}'), {"a": 1})
+
     def test_linux_collection_from_fixtures(self):
         texts = {"/proc/cpuinfo": None,
                  "/proc/meminfo": fixture("linux-meminfo.txt"),

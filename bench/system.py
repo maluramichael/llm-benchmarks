@@ -102,7 +102,7 @@ def _minutes_since(start: datetime | None, now: datetime | None) -> int | None:
 
 def _json(text: str | None):
     try:
-        return json.loads(text) if text else None
+        return json.loads(text.lstrip("\ufeff")) if text else None
     except (TypeError, ValueError):
         return None
 
@@ -400,7 +400,7 @@ def collect_system() -> dict:
         gpus = attempt(_merge_windows_gpus, gpus, cim_gpus) or gpus
     info["gpus"] = [asdict(g) for g in gpus]
     info["memory_for_models_gb"] = attempt(_memory_for_models_gb, gpus, info["ram_gb"])
-    usage = attempt(shutil.disk_usage, Path.cwd())
+    usage = attempt(lambda: shutil.disk_usage(Path.cwd()))
     info["disk_free_gb"] = gb(usage.free) if usage else None
     return info
 

@@ -21,15 +21,31 @@ MAC = "<mac>"
 _SHARED = {"public", "default", "all users", "shared", "default user"}
 _NAME = r"[^\\/\s\"'<>|:*?,;()\[\]{}]+"
 _USER_PATH = re.compile(
-    r"(?:[A-Za-z]:[\\/]+Users[\\/]+|(?<![\w.])/home/|(?<![\w.])/Users/)(?P<name>" + _NAME + ")")
+    r"(?:[A-Za-z]:[\\/]+Users[\\/]+|(?<![\w.])/mnt/[A-Za-z]/Users/"
+    r"|(?<![\w.])/home/|(?<![\w.])/Users/)(?P<name>" + _NAME + ")", re.IGNORECASE)
 _OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
 _IPV4 = re.compile(r"(?<![\d.])" + _OCTET + r"(?:\." + _OCTET + r"){3}(?![\d]|\.\d)")
 _IPV6 = re.compile(
     r"(?<![\w:])(?:[0-9A-Fa-f]{1,4}:){1,7}:(?:[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{1,4}){0,6})?(?![\w:])"
-    r"|(?<![\w:])::(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4}(?![\w:])")
+    r"|(?<![\w:])::(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4}(?![\w:])"
+    r"|(?<![\w:])(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}(?![\w:])")
 _MAC = re.compile(r"(?<![0-9A-Fa-f:-])(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}(?![0-9A-Fa-f:-])")
 # Names that are not worth redacting everywhere (too generic).
 _GENERIC_USERS = {"root"}
+
+
+class PrivacyError(RuntimeError):
+    """Personal data was found where it must not be published. `leaks` lists what."""
+
+    def __init__(self, leaks: list[str]):
+        self.leaks = list(leaks)
+        shown = "; ".join(self.leaks[:10])
+        more = f" (and {len(self.leaks) - 10} more)" if len(self.leaks) > 10 else ""
+        super().__init__(f"{len(self.leaks)} personal data finding(s): {shown}{more}")
+
+
+def _is_loopback(address: str) -> bool:
+    return address.startswith("127.") or address == "::1"
 
 
 def _is_shared(name: str) -> bool:
@@ -107,6 +123,8 @@ def find_leaks(text: str, secrets: list[str]) -> list[str]:
         leaks.setdefault(f"{kind}: {value}".lower(), f"{kind}: {value}")
 
     for secret in _secret_list(secrets):
+        if secret.lower() == "localhost":
+            continue  # engine errors name the local server; that says nothing about a person
         pattern = _path_pattern(secret) if _is_path(secret) else _word_pattern(secret)
         for match in pattern.finditer(text):
             report("secret", match.group(0))
@@ -114,9 +132,10 @@ def find_leaks(text: str, secrets: list[str]) -> list[str]:
         if not _is_shared(match.group("name")):
             report("user path", match.group(0))
     for match in _IPV4.finditer(text):
-        report("ip", match.group(0))
+        if not _is_loopback(match.group(0)):
+            report("ip", match.group(0))
     for match in _IPV6.finditer(text):
-        if _has_digit_ipv6(match):
+        if _has_digit_ipv6(match) and not _is_loopback(match.group(0)):
             report("ip", match.group(0))
     for match in _MAC.finditer(text):
         report("mac", match.group(0))

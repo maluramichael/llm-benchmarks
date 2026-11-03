@@ -3,6 +3,7 @@ import io
 import json
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -10,6 +11,7 @@ from unittest import mock
 import bench
 from bench.cli import main
 from bench.privacy import find_leaks, local_secrets
+from bench.store import ResultStore
 
 ROOT = Path(__file__).resolve().parent.parent
 COMMANDS = ["system", "doctor", "plan", "setup", "run", "report"]
@@ -28,14 +30,90 @@ class CliTest(unittest.TestCase):
         for command in COMMANDS:
             self.assertIn(command, out.getvalue())
 
-    def test_commands_not_implemented_yet(self):
-        for command in [c for c in COMMANDS if c != "system"]:
-            with self.subTest(command=command):
-                out = io.StringIO()
-                with contextlib.redirect_stdout(out):
-                    code = main([command])
-                self.assertEqual(code, 0)
-                self.assertIn("not implemented yet", out.getvalue())
+    def test_setup_is_not_implemented_yet(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = main(["setup"])
+        self.assertEqual(code, 0)
+        self.assertIn("not implemented yet", out.getvalue())
+
+    def run_main(self, argv, **patches):
+        out = io.StringIO()
+        with contextlib.ExitStack() as stack:
+            for target, value in patches.items():
+                stack.enter_context(mock.patch(target, value))
+            stack.enter_context(contextlib.redirect_stdout(out))
+            code = main(argv)
+        return code, out.getvalue()
+
+    def test_run_passes_the_config_and_returns_the_exit_code(self):
+        seen = []
+
+        def fake_run(cfg):
+            seen.append(cfg)
+            return 3
+        code, _ = self.run_main(["run", "--engines", "ollama", "--models", "S", "--yes"],
+                                **{"bench.cli.runner.run": fake_run})
+        self.assertEqual(code, 3)
+        self.assertEqual((seen[0].engines, seen[0].models, seen[0].yes), (["ollama"], ["S"], True))
+
+    def test_plan_prints_the_plan(self):
+        system = {"gpus": [{"index": 0, "name": "Test", "vram_total_mb": 24576}], "cpu": "x"}
+        entries = [{"engine": "ollama", "model": "S", "cls": "S", "quant": "Q4_K_M", "fits": True,
+                    "reason": "fits: needs 3 GB", "need_gb": 3.0, "available_gb": 24.0,
+                    "download_gb": 0.0, "needs_consent": False, "minutes_low": 3,
+                    "minutes_high": 9, "new": True, "notes": []}]
+        with tempfile.TemporaryDirectory() as tmp:
+            code, text = self.run_main(
+                ["plan", "--output", tmp],
+                **{"bench.cli.collect_system": lambda: system,
+                   "bench.cli.planning.make_plan": lambda cfg, sys_, store=None: entries})
+        self.assertEqual(code, 0)
+        self.assertIn("ollama", text)
+        self.assertIn("fits", text)
+        self.assertIn("3-9 min", text)
+
+    def test_doctor_shows_rows_and_findings(self):
+        rows = [{"check": "uptime", "status": "ok", "text": "up for 5 min"},
+                {"check": "processes", "status": "ok", "text": "fine", "detail": "x 1 MB"}]
+        finding = [{"kind": "gpu_busy", "text": "busy", "note": "n"}]
+        code, text = self.run_main(["doctor"], **{"bench.cli.safety.doctor": lambda cfg: rows,
+                                                  "bench.cli.preflight.check":
+                                                      lambda cfg, gpu: finding})
+        self.assertEqual(code, 0)
+        for expected in ("up for 5 min", "x 1 MB", "gpu_busy", "busy"):
+            self.assertIn(expected, text)
+
+    def test_report_renders_the_run_folder_given_as_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ResultStore(Path(tmp) / "results.json")
+            store.save("ollama/S/speed/warm", "ok", {"gen_tps": 42.5})
+            code, text = self.run_main(["report", "--output", tmp])
+            self.assertEqual(code, 0, text)
+            self.assertIn("42.5", (Path(tmp) / "README.md").read_text(encoding="utf-8"))
+
+    def test_report_finds_the_run_of_this_device(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "2026-11-03-pc-test"
+            ResultStore(folder / "results.json").save("ollama/S/speed/warm", "ok", {})
+            code, _ = self.run_main(["report", "--output", tmp, "--device", "PC Test"])
+            self.assertEqual(code, 0)
+            self.assertTrue((folder / "README.md").is_file())
+
+    def test_report_without_results_is_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, text = self.run_main(["report", "--output", tmp, "--device", "PC Test"])
+        self.assertEqual(code, 1)
+        self.assertIn("results.json", text)
+
+    def test_report_stops_on_personal_data_and_says_what(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ResultStore(Path(tmp) / "results.json")
+            store.set_section("notes", ["server at 192.168.2.10"])
+            code, text = self.run_main(["report", "--output", tmp])
+            self.assertEqual(code, 1)
+            self.assertIn("192.168.2.10", text)
+            self.assertFalse((Path(tmp) / "README.md").exists())
 
     def test_system_prints_scrubbed_json_with_device_name(self):
         info = {"os": "Test OS", "cpu": "Some CPU on nero", "gpus": [],
@@ -68,6 +146,22 @@ class CliTest(unittest.TestCase):
             with self.assertRaises(SystemExit) as raised:
                 main([])
         self.assertEqual(raised.exception.code, 2)
+
+    def test_launchers_hand_over_the_original_directory_before_the_cd(self):
+        sh = (ROOT / "bench.sh").read_text(encoding="utf-8")
+        self.assertLess(sh.index("BENCH_CWD="), sh.index('cd "$(dirname'))
+        self.assertIn("export BENCH_CWD", sh)
+        ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
+        self.assertLess(ps.index("$env:BENCH_CWD"), ps.index("uv run"))
+
+    def test_powershell_launcher_puts_back_what_it_changed(self):
+        ps = (ROOT / "bench.ps1").read_text(encoding="utf-8")
+        for name in ("BENCH_CWD", "UV_INSTALL_DIR", "UV_NO_MODIFY_PATH"):
+            self.assertIn(name, ps.split("finally", 1)[0].split("foreach", 1)[1])
+        finally_block = ps.split("} finally {", 1)[1]
+        self.assertIn("SetEnvironmentVariable", finally_block)
+        self.assertIn("Pop-Location", finally_block)
+        self.assertIn("Push-Location", ps)
 
     def test_bench_py_entry_point(self):
         result = subprocess.run(

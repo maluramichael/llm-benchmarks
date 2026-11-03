@@ -3,6 +3,10 @@
 # No admin rights, no PATH or shell profile changes.
 set -eu
 
+# Relative paths the user gives (--output, --mirror, ...) mean the directory bench was
+# started in, not the repository: hand it over before changing into the repository.
+BENCH_CWD="$(pwd)"
+export BENCH_CWD
 cd "$(dirname "$0")"
 
 if command -v uv >/dev/null 2>&1; then

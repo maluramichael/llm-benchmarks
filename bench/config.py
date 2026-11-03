@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -62,6 +63,7 @@ class Config:
     no_install: bool = False
     no_download: bool = False
     no_code_exec: bool = False
+    abort_if_busy: bool = False
     thinking: bool = False
     output: Path = Path("runs")
     # Repeating
@@ -201,6 +203,7 @@ CONVERTERS = {
     "no_install": _bool,
     "no_download": _bool,
     "no_code_exec": _bool,
+    "abort_if_busy": _bool,
     "thinking": _bool,
     "output": _path,
     "force": _bool,
@@ -277,6 +280,9 @@ def _common_options() -> argparse.ArgumentParser:
                       help="do not download models")
     flow.add_argument(_option("no_code_exec"), action="store_true", default=argparse.SUPPRESS,
                       help="skip smoke tasks that run model generated code")
+    flow.add_argument(_option("abort_if_busy"), action="store_true", default=argparse.SUPPRESS,
+                      help="end the run before it starts when another process uses the GPU "
+                           "or a foreign Ollama server is running (default: only warn)")
     flow.add_argument(_option("thinking"), action="store_true", default=argparse.SUPPRESS,
                       help="allow thinking mode")
     flow.add_argument(_option("output"), metavar="DIR", help="output directory (default: runs)")
@@ -313,12 +319,50 @@ def _read_toml(path: Path) -> dict:
         raise ConfigError(f"invalid TOML in {path}: {err}") from None
 
 
-def _apply(config: Config, values: dict, origin: str) -> None:
+PATH_FIELDS = ("ollama_models_dir", "model_dir", "output")
+COMMAND_FIELDS = ("ollama_bin", "llama_server", "llama_bench")
+
+
+def _absolute(path: Path, base: Path, command: bool = False) -> Path:
+    """`path` below `base` when it is relative. A bare command name (no directory part,
+    for example `llama-server`) stays as it is: it is looked up on PATH."""
+    text = str(path)
+    if path.is_absolute() or (command and "/" not in text and "\\" not in text):
+        return path
+    return Path(os.path.normpath(base / path))
+
+
+def _absolute_mirror(mirror: str, base: Path) -> str:
+    if "://" in mirror or Path(mirror).is_absolute() or mirror.startswith("\\\\"):
+        return mirror  # URL, absolute path or UNC share
+    return str(Path(os.path.normpath(base / mirror)))
+
+
+def _make_absolute(key: str, value, base: Path):
+    if key in PATH_FIELDS or key in COMMAND_FIELDS:
+        return _absolute(value, base, command=key in COMMAND_FIELDS)
+    if key == "gguf":
+        return {k: _absolute(v, base) for k, v in value.items()}
+    if key == "mirror":
+        return _absolute_mirror(value, base)
+    return value
+
+
+def launch_directory() -> Path:
+    """The directory the user started bench in. The launchers (bench.sh, bench.ps1) change
+    into the repository first and hand the original directory over in BENCH_CWD."""
+    return Path(os.environ.get("BENCH_CWD") or Path.cwd())
+
+
+def _apply(config: Config, values: dict, origin: str, base: Path | None) -> None:
+    """Set the values. Relative paths mean `base`: the user's directory for the command
+    line. Paths in a parameter file (base None) stay as written, relative to the repo."""
     for key, raw in values.items():
         if key not in CONVERTERS:
             raise ConfigError(f"unknown parameter {key!r} in {origin}")
         try:
-            setattr(config, key, CONVERTERS[key](raw))
+            value = CONVERTERS[key](raw)
+            setattr(config, key, value if base is None else _make_absolute(key, value, base))
         except ConfigError as err:
             raise ConfigError(f"{_option(key)} ({origin}): {err}") from None
 
@@ -334,12 +378,14 @@ def load_config(argv: list[str]) -> tuple[str, Config]:
     config_arg = args.pop("config", None)
 
     config = Config()
+    here = launch_directory()
     try:
         if config_arg is not None:
-            _apply(config, _read_toml(Path(config_arg)), config_arg)
+            file = _absolute(Path(config_arg), here)
+            _apply(config, _read_toml(file), config_arg, None)
         elif Path(DEFAULT_CONFIG_FILE).is_file():
-            _apply(config, _read_toml(Path(DEFAULT_CONFIG_FILE)), DEFAULT_CONFIG_FILE)
-        _apply(config, args, "command line")
+            _apply(config, _read_toml(Path(DEFAULT_CONFIG_FILE)), DEFAULT_CONFIG_FILE, None)
+        _apply(config, args, "command line", here)
     except ConfigError as err:
         parser.error(str(err))
     return command, config
